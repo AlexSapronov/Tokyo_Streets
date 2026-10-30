@@ -45,6 +45,65 @@ export const SECTORS = [
  {name:'Последняя перекладка',type:'corner',label:'S-связка',length:350,radius:58,slope:-.04,wet:.25,base:6},
  {name:'Огни у подножия',type:'straight',label:'Финишная прямая',length:420,radius:0,slope:-.02,wet:.05,base:7}
 ];
-export function sectorAt(index,weather='mixed') {
- const s={...SECTORS[index]}; s.wet=weather==='dry'?0:weather==='rain'?Math.min(1,s.wet+.55):s.wet; return s;
+// Routes are stylized layouts, not reconstructions of real roads.
+export const EVENTS = [
+  {
+    id: 'haruna', name: 'Haruna After Hours', title: 'Спуск Харуна',
+    region: 'GUNMA', japanese: '榛名山', mode: 'duel', theme: 'forest',
+    description: 'Первый ночной вызов. Узкие связки и мокрая шпилька.',
+    unlockStreet: 0, unlockRaces: 0, prize: 18000, participation: 7000,
+    rivalCar: 'chaser', rivalPilot: 'aki', rivalParts: [],
+    sectors: SECTORS,
+    anchors: [[0,0],[160,0],[260,110],[170,210],[-60,230],[-230,330],[-110,420],[130,430],[310,540],[180,650],[-70,670],[-260,790],[-160,900],[80,950],[250,1070],[100,1190]]
+  },
+  {
+    id: 'akagi', name: 'Akagi Red Line', title: 'Хребет Акаги',
+    region: 'GUNMA', japanese: '赤城山', mode: 'duel', theme: 'ridge',
+    description: 'Длинная дуэль: подъёмы, затяжные дуги и управление нагревом.',
+    unlockStreet: 12, unlockRaces: 0, prize: 26000, participation: 9000,
+    rivalCar: 'evo', rivalPilot: 'yui', rivalParts: ['brakes'],
+    sectors: [
+      {name:'Ворота хребта',type:'straight',label:'Подъём',length:420,radius:0,slope:.045,wet:.08},
+      {name:'Красная дуга',type:'corner',label:'Затяжной поворот',length:380,radius:95,slope:.025,wet:.18},
+      {name:'Мост над ущельем',type:'straight',label:'Прямая',length:480,radius:0,slope:-.02,wet:.3},
+      {name:'Внутренняя шпилька',type:'corner',label:'Шпилька',length:250,radius:28,slope:-.05,wet:.25},
+      {name:'Северная стена',type:'corner',label:'S-связка',length:370,radius:52,slope:-.045,wet:.45},
+      {name:'Плато',type:'straight',label:'Короткая прямая',length:300,radius:0,slope:0,wet:.1},
+      {name:'След дождя',type:'corner',label:'Мокрая шпилька',length:230,radius:25,slope:-.06,wet:.75},
+      {name:'Двойной левый',type:'corner',label:'S-связка',length:410,radius:62,slope:-.02,wet:.3},
+      {name:'Финишный вираж',type:'corner',label:'Быстрый поворот',length:320,radius:86,slope:-.02,wet:.12},
+      {name:'Огни города',type:'straight',label:'Финишная прямая',length:560,radius:0,slope:-.03,wet:.05}
+    ],
+    anchors:[[0,0],[220,30],[320,160],[120,240],[-160,240],[-300,380],[-60,460],[260,410],[310,570],[80,680],[-190,660],[-290,840],[-20,950],[200,900],[310,1080],[80,1200]]
+  },
+  {
+    id: 'tsukuba', name: 'Tsukuba Club Time Attack', title: 'Клубный день в Цукубе',
+    region: 'IBARAKI', japanese: '筑波', mode: 'timeattack', theme: 'circuit',
+    description: 'Официальная сессия на время. Чистая трасса, медали и свой призрак.',
+    unlockStreet: 0, unlockRaces: 2, prize: 16000, participation: 4500,
+    rivalCar: 'ae86', rivalPilot: 'ren', rivalParts: [],
+    sectors: [
+      {name:'Стартовая прямая',type:'straight',label:'Главная прямая',length:320,radius:0,slope:0,wet:.05},
+      {name:'Первый поворот',type:'corner',label:'Поворот 1',length:270,radius:52,slope:0,wet:.15},
+      {name:'Dunlop',type:'corner',label:'Быстрая связка',length:340,radius:85,slope:.01,wet:.12},
+      {name:'Вторая шпилька',type:'corner',label:'Шпилька',length:230,radius:28,slope:0,wet:.28},
+      {name:'Задняя прямая',type:'straight',label:'Длинная прямая',length:437,radius:0,slope:0,wet:.02},
+      {name:'Последний поворот',type:'corner',label:'Затяжная дуга',length:448,radius:120,slope:0,wet:.1}
+    ],
+    anchors:[[-240,50],[150,50],[320,180],[160,320],[-100,300],[-280,450],[-130,610],[150,580],[300,760],[180,900],[-150,950],[-330,800],[-350,400],[-240,50]]
+  }
+];
+export function getEvent(id = 'haruna') {
+  return EVENTS.find(event => event.id === id) || EVENTS[0];
+}
+export function sectorAt(index, weather = 'mixed', eventId = 'haruna') {
+  const original = getEvent(eventId).sectors[index];
+  if (!original) throw new Error('Сектор отсутствует');
+  const sector = {...original};
+  sector.wet = weather === 'dry' ? 0 : weather === 'rain' ? Math.min(1, sector.wet + .55) : sector.wet;
+  sector.mode = getEvent(eventId).mode;
+  return sector;
+}
+export function eventLength(event) {
+  return event.sectors.reduce((sum, sector) => sum + sector.length, 0);
 }

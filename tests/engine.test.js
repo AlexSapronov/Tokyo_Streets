@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CARS,PILOTS,CARDS,sectorAt} from '../src/data.js';
-import {configuration,freshState,availableCards,disabledReason,simulate,chooseAI,createRace,resolveSector} from '../src/engine.js';
+import {configuration,freshState,availableCards,disabledReason,simulate,chooseAI,createRace,resolveSector,futureSectors} from '../src/engine.js';
 import {newCareer,validateSave,loadCareer,storeCareer,SAVE_KEY} from '../src/storage.js';
 const card=id=>CARDS.find(c=>c.id===id),cfg=configuration('ae86','ren');
-function run(config,weather,policy){let r=createRace(config,weather);while(!r.finished){const action=policy?policy(r):chooseAI(r.config,r.player,sectorAt(r.index,weather),r.player.time-r.opponent.time).card.id;r=resolveSector(r,action);}return r;}
+function run(config,weather,policy){let r=createRace(config,weather);while(!r.finished){const action=policy?policy(r):chooseAI(r.config,r.player,sectorAt(r.index,weather),r.player.time-r.opponent.time,futureSectors(r)).card.id;r=resolveSector(r,action);}return r;}
 test('same state and action give identical complete results',()=>{assert.deepEqual(run(cfg,'mixed'),run(cfg,'mixed'));});
 test('all cars and drivers complete every weather without invalid resources',()=>{
  for(const car of CARS)for(const pilot of PILOTS)for(const weather of ['dry','mixed','rain']){

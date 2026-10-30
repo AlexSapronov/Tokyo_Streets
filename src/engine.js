@@ -1,4 +1,4 @@
-import {CARS,PILOTS,CARDS,sectorAt} from './data.js';
+import {CARS,PILOTS,CARDS,sectorAt,getEvent} from './data.js';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function configuration(carId,pilotId,parts=[],condition=100){
  const car=CARS.find(c=>c.id===carId)||CARS[0],pilot=PILOTS.find(p=>p.id===pilotId)||PILOTS[0];
@@ -7,6 +7,7 @@ export function configuration(carId,pilotId,parts=[],condition=100){
 export function freshState(config){return {time:0,tires:100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{}};}
 export function availableCards(config){return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
+ if(sector.mode==='timeattack'&&(card.category==='Дуэль'||card.gap))return 'В одиночной сессии нет соперника';
  if(card.only==='corner'&&sector.type!=='corner')return 'Нужен поворот';
  if(card.only==='straight'&&sector.type!=='straight')return 'Нужна прямая';
  if(card.only==='wet'&&sector.wet<.35)return 'Нужно мокрое покрытие';
@@ -61,27 +62,102 @@ export function simulate(config,state,sector,card){
  if(has('lsd')&&card.id==='power')reasons.push('CUSCO LSD: лучше реализация тяги');
  return {time,next,risk,slip,speed:exit*3.6,gain:baseTime-time,reasons};
 }
-export function chooseAI(config,state,sector,gap=0){
- return availableCards(config).filter(c=>!disabledReason(c,sector,state,config,gap)).map(card=>{
-  const result=simulate(config,state,sector,card);
-  const score=result.time+Math.max(0,70-result.next.focus)*.025+Math.max(0,result.next.heat-100)*.018+(100-result.next.tires)*.013;
-  return {card,result,score};
- }).sort((a,b)=>a.score-b.score)[0];
+// Three-sector beam search: resource decisions can pay off in the next two sectors.
+// Future positions are unknown, so future branches omit positional duel actions.
+export function chooseAI(config, state, sector, gap = 0, upcoming = []) {
+  const cards = availableCards(config);
+  const candidates = cards.filter(card => !disabledReason(card, sector, state, config, gap));
+  const resourcePrice = state => Math.max(0, 60 - state.focus) * .012
+    + Math.max(0, state.heat - 115) * .009 + (100 - state.tires) * .008;
+  const scored = candidates.map(card => {
+    const result = simulate(config, state, sector, card);
+    let beam = [{state: result.next, cost: result.time, plan: [card.name]}];
+    for (const nextSector of upcoming.slice(0, 2)) {
+      const expanded = [];
+      for (const node of beam) {
+        for (const action of cards) {
+          if (action.gap || disabledReason(action, nextSector, node.state, config)) continue;
+          const step = simulate(config, node.state, nextSector, action);
+          expanded.push({state: step.next, cost: node.cost + step.time, plan: [...node.plan, action.name]});
+        }
+      }
+      beam = expanded.sort((a,b) => a.cost + resourcePrice(a.state) - b.cost - resourcePrice(b.state)).slice(0, 5);
+    }
+    const best = beam[0];
+    return {card, result, score: best.cost + resourcePrice(best.state), plan: best.plan};
+  });
+  return scored.sort((a,b) => a.score - b.score)[0];
 }
-export function createRace(config,weather='mixed'){
- const rival=configuration('chaser','aki',[],100);
- return {config,rival,weather,index:0,player:freshState(config),opponent:freshState(rival),history:[],finished:false};
+export function futureSectors(race) {
+  return getEvent(race.eventId).sectors.slice(race.index + 1, race.index + 3)
+    .map((_, offset) => sectorAt(race.index + offset + 1, race.weather, race.eventId));
 }
-export function resolveSector(race,cardId){
- if(race.finished)throw new Error('Заезд уже завершён');
- const sector=sectorAt(race.index,race.weather),card=availableCards(race.config).find(c=>c.id===cardId);
- if(!card)throw new Error('Карта недоступна');
- const gap=race.player.time-race.opponent.time,reason=disabledReason(card,sector,race.player,race.config,gap);
- if(reason)throw new Error(reason);
- const ai=chooseAI(race.rival,race.opponent,sector,-gap),player=simulate(race.config,race.player,sector,card);
- // Defending costs the leader time and also delays a nearby pursuer, symmetrically.
- if(card.id==='defend'){ai.result.time+=.35;ai.result.next.time+=.35;}
- if(ai.card.id==='defend'){player.time+=.35;player.next.time+=.35;}
- const row={index:race.index,sector:sector.name,card:card.name,aiCard:ai.card.name,playerTime:player.time,aiTime:ai.result.time,gap:player.next.time-ai.result.next.time,risk:player.risk,speed:player.speed,slip:player.slip,reasons:player.reasons,tires:player.next.tires,heat:player.next.heat,focus:player.next.focus};
- return {...race,index:race.index+1,player:player.next,opponent:ai.result.next,history:[...race.history,row],finished:race.index===7};
+export function createRace(config, weather = 'mixed', eventId = 'haruna') {
+  const event = getEvent(eventId);
+  const rival = configuration(event.rivalCar, event.rivalPilot, event.rivalParts, 100);
+  return {config, rival, weather, eventId: event.id, mode: event.mode, index: 0,
+    player: freshState(config), opponent: freshState(rival), history: [], finished: false, awarded: false};
+}
+export function resolveSector(race, cardId) {
+  if (race.finished) throw new Error('Заезд уже завершён');
+  const event = getEvent(race.eventId);
+  const sector = sectorAt(race.index, race.weather, race.eventId);
+  const card = availableCards(race.config).find(card => card.id === cardId);
+  if (!card) throw new Error('Карта недоступна');
+  const gap = race.player.time - race.opponent.time;
+  const reason = disabledReason(card, sector, race.player, race.config, gap);
+  if (reason) throw new Error(reason);
+  const player = simulate(race.config, race.player, sector, card);
+  const ai = race.mode === 'duel'
+    ? chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race)) : null;
+  if (card.id === 'defend' && ai) { ai.result.time += .35; ai.result.next.time += .35; }
+  if (ai?.card.id === 'defend') {
+    player.time += .35; player.next.time += .35;
+    player.reasons.push('Соперник закрыл траекторию: +0.35 с');
+  }
+  const row = {index: race.index, sector: sector.name, cardId, card: card.name,
+    aiCard: ai?.card.name || '—', aiPlan: ai?.plan || [],
+    playerTime: player.time, aiTime: ai?.result.time ?? null,
+    gap: ai ? player.next.time - ai.result.next.time : null,
+    risk: player.risk, speed: player.speed, slip: player.slip, reasons: player.reasons,
+    tires: player.next.tires, heat: player.next.heat, focus: player.next.focus};
+  return {...race, index: race.index + 1, player: player.next,
+    opponent: ai?.result.next || race.opponent, history: [...race.history, row],
+    finished: race.index === event.sectors.length - 1};
+}
+
+// Medal targets are independent of the player's build: fixed stock reference runs
+// on the same route and weather. They are cached because weather is deterministic.
+const targetCache = new Map();
+export function medalTargets(eventId, weather) {
+  const key = eventId + ':' + weather;
+  if (targetCache.has(key)) return targetCache.get(key);
+  const baseline = carId => {
+    const config = configuration(carId, 'ren');
+    let state = freshState(config);
+    for (let i = 0; i < getEvent(eventId).sectors.length; i++) {
+      state = simulate(config, state, sectorAt(i, weather, eventId), CARDS[0]).next;
+    }
+    return state.time;
+  };
+  const gold = baseline('evo') * 1.015;
+  const silver = Math.max(gold + 1, baseline('chaser') * 1.015);
+  const bronze = Math.max(silver + 1, baseline('ae86') * 1.04);
+  const targets = {gold, silver, bronze};
+  targetCache.set(key, targets);
+  return targets;
+}
+export function raceOutcome(race) {
+  const event = getEvent(race.eventId);
+  if (race.mode === 'duel') {
+    const won = race.player.time < race.opponent.time;
+    return {won, medal: null, label: won ? 'Победа' : 'Без победы',
+      reward: won ? event.prize : event.participation, street: won ? 12 : 4, official: 0};
+  }
+  const targets = medalTargets(event.id, race.weather);
+  const medal = ['gold', 'silver', 'bronze'].find(level => race.player.time <= targets[level]) || null;
+  return {won: false, medal,
+    label: {gold: 'Золото', silver: 'Серебро', bronze: 'Бронза'}[medal] || 'Сессия завершена',
+    reward: {gold: 16000, silver: 10000, bronze: 6500}[medal] || event.participation,
+    street: 0, official: {gold: 12, silver: 7, bronze: 3}[medal] || 1};
 }
