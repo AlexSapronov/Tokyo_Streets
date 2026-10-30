@@ -106,6 +106,24 @@ export const EVENTS = [
   }
 ];
 EVENTS.push(EVENTS.shift());
+EVENTS.push({
+  id:'ebisu',name:'Ebisu Club Drift',title:'Эбису · искусство связки',region:'FUKUSHIMA',japanese:'エビス',
+  mode:'drift',theme:'driftpark',description:'Судейская сессия: две связки по четыре клипа. Линия, угол, скорость и непрерывность.',
+  unlockStreet:20,unlockRaces:0,prize:22000,participation:5500,rivalCar:'ae86',rivalPilot:'ren',rivalParts:[],
+  medals:{gold:710,silver:620,bronze:480},
+  sectors:[
+    {name:'Вход в южную дугу',type:'corner',label:'Инициация',phase:'init',clip:'Внешняя зона',length:110,radius:42,targetAngle:40,targetSpeed:68,direction:1,slope:0,wet:.12},
+    {name:'Удержание у ограждения',type:'corner',label:'Удержание',phase:'hold',clip:'Внешняя зона',length:150,radius:55,targetAngle:46,targetSpeed:74,direction:1,slope:0,wet:.18},
+    {name:'Левый клип',type:'corner',label:'Перекладка',phase:'transition',clip:'Внутренний клип',length:110,radius:40,targetAngle:42,targetSpeed:65,direction:-1,slope:0,wet:.25},
+    {name:'Выход к паддоку',type:'corner',label:'Выход',phase:'exit',clip:'Выходная зона',length:135,radius:70,targetAngle:18,targetSpeed:82,direction:-1,slope:0,wet:.08},
+    {name:'Вход в северную дугу',type:'corner',label:'Инициация',phase:'init',clip:'Внешняя зона',length:100,radius:38,targetAngle:54,targetSpeed:64,direction:-1,slope:0,wet:.25},
+    {name:'Длинная скользящая дуга',type:'corner',label:'Удержание',phase:'hold',clip:'Внешняя зона',length:180,radius:65,targetAngle:60,targetSpeed:79,direction:-1,slope:0,wet:.35},
+    {name:'Правая перекладка',type:'corner',label:'Перекладка',phase:'transition',clip:'Внутренний клип',length:115,radius:43,targetAngle:50,targetSpeed:68,direction:1,slope:0,wet:.2},
+    {name:'Финишный клип',type:'corner',label:'Выход',phase:'exit',clip:'Выходная зона',length:140,radius:75,targetAngle:20,targetSpeed:86,direction:1,slope:0,wet:.1}
+  ],
+  anchors:[[0,0],[220,80],[260,240],[20,310],[-260,330],[-300,530],[-80,620],[210,610],[300,800],[50,920],[-200,950],[-220,1140],[100,1200]]
+});
+
 export function getEvent(id = 'haruna') {
   return EVENTS.find(event => event.id === id) || EVENTS[0];
 }

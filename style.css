@@ -8,3 +8,6 @@
 /* Quarter mile */
 .drag-metrics{display:flex;flex-direction:column;gap:10px;margin-top:16px;font-size:11px;color:var(--muted)}.drag-metrics>span{display:flex;justify-content:space-between;gap:16px}.drag-metrics strong{font:11px var(--mono);color:var(--text)}.drag-metrics strong.negative{color:var(--red)}.drag-result{min-width:260px;padding:0 18px;border-left:1px solid var(--line)}.drag-result h3{margin:15px 0 6px}.event-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.report-hero{flex-wrap:wrap}.report-actions{max-width:350px}.card-type{white-space:nowrap}.card-cost{flex-wrap:wrap}
 @media(max-width:900px){.event-grid{grid-template-columns:1fr}.drag-result{padding:0;border-left:0;width:100%}}
+
+/* Drift judging */
+.drift-metrics{display:flex;flex-direction:column;gap:10px;margin-top:16px;font-size:11px;color:var(--muted)}.drift-metrics>span{display:flex;justify-content:space-between;gap:16px}.drift-metrics strong{font:12px var(--mono);color:var(--text)}.table-wrap td.positive small{color:var(--green)}.table-wrap td.negative small{color:var(--red)}

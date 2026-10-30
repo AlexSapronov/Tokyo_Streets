@@ -5,7 +5,7 @@ export const MODEL_VERSION = 3;
 export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
-  return [getEvent(eventId).mode==='drag'?'drag-1':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
+  return [getEvent(eventId).mode==='drift'?'drift-1':getEvent(eventId).mode==='drag'?'drag-1':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
     [...config.parts].sort().join(',') || 'stock'].join('|');
 }
 export function unlocked(event, career) {
@@ -25,14 +25,15 @@ export function raceRecord(race) {
     condition: race.config.condition, time: race.player.time,
     sectorTimes: race.history.map(row => row.playerTime),
     actions: race.history.map(row => row.cardId),
-    ...(race.mode==='drag'?{drag:structuredClone(race.player.drag)}:{})};
+    ...(race.mode==='drag'?{drag:structuredClone(race.player.drag)}:race.mode==='drift'?{drift:structuredClone(race.player.drift)}:{})};
 }
 export function awardRace(career, race) {
   if (!race.finished || race.awarded || race.runId && career.awardedRuns.includes(race.runId)) throw new Error('Этот заезд нельзя наградить повторно');
   const outcome = raceOutcome(race);
   const record = raceRecord(race);
   const previous = bestFor(career, race.config, race.eventId, race.weather);
-  const isBest = !race.player.drag?.falseStart && (!previous || record.time < previous.time);
+  const improved=!previous||(race.mode==='drift'?record.drift.score>previous.drift.score||record.drift.score===previous.drift.score&&record.time<previous.time:record.time<previous.time);
+  const isBest = !race.player.drag?.falseStart && improved;
   const next = structuredClone(career);
   next.money += outcome.reward;
   next.races++;
@@ -46,7 +47,7 @@ export function awardRace(career, race) {
   if (isBest) next.bests = [record, ...next.bests.filter(best => best.key !== record.key)].slice(0, 120);
   next.records.unshift({car: race.config.car.name, time: record.time, won: outcome.won,
     eventId: race.eventId, weather: race.weather, medal: outcome.medal,
-    ...(race.mode==='drag'?{falseStart:race.player.drag.falseStart}:{})});
+    ...(race.mode==='drag'?{falseStart:race.player.drag.falseStart}:race.mode==='drift'?{score:race.player.drift.score}:{})});
   next.records = next.records.slice(0, 30);
   // Preserve the legacy all-build Haruna statistic for old saves.
   if (race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);

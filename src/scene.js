@@ -1,3 +1,4 @@
+import {driftFrame} from './replay.js';
 import {CARS, getEvent} from './data.js';
 import {checkpointFractions, progressAtTime} from './progress.js';
 import {topVehicleSVG} from './vehicles.js';
@@ -99,7 +100,7 @@ export class Scene {
   renderBackground() {
     const c=this.background.getContext('2d'),w=this.w,h=this.h,s=this.scale;
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
-    const circuit=this.event.theme==='circuit'||this.event.theme==='dragstrip',ridge=this.event.theme==='ridge';
+    const circuit=['circuit','dragstrip','driftpark'].includes(this.event.theme),ridge=this.event.theme==='ridge';
     const bg=c.createLinearGradient(0,0,w,h);
     bg.addColorStop(0,circuit?'#263338':ridge?'#2b2939':'#152d2c');bg.addColorStop(1,'#101d23');
     c.fillStyle=bg;c.fillRect(0,0,w,h);
@@ -127,6 +128,15 @@ export class Scene {
         this.polygon(c,[[x,y],[x+45*s,y+11*s],[x+45*s,y-30*s],[x,y-41*s]],'#64716c');
         this.polygon(c,[[x-7*s,y-43*s],[x+38*s,y-32*s],[x+58*s,y-45*s],[x+12*s,y-56*s]],'#8a9a8b');
         c.fillStyle='#f5c784';c.fillRect(x+12*s,y-19*s,17*s,8*s);
+      }
+    }
+    if(this.event.theme==='driftpark'){
+      for(let i=0;i<this.event.sectors.length;i++){
+        const t=(this.checkpoints[i]+this.checkpoints[i+1])/2;
+        const [x,y]=road[Math.floor(t*800)];
+        c.strokeStyle='#ffbe7777';c.lineWidth=3*s;c.beginPath();c.arc(x,y,16*s,0,Math.PI*2);c.stroke();
+        this.polygon(c,[[x+24*s,y],[x+29*s,y-13*s],[x+34*s,y]],'#ec995c');
+        c.font='9px monospace';c.fillStyle='#dfbf8b';c.fillText('CLIP '+(i+1),x+37*s,y-5*s);
       }
     }
     if(this.event.theme==='dragstrip'){
@@ -166,10 +176,10 @@ export class Scene {
     const duration=this.motion.duration/(multiplier/this.speed);
     this.motion.started=now-fraction*duration;this.motion.duration=duration;this.speed=multiplier;
   }
-  drawCar(progress,lane,carId,label,ghost=false) {
+  drawCar(progress,lane,carId,label,ghost=false,yaw=0) {
     const n=Math.max(0,Math.min(799,Math.floor(progress*800))),point=this.project(...this.route[n]),next=this.project(...this.route[n+1]);
     const c=this.ctx,s=this.scale,a=Math.atan2(next[1]-point[1],next[0]-point[0]);
-    c.save();c.translate(point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s);c.rotate(a);
+    c.save();c.translate(point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s);c.rotate(a+yaw);
     c.globalAlpha=ghost?.4:1;
     if(!ghost){c.fillStyle='#050b1280';c.beginPath();c.ellipse(0,4*s,23*s,10*s,0,0,7);c.fill();}
     const sprite=this.sprites.get(carId);
@@ -177,7 +187,7 @@ export class Scene {
     if(!ghost){
       const beam=c.createLinearGradient(22*s,0,85*s,0);beam.addColorStop(0,'#fff3b23b');beam.addColorStop(1,'#fff3b200');
       this.polygon(c,[[22*s,-8*s],[85*s,-26*s],[85*s,26*s],[22*s,8*s]],beam);
-      if(this.motion&&(this.race.history.at(-1)?.slip>.05||this.race.history.at(-1)?.cardId==='drag-burnout')){c.fillStyle='#b1c3ba50';c.beginPath();c.ellipse(-32*s,0,13*s,7*s,0,0,7);c.fill();}
+      if(this.motion&&(this.race.history.at(-1)?.slip>.05||this.race.history.at(-1)?.cardId==='drag-burnout'||Math.abs(yaw)>.15)){c.fillStyle='#b1c3ba50';c.beginPath();c.ellipse(-32*s,0,13*s,7*s,0,0,7);c.fill();}
     }
     c.restore();c.save();c.font='bold 9px monospace';c.fillStyle=ghost?'#b0e1d5':label==='YOU'?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0],point[1]-(ghost?35:24)*s);c.restore();
   }
@@ -185,11 +195,12 @@ export class Scene {
     const c=this.ctx,w=this.w,h=this.h;
     c.setTransform(1,0,0,1,0,0);c.drawImage(this.background,0,0);c.setTransform(this.dpr,0,0,this.dpr,0,0);
     if(this.replayRecord){
-      this.drawCar(progressAtTime(this.replayRecord.sectorTimes,this.elapsed,this.event.id),-4,this.replayRecord.carId,'REPLAY');
+      const pose=driftFrame(this.replayRecord,this.elapsed);
+      this.drawCar(progressAtTime(this.replayRecord.sectorTimes,this.elapsed,this.event.id),-4,this.replayRecord.carId,'REPLAY',false,pose?.yaw||0);
     }else{
       const playerTimes=this.race.history.map(row=>row.playerTime);
-      if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true);
-      if(this.race.mode!=='timeattack'){
+      if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true,driftFrame(this.ghost,this.elapsed)?.yaw||0);
+      if(['duel','drag'].includes(this.race.mode)){
         const aiTimes=this.race.history.map(row=>row.aiTime);
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
         const total=aiTimes.reduce((sum,time)=>sum+time,0);
@@ -198,7 +209,8 @@ export class Scene {
         }
         this.drawCar(Math.min(1,progress),9,this.race.rival.car.id,'RIVAL');
       }
-      this.drawCar(progressAtTime(playerTimes,this.elapsed,this.event.id),-9,this.race.config.car.id,'YOU');
+      const pose=driftFrame({sectorTimes:playerTimes,drift:this.race.player.drift},this.elapsed);
+      this.drawCar(progressAtTime(playerTimes,this.elapsed,this.event.id),-9,this.race.config.car.id,'YOU',false,pose?.yaw||0);
     }
     if(this.race.weather!=='dry'){
       c.strokeStyle='#c0d9dc24';c.lineWidth=.8;

@@ -82,3 +82,21 @@ test('static environment is cached between frames and rebuilt on resize',()=>{
  assert.ok(!calls.some(call=>call[0]==='fillRect'),'background geometry must not redraw per frame');
  calls=[];observers[0].callback();assert.ok(calls.some(call=>call[0]==='fillRect'));scene.destroy();
 });
+test('solo drift draws yaw and its recorded ghost without inventing an AI car',t=>{
+ t.mock.method(performance,'now',()=>0);
+ const config=configuration('ae86','ren'),complete=finishRace(config,'dry','ebisu'),record=raceRecord(complete);
+ const scene=new Scene(canvas(),complete,record,true);calls=[];scene.draw();
+ assert.ok(calls.some(call=>call[0]==='rotate'&&Math.abs(call[1])>.1));
+ assert.ok(calls.some(call=>call[0]==='fillText'&&call[1]==='YOU'));
+ assert.ok(calls.some(call=>call[0]==='fillText'&&call[1]==='BEST'));
+ assert.ok(!calls.some(call=>call[0]==='fillText'&&call[1]==='RIVAL'));
+ scene.replay(record,1000);calls=[];scene.loop(250);
+ assert.ok(calls.some(call=>call[0]==='fillText'&&call[1]==='REPLAY'));scene.destroy();
+});
+test('drift replay with a spin remains finite through its full rotation',t=>{
+ t.mock.method(performance,'now',()=>0);
+ const config=configuration('chaser','aki'),complete=finishRace(config,'rain','ebisu');
+ const record=raceRecord(complete);record.drift.clips[0].spin=true;record.drift.clips[0].valid=false;
+ const scene=new Scene(canvas(),createRace(config,'rain','ebisu'));scene.replay(record,1000);
+ scene.loop(20);scene.loop(60);scene.loop(1000);assert.equal(scene.elapsed,record.time);scene.destroy();
+});

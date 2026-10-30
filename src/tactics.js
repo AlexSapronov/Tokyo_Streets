@@ -19,14 +19,14 @@ export function focusCost(config,state,card) {
 export function qualitativeForecast(config,state,sector,card,prediction) {
   const effect=repetitionEffect(state,card);
   const ratio=prediction.gain/Math.max(.001,prediction.time+prediction.gain);
-  const pace=sector.mode==='drag'
+  const pace=sector.mode==='drift'?(prediction.clip.spin?'Срыв связки':prediction.clip.points>=80?'Точная связка':prediction.clip.points>=55?'Рабочая линия':'Потеря качества'):sector.mode==='drag'
     ?sector.phase==='prep'?'Подготовка к старту':prediction.next.drag.falseStart?'Недействительный старт':'Реализация тяги'
     :ratio>.01?'Потенциал выигрыша':ratio<-.01?'Потеря темпа':'Ровный темп';
   const load=prediction.risk>.3?'Высокая':prediction.risk>.15?'Умеренная':'Низкая';
   const tireLoss=state.tires-prediction.next.tires;
   const wear=tireLoss>4?'Высокий':tireLoss>1.5?'Умеренный':'Низкий';
   const focus=prediction.next.focus>state.focus?'Восстановление':prediction.next.focus===state.focus?'Без расхода':state.focus-prediction.next.focus>20?'Высокий расход':'Умеренный расход';
-  const warning=prediction.next.drag?.falseStart?'Фальстарт: результат не будет засчитан.'
+  const warning=prediction.clip?.spin?'Нагрузка грозит разворотом и потерей клипа.':card.reset?'Стабилизация прервёт связку: клип без баллов.':prediction.next.drag?.falseStart?'Фальстарт: результат не будет засчитан.'
     :prediction.slip>.1?'Есть риск потери сцепления и темпа.'
     :state.heat>110?'Перегрев ограничивает исполнение.':'';
   return {pace,load,wear,focus,warning,
