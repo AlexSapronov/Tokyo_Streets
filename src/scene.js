@@ -99,7 +99,7 @@ export class Scene {
   renderBackground() {
     const c=this.background.getContext('2d'),w=this.w,h=this.h,s=this.scale;
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
-    const circuit=this.event.theme==='circuit',ridge=this.event.theme==='ridge';
+    const circuit=this.event.theme==='circuit'||this.event.theme==='dragstrip',ridge=this.event.theme==='ridge';
     const bg=c.createLinearGradient(0,0,w,h);
     bg.addColorStop(0,circuit?'#263338':ridge?'#2b2939':'#152d2c');bg.addColorStop(1,'#101d23');
     c.fillStyle=bg;c.fillRect(0,0,w,h);
@@ -128,6 +128,12 @@ export class Scene {
         this.polygon(c,[[x-7*s,y-43*s],[x+38*s,y-32*s],[x+58*s,y-45*s],[x+12*s,y-56*s]],'#8a9a8b');
         c.fillStyle='#f5c784';c.fillRect(x+12*s,y-19*s,17*s,8*s);
       }
+    }
+    if(this.event.theme==='dragstrip'){
+      const [x,y]=this.project(-115,20);
+      this.path(c,[[x,y],[x,y-85*s]],'#85948c',5*s);
+      for(let i=0;i<5;i++){c.beginPath();c.arc(x,y-(70-i*12)*s,4*s,0,7);c.fillStyle=i<3?'#efc979':i===3?'#92d6a1':'#c67066';c.fill();}
+      c.font='bold 10px monospace';c.fillStyle='#c0cbb8';c.fillText('402.336 m / QUARTER MILE',x-45*s,y+25*s);
     }
     for(let i=0;i<this.checkpoints.length;i++) {
       const point=road[Math.min(800,Math.floor(this.checkpoints[i]*800))];
@@ -171,7 +177,7 @@ export class Scene {
     if(!ghost){
       const beam=c.createLinearGradient(22*s,0,85*s,0);beam.addColorStop(0,'#fff3b23b');beam.addColorStop(1,'#fff3b200');
       this.polygon(c,[[22*s,-8*s],[85*s,-26*s],[85*s,26*s],[22*s,8*s]],beam);
-      if(this.motion&&this.race.history.at(-1)?.slip>.05){c.fillStyle='#b1c3ba50';c.beginPath();c.ellipse(-32*s,0,13*s,7*s,0,0,7);c.fill();}
+      if(this.motion&&(this.race.history.at(-1)?.slip>.05||this.race.history.at(-1)?.cardId==='drag-burnout')){c.fillStyle='#b1c3ba50';c.beginPath();c.ellipse(-32*s,0,13*s,7*s,0,0,7);c.fill();}
     }
     c.restore();c.save();c.font='bold 9px monospace';c.fillStyle=ghost?'#b0e1d5':label==='YOU'?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0],point[1]-(ghost?35:24)*s);c.restore();
   }
@@ -183,7 +189,7 @@ export class Scene {
     }else{
       const playerTimes=this.race.history.map(row=>row.playerTime);
       if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true);
-      if(this.race.mode==='duel'){
+      if(this.race.mode!=='timeattack'){
         const aiTimes=this.race.history.map(row=>row.aiTime);
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
         const total=aiTimes.reduce((sum,time)=>sum+time,0);

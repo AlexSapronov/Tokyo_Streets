@@ -48,6 +48,18 @@ export const SECTORS = [
 // Routes are stylized layouts, not reconstructions of real roads.
 export const EVENTS = [
   {
+    id:'yokohama',name:'Yokohama Quarter Mile',title:'Йокогама · 402 метра',region:'KANAGAWA',japanese:'横浜',
+    mode:'drag',theme:'dragstrip',description:'Закрытая клубная полоса. Прогрев, реакция, power band и последний рывок.',
+    unlockStreet:0,unlockRaces:3,prize:20000,participation:6000,rivalCar:'chaser',rivalPilot:'aki',rivalParts:['lsd'],
+    sectors:[
+      {name:'Предстартовая подготовка',type:'straight',label:'Подготовка',phase:'prep',length:0,radius:0,slope:0,wet:.1},
+      {name:'Зелёный · первые 60 ft',type:'straight',label:'Старт',phase:'launch',length:18.288,radius:0,slope:0,wet:.1},
+      {name:'Рабочий диапазон',type:'straight',label:'Переключения',phase:'shifts',length:281.712,radius:0,slope:0,wet:.1},
+      {name:'Последние 102 метра',type:'straight',label:'Финиш',phase:'finish',length:102.336,radius:0,slope:0,wet:.1}
+    ],
+    anchors:[[-170,0],[-70,300],[30,600],[130,900],[230,1200]]
+  },
+  {
     id: 'haruna', name: 'Haruna After Hours', title: 'Спуск Харуна',
     region: 'GUNMA', japanese: '榛名山', mode: 'duel', theme: 'forest',
     description: 'Первый ночной вызов. Узкие связки и мокрая шпилька.',
@@ -93,6 +105,7 @@ export const EVENTS = [
     anchors:[[-240,50],[150,50],[320,180],[160,320],[-100,300],[-280,450],[-130,610],[150,580],[300,760],[180,900],[-150,950],[-330,800],[-350,400],[-240,50]]
   }
 ];
+EVENTS.push(EVENTS.shift());
 export function getEvent(id = 'haruna') {
   return EVENTS.find(event => event.id === id) || EVENTS[0];
 }

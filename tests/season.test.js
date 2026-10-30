@@ -14,7 +14,7 @@ function complete(carId='ae86',pilotId='ren',weather='mixed',eventId='haruna') {
   }
   return race;
 }
-test('all 81 car/driver/weather/route configurations complete the actual sector count',()=>{
+test('all 108 car/driver/weather/route configurations complete the actual sector count',()=>{
   for(const event of EVENTS)for(const car of CARS)for(const pilot of PILOTS)for(const weather of ['dry','rain','mixed']){
     const race=complete(car.id,pilot.id,weather,event.id);
     assert.equal(race.history.length,event.sectors.length);
