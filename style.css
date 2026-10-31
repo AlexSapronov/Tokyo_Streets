@@ -58,3 +58,17 @@
 .race-recap ul{display:flex;flex-wrap:wrap;column-gap:24px;row-gap:4px;margin:0;padding-left:16px}
 .race-recap li{flex:1 1 290px;font-size:11px;line-height:1.45;color:var(--muted)}
 @media(min-width:1250px){#app[data-race-panel=report] .race-recap{margin:8px 0;padding:10px 14px}}
+
+/* Racing UI state: pre-grid controls disappear as soon as a run starts. */
+.event-controls.session-active{display:none}
+.session-context{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;min-width:0;text-align:right}
+.session-context span{color:var(--muted);font:10px var(--mono);letter-spacing:.6px}
+.session-context strong{font-size:13px;font-weight:600}
+.race-layout .rival-options{margin:0 0 12px}
+.race-layout .rival-options button{width:100%;text-align:left;display:flex;flex-direction:column;gap:4px}
+.race-layout .rival-options button span{font-size:10px;color:var(--muted)}
+.garage-player-note{margin-top:12px;padding:15px}
+.garage-player-note strong{font-size:13px}
+.garage-player-note p{font-size:11px;color:var(--muted);margin:5px 0 0}
+@media(min-width:1250px){.session-context{max-width:46vw}.event-controls.session-active+ .session-context{margin-left:auto}}
+@media(max-width:800px){.session-context{justify-content:flex-start;text-align:left}}
