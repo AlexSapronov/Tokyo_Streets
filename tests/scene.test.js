@@ -108,3 +108,11 @@ test('run-off stops both cars off the road without projecting a retired rival to
  assert.equal(poses.length,2);for(const pose of poses){assert.ok(pose[0]<1);assert.equal(Math.abs(pose[1]),38);assert.match(pose[3],/DNF/);}
  retired={...retired,history:[...retired.history,{...retired.history[0],aiTime:null}]};scene.race=retired;scene.draw();scene.destroy();
 });
+test('all drag formats keep paddock buildings off the racing strip while circuit scenery remains',()=>{
+ for(const event of EVENTS.filter(e=>e.mode==='drag'||e.theme==='circuit')){
+  const scene=new Scene(canvas(),createRace(configuration('ae86','ren'),'dry',event.id)),colors=[];
+  const polygon=scene.polygon.bind(scene);scene.polygon=(ctx,points,color)=>{colors.push(color);polygon(ctx,points,color);};
+  scene.renderBackground();assert.equal(colors.filter(color=>color==='#64716c').length,event.mode==='drag'?0:6);
+  scene.destroy();
+ }
+});

@@ -121,8 +121,8 @@ export class Scene {
         const near=this.route.some((point,k)=>k%10===0&&Math.hypot(point[0]-x,point[1]-y)<60);
         if(!near)this.tree(c,x,y,(Math.sin(i*43)+1)/2);
       }
-    } else {
-      // Paddock, pit building and grandstands.
+    } else if(this.event.theme!=='dragstrip') {
+      // Paddock scenery belongs to circuit layouts, not the drag racing lanes.
       for(let i=0;i<6;i++) {
         const [x,y]=this.project(-160+i*50,500);
         this.polygon(c,[[x,y],[x+45*s,y+11*s],[x+45*s,y-30*s],[x,y-41*s]],'#64716c');
