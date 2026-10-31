@@ -208,7 +208,12 @@ export function resolveSector(race, cardId) {
     ...(player.clip?{drift:player.clip}:{})};
   return {...race, index: race.index + 1, player: player.next,
     opponent: ai?.result.next || race.opponent, history: [...race.history, row],
-    finished: !!player.next.dnf || race.index === event.sectors.length - 1};
+    finished: isRaceFinished(player.next,ai?.result.next||race.opponent,race.index+1,event.sectors.length)};
+}
+
+// A duel ends as soon as either car is out. No more player cards are required.
+export function isRaceFinished(player,opponent,index,sectorCount){
+ return !!player?.dnf || !!opponent?.dnf || index >= sectorCount;
 }
 
 // A neutral Ren drives the exact healthy build through the shared physical model.
