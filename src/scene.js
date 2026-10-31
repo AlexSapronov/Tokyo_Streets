@@ -1,5 +1,4 @@
-import {lineFrame} from './racing-lines.js';
-import {driftFrame} from './replay.js';
+import {presentationRecord,presentationFrame} from './presentation.js';
 import {CARS, getEvent} from './data.js';
 import {checkpointFractions, progressAtTime} from './progress.js';
 import {topVehicleSVG} from './vehicles.js';
@@ -30,8 +29,8 @@ function routePoints(anchors) {
   });
 }
 export class Scene {
-  constructor(canvas, race, ghost = null, showGhost = true) {
-    this.canvas = canvas;
+  constructor(canvas, race, ghost = null, showGhost = true, sound = null) {
+    this.canvas = canvas;this.sound=sound;this.follow=false;
     this.ctx = canvas.getContext('2d');
     this.event = getEvent(race.eventId);
     this.route = routePoints(this.event.anchors);
@@ -58,7 +57,7 @@ export class Scene {
     this.frame = requestAnimationFrame(this.loop);
   }
   destroy() {
-    this.disposed = true;
+    this.disposed = true;this.sound?.stop();
     this.resize.disconnect();
     cancelAnimationFrame(this.frame);
   }
@@ -170,6 +169,7 @@ export class Scene {
     this.motion={from:0,to:record.time,started:performance.now(),duration};
   }
   setPaused(value) {
+    if(value)this.sound?.stop();
     if(value&&!this.paused)this.pauseAt=performance.now();
     if(!value&&this.paused&&this.motion)this.motion.started+=performance.now()-this.pauseAt;
     this.paused=value;
@@ -181,44 +181,68 @@ export class Scene {
     const duration=this.motion.duration/(multiplier/this.speed);
     this.motion.started=now-fraction*duration;this.motion.duration=duration;this.speed=multiplier;
   }
-  drawCar(progress,lane,carId,label,ghost=false,yaw=0,lineOffset=0) {
+  drawCar(progress,lane,carId,label,ghost=false,yaw=0,lineOffset=0,effects={}) {
     lane+=lineOffset;
     const n=Math.max(0,Math.min(799,Math.floor(progress*800))),point=this.project(...this.route[n]),next=this.project(...this.route[n+1]);
     const c=this.ctx,s=this.scale,a=Math.atan2(next[1]-point[1],next[0]-point[0]);
     c.save();c.translate(point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s);c.rotate(a+yaw);
     c.globalAlpha=ghost?.4:1;
     if(!ghost){c.fillStyle='#050b1280';c.beginPath();c.ellipse(0,4*s,23*s,10*s,0,0,7);c.fill();}
+    if(!ghost&&this.motion&&effects.marks>.03){
+      this.path(c,[[-45*s,-8*s],[-24*s,-8*s]],'#08101199',2*s);
+      this.path(c,[[-45*s,8*s],[-24*s,8*s]],'#08101199',2*s);
+    }
     const sprite=this.sprites.get(carId);
     if(sprite?.complete&&sprite.naturalWidth)c.drawImage(sprite,-29*s,-14*s,58*s,28*s);
     if(!ghost){
       const beam=c.createLinearGradient(22*s,0,85*s,0);beam.addColorStop(0,'#fff3b23b');beam.addColorStop(1,'#fff3b200');
       this.polygon(c,[[22*s,-8*s],[85*s,-26*s],[85*s,26*s],[22*s,8*s]],beam);
-      if(this.motion&&(this.race.history.at(-1)?.slip>.05||this.race.history.at(-1)?.cardId==='drag-burnout'||Math.abs(yaw)>.15)){c.fillStyle='#b1c3ba50';c.beginPath();c.ellipse(-32*s,0,13*s,7*s,0,0,7);c.fill();}
+      if(this.motion&&effects.braking){
+        c.fillStyle='#ff4b41';c.shadowColor='#ff3029';c.shadowBlur=10*s;c.fillRect(-26*s,-11*s,4*s,5*s);c.fillRect(-26*s,6*s,4*s,5*s);c.shadowBlur=0;
+      }
+      if(this.motion&&effects.smoke>.02){
+        c.fillStyle='#b1c3ba50';for(let i=0;i<3;i++){c.globalAlpha=(1-i*.25)*effects.smoke;c.beginPath();c.ellipse((-30-i*12)*s,Math.sin((effects.fraction||0)*5+i)*4*s,(10+i*3)*s,(5+i*2)*s,0,0,7);c.fill();}c.globalAlpha=1;
+      }
     }
-    c.restore();c.save();c.font='bold 9px monospace';c.fillStyle=ghost?'#b0e1d5':label==='YOU'?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0],point[1]-(ghost?35:24)*s);c.restore();
+    c.restore();c.save();c.font='bold 9px monospace';c.fillStyle=ghost?'#b0e1d5':label==='YOU'?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s-(ghost?35:24)*s);c.restore();
   }
   draw() {
     const c=this.ctx,w=this.w,h=this.h;
-    c.setTransform(1,0,0,1,0,0);c.drawImage(this.background,0,0);c.setTransform(this.dpr,0,0,this.dpr,0,0);
+    const cameraRecord=this.replayRecord||presentationRecord(this.race),cameraProgress=progressAtTime(cameraRecord.sectorTimes,this.elapsed,this.event.id);
+    const zoom=this.follow?2.4:1,center=this.project(...this.route[Math.min(800,Math.floor(cameraProgress*800))]);
+    const tx=Math.max(w*(1-zoom),Math.min(0,w*.6-center[0]*zoom)),ty=Math.max(h*(1-zoom),Math.min(0,h*.52-center[1]*zoom));
+    c.setTransform(this.dpr,0,0,this.dpr,0,0);c.drawImage(this.background,tx,ty,w*zoom,h*zoom);c.setTransform(this.dpr*zoom,0,0,this.dpr*zoom,this.dpr*tx,this.dpr*ty);
+    const visualRecord=this.replayRecord||presentationRecord(this.race),frame=presentationFrame(visualRecord,this.elapsed,this.event.id);
+    const moving=!!this.motion&&!this.paused&&!this.race.player.dnf;
+    this.sound?.update(frame,moving&&document.visibilityState!=='hidden');
+    this.onPresentation?.(frame,moving);
+    const direction=progress=>{
+      const n=Math.max(10,Math.min(790,Math.floor(progress*800))),a=this.route[n-10],b=this.route[n],d=this.route[n+10];
+      return Math.sign((b[0]-a[0])*(d[1]-b[1])-(b[1]-a[1])*(d[0]-b[0]))||1;
+    };
     if(this.replayRecord){
-      const pose=driftFrame(this.replayRecord,this.elapsed);
-      this.drawCar(progressAtTime(this.replayRecord.sectorTimes,this.elapsed,this.event.id),-4,this.replayRecord.carId,'REPLAY',false,pose?.yaw||lineFrame(this.replayRecord,this.elapsed).yaw,lineFrame(this.replayRecord,this.elapsed).offset);
+      const progress=progressAtTime(visualRecord.sectorTimes,this.elapsed,this.event.id),sign=direction(progress);
+      this.drawCar(progress,-4,this.replayRecord.carId,'REPLAY',false,frame.yaw*(this.event.mode==='drift'?1:sign),frame.lineOffset*sign+frame.position,frame);
     }else{
-      const playerTimes=this.race.history.map(row=>row.playerTime);
-      if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true,driftFrame(this.ghost,this.elapsed)?.yaw||lineFrame(this.ghost,this.elapsed).yaw,lineFrame(this.ghost,this.elapsed).offset);
+      const playerTimes=visualRecord.sectorTimes;
+      if(this.ghost&&this.showGhost){
+        const progress=progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),ghost=presentationFrame(this.ghost,this.elapsed,this.event.id);
+        this.drawCar(progress,0,this.ghost.carId,'BEST',true,ghost.yaw*(this.event.mode==='drift'?1:direction(progress)),ghost.lineOffset*direction(progress)+ghost.position);
+      }
       if(['duel','drag'].includes(this.race.mode)){
-        const aiTimes=this.race.history.map(row=>row.aiTime).filter(time=>time!==null);
+        const aiRecord=presentationRecord(this.race,true),aiTimes=aiRecord.sectorTimes;
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
         const total=aiTimes.reduce((sum,time)=>sum+time,0);
         if(!this.race.opponent.dnf&&aiTimes.length&&this.elapsed>total&&aiTimes.length<this.event.sectors.length){
           progress+=(this.elapsed-total)/aiTimes.at(-1)*(this.checkpoints[aiTimes.length+1]-this.checkpoints[aiTimes.length]);
         }
-        const aiLine=lineFrame({sectorTimes:aiTimes,lines:this.race.history.map(row=>row.aiLineId)},this.elapsed);
-        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':'RIVAL',false,this.race.opponent.dnf?.7:aiLine.yaw,aiLine.offset);
+        const ai=presentationFrame(aiRecord,this.elapsed,this.event.id);
+        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':'RIVAL',false,this.race.opponent.dnf?.7:ai.yaw*direction(progress),this.race.opponent.dnf?0:ai.lineOffset*direction(progress)-ai.position,ai);
       }
-      const pose=driftFrame({sectorTimes:playerTimes,drift:this.race.player.drift},this.elapsed),line=lineFrame({sectorTimes:playerTimes,lines:this.race.history.map(row=>row.lineId)},this.elapsed);
-      this.drawCar(Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id)),this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:pose?.yaw||line.yaw,line.offset);
+      const progress=Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id));
+      this.drawCar(progress,this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:frame.yaw*(this.event.mode==='drift'?1:direction(progress)),this.race.player.dnf?0:frame.lineOffset*direction(progress)+frame.position,frame);
     }
+    c.setTransform(this.dpr,0,0,this.dpr,0,0);
     if(this.race.weather!=='dry'){
       c.strokeStyle='#c0d9dc24';c.lineWidth=.8;
       for(let i=0;i<(this.race.weather==='rain'?100:35);i++){

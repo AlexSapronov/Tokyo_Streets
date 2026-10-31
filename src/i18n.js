@@ -5,6 +5,11 @@ const ru={
  'Заезд':'Заезд','Гараж':'Гараж','Тюнинг':'Тюнинг','Карьера':'Карьера','Чемпионаты':'Чемпионаты','Команда':'Команда'
 };
 const en={
+ 'Игрок / специализации':'Player / specializations','Твой стиль вождения':'Your driving style','Точность':'Precision','Контроль машины':'Car control','Выносливость':'Endurance','Гоночная борьба':'Racecraft',
+ 'Камера: ближе':'Camera: close','Камера: трасса':'Camera: course','♫ Звук: вкл':'♫ Sound: on','♫ Звук: выкл':'♫ Sound: off','Громкость':'Volume','Громкость звука':'Sound volume',
+ 'Перераспределить очки':'Redistribute points','Активировать':'Activate','Выключить':'Deactivate','Два направления уже активны':'Two specializations are already active','Максимальный ранг':'Maximum rank','К специализациям →':'Go to specializations →',
+ 'ТВОЙ СТИЛЬ':'YOUR STYLE','Без активных специализаций':'No active specializations',
+
  'Местные команды':'Local crews','Особые регламенты':'Special regulations','Испытательный стенд':'Test bench',
  'Классическая':'Classic line','Поздний апекс':'Late apex','Короткая внутренняя':'Tight inside line','Широкая дуга':'Wide arc',
  'Ровная дуга. Базовая длина и скорость выхода.':'Balanced arc with baseline distance and exit speed.',
