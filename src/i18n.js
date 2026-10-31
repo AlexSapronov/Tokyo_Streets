@@ -65,9 +65,9 @@ function translateText(text){
  if(exact!==undefined)return text.replace(trimmed,exact);
  // Whole-word expressions in generated status labels, not free-form replacement of save data.
  const replacements=[
-  [/кг\/л\\.с\\./g,'kg/hp'],[/л\\.с\\./g,'hp'],[/км\/ч/g,'km/h'],
+  [/кг\/л\.с\./g,'kg/hp'],[/л\.с\./g,'hp'],[/км\/ч/g,'km/h'],
   [/кг/g,'kg'],[/ПЕРЕД СТАРТОМ/g,'READY TO RACE'],
-  [/СЕКТОР\\s+(\\d+)/g,'SECTOR $1']
+  [/СЕКТОР\s+(\d+)/g,'SECTOR $1']
  ];
  let value=text;
  for(const [pattern,replacement] of replacements)value=value.replace(pattern,replacement);
