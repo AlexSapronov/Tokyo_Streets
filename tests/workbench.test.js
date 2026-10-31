@@ -104,7 +104,7 @@ test('player-only interface hides driver recruitment and JSON export while prese
  assert.ok(q('.report'));assert.equal(q('#export'),null);assert.ok(q('.race-recap'));
 });
 
-test('garage interface shows sorted prices and raster previews with SVG fallback',async t=>{
+test('garage interface sorts by price and displays HD previews for every model',async t=>{
  const {document:d}=await boot(t),q=s=>d.querySelector(s);
  q('[data-view=garage]').click();
  assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),
@@ -112,7 +112,8 @@ test('garage interface shows sorted prices and raster previews with SVG fallback
  assert.match(q('.garage-price-sort').textContent,/ЦЕНА/);
  assert.ok(q('.garage-car-detail .garage-render-ae86'));
  q('[data-garage-preview=rx7]').click();assert.ok(q('.garage-car-detail .garage-render-rx7'));
- q('[data-garage-preview=r32]').click();assert.ok(q('.garage-car-detail .vehicle-art svg'));
+ q('[data-garage-preview=r32]').click();assert.ok(q('.garage-car-detail .garage-render-r32'));
+ assert.equal(q('.garage-car-detail .vehicle-art svg'),null);
  q('[data-garage-preview=r34]').click();assert.ok(q('.garage-car-detail .garage-render-r34'));
  q('[data-garage-preview=chaser]').click();assert.ok(q('.garage-car-detail .garage-render-chaser'));
  q('[data-garage-preview=supra]').click();assert.ok(q('.garage-car-detail .garage-render-supra'));

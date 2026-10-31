@@ -77,22 +77,23 @@
    Preserve exact 4:3 cell proportions at both thumbnail and full preview sizes. */
 .garage-price-sort{padding:7px 13px 6px;font:10px var(--mono);letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--line)}
 .garage-price-sort span{color:var(--accent)}
-.garage-render{display:block;width:100%;aspect-ratio:4 / 3;background-image:url("assets/garage-cars-v1.webp");background-repeat:no-repeat;background-size:200% 300%}
-.garage-render-ae86{background-position:0 0}
-.garage-render-mx5{background-position:100% 0}
-.garage-render-s13{background-position:0 50%}
-.garage-render-rx7{background-position:100% 50%}
-.garage-render-evo{background-position:0 100%}
+
+/* High-definition gallery, one real 960×720 WebP per car.
+   The old 320px compressed atlases blurred on large garage preview panels. */
+.garage-render{display:block;width:100%;aspect-ratio:4 / 3;background-repeat:no-repeat;background-position:center;background-size:contain;image-rendering:auto}
+.garage-render-ae86{background-image:url("assets/garage-hd/ae86.webp")}
+.garage-render-mx5{background-image:url("assets/garage-hd/mx5.webp")}
+.garage-render-s13{background-image:url("assets/garage-hd/s13.webp")}
+.garage-render-rx7{background-image:url("assets/garage-hd/rx7.webp")}
+.garage-render-evo{background-image:url("assets/garage-hd/evo.webp")}
+.garage-render-chaser{background-image:url("assets/garage-hd/chaser.webp")}
+.garage-render-r32{background-image:url("assets/garage-hd/r32.webp")}
+.garage-render-r34{background-image:url("assets/garage-hd/r34.webp")}
+.garage-render-supra{background-image:url("assets/garage-hd/supra.webp")}
+.garage-render-ek9{background-image:url("assets/garage-hd/ek9.webp")}
+.garage-render-nsx{background-image:url("assets/garage-hd/nsx.webp")}
 .mini-car .garage-render{width:85px;height:63.75px;max-width:100%}
 .garage-car-detail .vehicle-art{display:flex;align-items:center;justify-content:center;overflow:hidden}
 .garage-car-detail .vehicle-art .garage-render{width:min(100%,480px);max-height:100%;flex:0 1 auto}
 .garage-car-detail .vehicle-art>svg{max-width:100%;height:100%}
 @media(max-width:800px){.garage-car-detail .vehicle-art .garage-render{max-width:293px}}
-
-/* Additional optimized garage portrait atlas (2×2); BNR34 is cell 6 in v1. */
-.garage-render-r34{background-position:100% 100%}
-.garage-render-chaser,.garage-render-supra,.garage-render-ek9,.garage-render-nsx{background-image:url("assets/garage-cars-v2.webp");background-size:200% 200%}
-.garage-render-chaser{background-position:0 0}
-.garage-render-supra{background-position:100% 0}
-.garage-render-ek9{background-position:0 100%}
-.garage-render-nsx{background-position:100% 100%}
