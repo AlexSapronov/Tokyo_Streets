@@ -93,7 +93,11 @@ function duelSummary(race,outcome,event,lang){
       facts.push(phrase(lang,'Пробуксовка на старте или разгоне съела часть тяги.',
         'Wheelspin reduced usable traction during the run.'));
     }
-  }else if(!isDrag)facts.push(...drivingFlags(rows,lang));
+  }else if(!isDrag){
+    const flags=drivingFlags(rows,lang);
+    // Preserve the deciding sector, but never bury a mechanical issue below the fold.
+    if(flags.length)facts.splice(Math.min(2,facts.length),0,...flags);
+  }
   return {title,lead,facts:[...new Set(facts)].slice(0,3)};
 }
 
