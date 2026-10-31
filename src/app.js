@@ -1,3 +1,6 @@
+import {benchDraft,normalizeBenchDraft,benchPart} from './bench.js';
+import {benchHTML} from './bench-view.js';
+import {specialCupsHTML} from './special-cups-view.js';
 import {getChallenge,previewChallenge,bookChallenge,challengeReason} from './rivals.js';
 import {rivalsHTML,challengeReportHTML} from './rivals-view.js';
 import {racingLinesHTML} from './racing-lines-view.js';
@@ -45,6 +48,7 @@ let career = loadCareer(storage);
 // A single playable driver for now; preserve legacy pilots and team contracts in the save for future updates.
 career.pilot='ren';career.control='personal';
 if (!unlocked(getEvent(career.eventId),career)) career.eventId = 'haruna';
+let trialBuild=null;
 let challengeIntent=null,selectedLine='neutral';
 let motorSelection={},garagePreview=null,garageDrive='all',seasonIntent=false,seriesDraft=defaultSeries(),seriesEditingId=null;
 let view = 'race', race = null, selected = 'balanced', filter = 'Все';
@@ -144,7 +148,7 @@ function renderRace() {
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
     ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Выбор приёма <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / CAREER & BALANCE 0.17</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / LINES, CREWS & WORKSHOP 0.18</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   document.querySelectorAll('[data-rival-level]').forEach(button=>button.onclick=()=>{if(race||replayRecord||seasonIntent)return;career.rivalLevel=button.dataset.rivalLevel;save();render();});
   $('#discipline-select').value=r.mode;$('#discipline-select').onchange=e=>{const routes=EVENTS.filter(item=>item.mode===e.target.value);const next=routes.find(item=>unlocked(item,career))||routes[0];career.eventId=next.id;race=null;save();render();};
   $('#weather').value=r.weather;$('#event-select').value=event.id;
@@ -328,9 +332,10 @@ function renderTuning(){
  app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">WORKSHOP / セッティング</div><h1>Тюнинг и настройки</h1></div><label>Твоя машина <select id="tuning-car" ${locked?'disabled':''}>${CARS.filter(c=>career.ownedCars.includes(c.id)).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></label></div>
  ${locked?'<div class="notice">Идёт заезд. Изменения доступны после его завершения или выхода.</div>':''}
  <section class="panel"><h2>${car().name} · ${raceClass(build).name} · ${getEngine(installedEngineId(career)).name}</h2><div class="specs"><div>${build.car.power}<small>Л.С.</small></div><div>${build.car.mass-(build.parts.includes('weight')?65:0)+(build.parts.includes('suspension')?8:0)}<small>КГ</small></div><div>${transmissionProfile(build).final.toFixed(2)}<small>ГЛАВНАЯ ПАРА</small></div></div><p class="micro">${build.parts.length} деталей · ${build.setup.pressure} бар · пружины ${build.setup.springRate}% · тормозной баланс ${build.setup.brakeBias}% вперёд</p></section>
- ${powertrainHTML(career,locked)}${maintenanceHTML(career,locked)}${engineerHTML(career,locked)}${setupControlsHTML(build,locked)}${presetsHTML(career,locked)}
+ ${benchHTML(career,trialBuild,locked)}${powertrainHTML(career,locked)}${maintenanceHTML(career,locked)}${engineerHTML(career,locked)}${setupControlsHTML(build,locked)}${presetsHTML(career,locked)}
  <nav class="tuning-nav" aria-label="Блоки тюнинга">${TUNING_GROUPS.map(group=>'<a href="#tuning-'+group.id+'">'+group.name+'</a>').join('')}</nav>${TUNING_GROUPS.map((group,index)=>`<section class="tuning-group" id="tuning-${group.id}" aria-labelledby="tuning-title-${group.id}"><header class="tuning-group-header"><div><span class="eyebrow">БЛОК ${String(index+1).padStart(2,'0')}</span><h3 id="tuning-title-${group.id}">${group.name}</h3><p>${group.description}</p></div><span class="badge">УСТАНОВЛЕНО ${group.parts.filter(id=>career.builds[career.car].includes(id)).length}</span></header><div class="parts-grid">${PARTS.filter(p=>group.parts.includes(p.id)).map(p=>{const owned=career.purchased[career.car].includes(p.id),equipped=career.builds[career.car].includes(p.id),blocked=partReason(career.car,p.id,installedEngineId(career));return `<article class="panel part"><div class="eyebrow">${p.type}</div><h3 style="margin-top:12px">${p.name}</h3><p>${p.desc}</p><span class="micro">${owned?'РЕСУРС '+career.wear[career.car][p.id].toFixed(1)+'%':money(p.price)}</span><button class="${equipped?'secondary':'primary'}" data-part="${p.id}" ${locked||blocked||!owned&&career.money<p.price?'disabled':''}>${blocked|| (equipped?'✓ Установлено · снять':owned?'Установить':'Купить и установить')}</button>${p.slot?'<span class="micro">СЛОТ '+(p.slot==='tires'?'ШИНЫ':'ГЛАВНАЯ ПАРА')+' · при установке заменяет текущую деталь этого слота</span>':''}</article>`;}).join('')}</div></section>`).join('')}`;
  mountPowertrain(app,motorSelection);
+ bindBench(locked);
  document.querySelectorAll('[data-engine-buy]').forEach(button=>button.onclick=()=>{const id=globalThis.crypto.randomUUID();motorSelection.spare=id;garageAction(()=>buyEngine(career,button.dataset.engineBuy,id,locked));});
  document.querySelectorAll('[data-engine-install]').forEach(button=>button.onclick=()=>garageAction(()=>installEngine(career,button.dataset.engineInstall,locked)));
  document.querySelectorAll('[data-engine-exchange]').forEach(button=>button.onclick=()=>garageAction(()=>exchangeEngines(career,button.dataset.engineExchange,locked)));
@@ -398,8 +403,9 @@ function renderWorld() {
   });
 }
 function renderSeasons(){
- const locked=!!race&&!race.finished;app.innerHTML=championshipHTML(career,config(),locked)+organizerHTML(career,seriesDraft,seriesEditingId,locked);
+ const locked=!!race&&!race.finished;app.innerHTML=championshipHTML(career,config(),locked)+specialCupsHTML(career,config(),locked)+organizerHTML(career,seriesDraft,seriesEditingId,locked);
  bindOrganizer(locked);
+ document.querySelectorAll('[data-special-enter]').forEach(button=>button.onclick=()=>garageAction(()=>enterCup(career,button.dataset.specialEnter,globalThis.crypto.randomUUID(),locked)));
  document.querySelectorAll('[data-cup-enter]').forEach(button=>button.onclick=()=>garageAction(()=>enterCup(career,button.dataset.cupEnter,globalThis.crypto.randomUUID(),locked)));
  if($('#season-prepare'))$('#season-prepare').onclick=()=>{try{career=prepareStage(career,locked);seasonIntent=true;challengeIntent=null;race=null;view='race';save();render();}catch(error){toast(error.message);}};
  if($('#season-withdraw'))$('#season-withdraw').onclick=()=>openModal('<h2>Покинуть кубок?</h2><p>Очки текущего сезона будут потеряны. Вступительный взнос не возвращается.</p><button id="confirm-withdraw" class="primary">Покинуть кубок</button><button class="secondary" data-close>Продолжить</button>',()=>{$('#confirm-withdraw').onclick=()=>{try{career=withdrawCup(career,locked);seasonIntent=false;save();$('#modal').close();render();}catch(error){toast(error.message);}};});
@@ -428,7 +434,7 @@ function openModal(html,setup) {
   setup?.();$('#modal').showModal();
 }
 function help() {
-  openModal(`<div class="eyebrow">TOKYO STREETS / CAREER & BALANCE 0.17</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии на подготовку машины, собери команду поддержки и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь команды».</p><ol>
+  openModal(`<div class="eyebrow">TOKYO STREETS / LINES, CREWS & WORKSHOP 0.18</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии на подготовку машины, собери команду поддержки и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь команды».</p><ol>
     <li><strong>Гараж.</strong> Выбери машину и проведи сервис. За рулём всегда ты. Во вкладке «Тюнинг» покупай детали и сохраняй давление, главную пару, пружины, тормозной баланс и прижим. Регулировки коробки, подвески и антикрыла требуют соответствующих деталей; настройки у каждой машины свои.</li>
     <li><strong>Событие.</strong> Харуна доступна сразу. Для Акаги нужно 12 Street Cred. После двух завершённых сессий открывается клубный Time Attack в Цукубе.</li>
     <li><strong>Тактика.</strong> Все карты открыты. Повтор активного приёма в последних шести решениях экспоненциально увеличивает нагрузку, износ и потерю темпа. Один промежуточный ход не сбрасывает штраф. Разнообразные действия постепенно выводят его из памяти. Базовый «Чистый темп» всегда остаётся без штрафа. Серые объясняют ограничения. Читай разведку маршрута, прогноз, шины, тормоза и концентрацию.</li>
@@ -503,4 +509,16 @@ function renderTeam(){
   document.querySelectorAll('[data-staff-dismiss]').forEach(button=>button.onclick=()=>teamAction(()=>dismissStaff(career,button.dataset.staffDismiss,locked)));
   document.querySelectorAll('[data-sponsor-accept]').forEach(button=>button.onclick=()=>teamAction(()=>acceptSponsor(career,button.dataset.sponsorAccept,globalThis.crypto?.randomUUID?.()||Date.now().toString(36),locked)));
   if($('[data-sponsor-cancel]'))$('[data-sponsor-cancel]').onclick=()=>teamAction(()=>cancelSponsor(career,locked));
+}
+
+function bindBench(locked){
+ if(locked||!$('#bench-event'))return;
+ trialBuild=normalizeBenchDraft(career,trialBuild||benchDraft(career));
+ const refresh=()=>{selectWorkspaceTab('tuning','bench');render();};
+ $('#bench-event').onchange=e=>{trialBuild.eventId=e.target.value;refresh();};
+ $('#bench-weather').onchange=e=>{trialBuild.weather=e.target.value;refresh();};
+ $('#bench-engine').onchange=e=>{trialBuild.engineId=e.target.value;trialBuild=normalizeBenchDraft(career,trialBuild);refresh();};
+ $('#bench-reset').onclick=()=>{trialBuild=benchDraft(career);refresh();};
+ document.querySelectorAll('[data-bench-part]').forEach(input=>input.onchange=()=>{trialBuild=benchPart(career,trialBuild,input.dataset.benchPart,input.checked);refresh();});
+ document.querySelectorAll('[data-bench-setup]').forEach(input=>input.onchange=()=>{trialBuild.setup[input.dataset.benchSetup]=Number(input.value);trialBuild=normalizeBenchDraft(career,trialBuild);refresh();});
 }

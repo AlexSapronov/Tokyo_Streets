@@ -5,6 +5,19 @@ const ru={
  'Заезд':'Заезд','Гараж':'Гараж','Тюнинг':'Тюнинг','Карьера':'Карьера','Чемпионаты':'Чемпионаты','Команда':'Команда'
 };
 const en={
+ 'Местные команды':'Local crews','Особые регламенты':'Special regulations','Испытательный стенд':'Test bench',
+ 'Классическая':'Classic line','Поздний апекс':'Late apex','Короткая внутренняя':'Tight inside line','Широкая дуга':'Wide arc',
+ 'Ровная дуга. Базовая длина и скорость выхода.':'Balanced arc with baseline distance and exit speed.',
+ 'Дольше в повороте, быстрее выход. Полезно перед прямой; на мокром нужна тяга.':'More corner time, faster exit. Useful before straights; wet exits need traction.',
+ 'Меньше путь, теснее дуга и медленнее выход. Полезна в тесной связке.':'Shorter distance, tighter radius and slower exit. Useful in tight sequences.',
+ 'Больше радиус и путь, выше нагрузка на шины. Полезна в быстрых поворотах.':'Wider radius and longer distance, with more tire wear. Useful in fast corners.',
+ 'СЕЙЧАС':'NOW','ДАЛЕЕ +1':'NEXT +1','ДАЛЕЕ +2':'NEXT +2',
+ 'Вернуть установленную сборку':'Reset to installed build','Пробные детали':'Trial hardware','Пробные настройки':'Trial setup',
+ 'Установлено → пробная сборка':'Installed → trial build','Пробная':'Trial','Показатель':'Metric','Разница':'Difference',
+ 'Пробный мотор':'Trial engine','Трасса':'Course','Покрытие':'Conditions',
+ 'Стенд доступен после завершения текущего заезда.':'The test bench is available after the current run ends.',
+ 'Сравнение по участкам':'Sector comparison','К свободным заездам':'Back to free races','К местным командам →':'Back to local crews →',
+
  'Заезд':'Race','Гараж':'Garage','Тюнинг':'Tuning','Карьера':'Career','Чемпионаты':'Championships','Команда':'Team',
  'НОЧНАЯ СМЕНА':'NIGHT SHIFT','Основная навигация':'Main navigation','Как играть':'How to play',
  'Загрузка Tokyo Streets…':'Loading Tokyo Streets…','Отладка':'Debug','Открыть всё':'Unlock all','Сбросить всё':'Reset progress',

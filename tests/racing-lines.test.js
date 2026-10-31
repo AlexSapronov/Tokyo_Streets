@@ -45,3 +45,12 @@ test('line recordings round-trip; old road records remain in the previous-model 
  const corrupt=structuredClone(result.career);corrupt.bests[0].lines[0]='bogus';assert.equal(validateSave(corrupt).bests.length,0);
  const pose=lineFrame({sectorTimes:[10],lines:['wide-exit']},5);assert.ok(pose.offset>0);assert.deepEqual(lineFrame({sectorTimes:[10]},5),{offset:0,yaw:0});
 });
+
+test('different continuations favor different lines, so wide arcs do not dominate every sequence',()=>{
+ const cfg=configuration('supra','ren'),state={...freshState(cfg),velocity:32};
+ function fastest(eventId,index){
+  const sector=sectorAt(index,'dry',eventId),following=sectorAt(index+1,'dry',eventId);
+  return RACING_LINES.map(line=>{const result=simulate(cfg,state,sector,lineCard(card,line.id));return {id:line.id,time:result.time+simulate(cfg,result.next,following,card).time};}).sort((a,b)=>a.time-b.time)[0].id;
+ }
+ assert.equal(fastest('hakone',1),'late-apex');assert.equal(fastest('haruna',2),'inside');assert.equal(fastest('haruna',1),'wide-exit');
+});

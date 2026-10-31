@@ -134,3 +134,13 @@ test('local crew selection locks the advertised opponent and race lines update t
  q('#execute').click();assert.equal(q('[data-line=inside]').disabled,true);callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
  assert.match(q('.last-sector').textContent,/Поздний апекс/);assert.ok(JSON.parse(values.get(SAVE_KEY)).rivals);
 });
+
+test('bench preview changes only the trial build and special series can register through their tab',async t=>{
+ const c=unlockEverything(newCareer());const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s),saved=()=>JSON.parse(values.get(SAVE_KEY));
+ q('[data-view=tuning]').click();q('[data-pane=bench]').click();assert.equal(q('#pane-tuning-bench').hidden,false);const before=saved();
+ const ecu=q('[data-bench-part=ecu]');ecu.checked=!ecu.checked;ecu.onchange();assert.match(q('#bench-result').textContent,/Пробная/);assert.deepEqual(saved(),before);
+ q('#bench-engine').value='ls3';q('#bench-engine').onchange({target:q('#bench-engine')});assert.deepEqual(saved(),before);
+ q('#bench-reset').click();assert.equal(q('#bench-engine').value,'4age');assert.deepEqual(saved(),before);
+ q('[data-view=seasons]').click();q('[data-pane=special]').click();assert.equal(d.querySelectorAll('[data-special-enter]').length,5);q('[data-special-enter=special-na]').click();assert.equal(saved().championships.active.cupId,'special-na');
+ q('#season-prepare').click();q('#start').click();q('[data-view=tuning]').click();q('[data-pane=bench]').click();assert.equal(q('#bench-event'),null);assert.match(q('.bench-panel').textContent,/после завершения/);
+});

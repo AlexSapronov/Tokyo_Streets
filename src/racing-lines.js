@@ -14,8 +14,8 @@ export function lineReason(id,sector){
 export function lineGeometry(id,sector,car){
  if(!id||id==='neutral')return {length:1,radius:1,exit:1,risk:0,wear:1};
  const powerWeight=car.power/car.mass;
- if(id==='late-apex')return {length:1.035,radius:.97,exit:1.09+Math.min(.05,powerWeight*.12),risk:.025+sector.wet*.025,wear:1.04};
- if(id==='inside')return {length:sector.radius<50?.91:.95,radius:.83,exit:.93,risk:.015,wear:1.08};
+ if(id==='late-apex')return {length:1.025,radius:1,exit:1.18+Math.min(.06,powerWeight*.2),risk:.025+sector.wet*.025,wear:1.04};
+ if(id==='inside')return {length:sector.radius<50?.88:.97,radius:.86,exit:.88,risk:.015,wear:1.08};
  if(id==='wide-exit')return {length:1.045,radius:1.14,exit:1.025,risk:.04+sector.wet*.045,wear:1.2};
  throw new Error('Неизвестная траектория');
 }

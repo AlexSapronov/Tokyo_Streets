@@ -129,7 +129,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(state.study)reasons.push('Изучение соперника: +1.5% реализации темпа');
  if(has('brakes')&&card.id==='late')reasons.push('Brembo: эффективнее поздний вход и меньше нагрев');
  if(has('lsd')&&card.id==='power')reasons.push('CUSCO LSD: лучше реализация тяги');
- return {time,next,risk,slip,speed:exit*3.6,gain:baseTime-time,reasons};
+ return {time,next,risk,slip,speed:(card.lineId&&card.lineId!=='neutral'?next.velocity:exit)*3.6,gain:baseTime-time,reasons};
 }
 export function simulate(config,state,sector,card,execution=null){
   const blocked=lineReason(card.lineId||'neutral',sector);if(blocked)throw new Error(blocked);
