@@ -2,14 +2,13 @@ import {playerConfiguration} from './player.js';
 import {SPECIAL_CUPS,specialRegulationReason} from './special-cups.js';
 import {installedEngineId} from './engine-data.js';
 import {seriesDefinition,organizerReason} from './organizer.js';
-import {bookSupport} from './operations.js';
+import {earnedStreet} from './workshop.js';
 import {CARS,getEvent,sectorAt} from './data.js';
-import {configuration,createRace,chooseAI,chooseRacingLine,simulate} from './engine.js';
+import {configuration,nominalConfiguration,createRace,chooseAI,chooseRacingLine,simulate} from './engine.js';
 import {freshDragState} from './drag.js';
 import {freshState} from './engine.js';
 import {hashSeed,executionRoll} from './execution.js';
 import {admissionReason,payoutScale,SERVICE_RATE} from './balance.js';
-import {beginManagedRace} from './manager.js';
 import {orderPolicy} from './ai-policy.js';
 export const CUPS=[
  {id:'club',name:'Night Shift · клубный кубок',tier:1,previous:null,races:3,street:12,fee:3000,maxPower:220,drives:['FR','FF'],naOnly:true,prizes:[18000,11000,6000,2000],budget:18000,
@@ -35,14 +34,14 @@ export function getCup(id,career){const definition=career?.championships?.active
 export function activeCup(state){return state?.definition||getCup(state?.cupId);}
 export function cupUnlockReason(career,cup){
  if(cup.custom)return organizerReason(career,cup);
- if(cup.special){if(career.races<cup.races)return 'Нужно '+cup.races+' финиша';const closed=cup.stages.find(([id])=>{const e=getEvent(id);return career.races<e.unlockRaces||career.street<e.unlockStreet;});if(closed)return 'Сначала открой трассу: '+getEvent(closed[0]).title;}
+ if(cup.special){if(career.races<cup.races)return 'Нужно '+cup.races+' финиша';const closed=cup.stages.find(([id])=>{const e=getEvent(id);return career.races<e.unlockRaces||earnedStreet(career)<e.unlockStreet;});if(closed)return 'Сначала открой трассу: '+getEvent(closed[0]).title;}
  if(cup.previous&&!career.championships?.completed?.includes(cup.previous))return 'Нужен подиум в предыдущем кубке';
- if(!cup.previous&&(career.races<cup.races||career.street<cup.street))return `Нужно ${cup.races} финишей и ${cup.street} Street Cred`;
+ if(!cup.previous&&(career.races<cup.races||earnedStreet(career)<cup.street))return `Нужно ${cup.races} финишей и ${cup.street} Street Cred`;
  return '';
 }
 export function regulationReason(config,cup){
  const special=specialRegulationReason(config,cup);if(special)return special;
- if(config.car.power>cup.maxPower)return `Лимит ${cup.maxPower} л.с. с учётом тюнинга`;
+ if(nominalConfiguration(config).car.power>cup.maxPower)return `Лимит ${cup.maxPower} л.с. исправной сборки с учётом тюнинга`;
  if(!cup.drives.includes(config.car.drive))return `Допуск: ${cup.drives.join(' / ')}`;
  if(cup.naOnly&&config.car.engine.includes('TURBO'))return 'Кубок только для атмосферных моторов';
  return '';
@@ -84,8 +83,8 @@ export function bookCupRace(career,runId){
  const reason=regulationReason(config,cup)||admissionReason(career,eventId);if(reason)throw new Error(reason);
  if(typeof runId!=='string'||!runId||runId.length>80||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
  let next={...career,eventId,weather},race;
- if(career.control!=='manager')Object.assign(config,playerConfiguration(config,career.player));
- if(career.control==='manager'){const started=beginManagedRace(next,eventId,weather,runId,null,true);next=started.career;race=started.race;}else{const support=bookSupport(next,eventId,runId);next=support.career;race=createRace(config,weather,eventId,runId);race.supportFee=support.fee;}
+ Object.assign(config,playerConfiguration(config,career.player));
+ next=structuredClone(next);next.control='personal';race=createRace(config,weather,eventId,runId);race.supportFee=0;
  const seed=hashSeed(`${state.attempt}:${state.stage}`),opponent=previewCupOpponent(career);
  race.seed=seed;race.rewardScale=payoutScale(career,eventId);race.rival=opponent.rival;race.rivalStyle=opponent.style;race.rivalName=opponent.name;
  race.opponent=race.mode==='drag'?freshDragState(race.rival):freshState(race.rival);
@@ -119,6 +118,8 @@ export function settleCup(career,race){
   if(npc.condition<minimumCondition(race.eventId))result={time:0,tires:100,dnf:{reason:'Технический недопуск',damage:0}};
   else if(opponent.id===tag.featuredId&&['duel','drag'].includes(race.mode))result=finishNpc(config,{...race.opponent,seasonSlip:race.history.reduce((n,row)=>n+(row.aiSlip||0),0)},race.eventId,race.weather,race.seed,'opponent',race.index,opponent.style);
   else{const initial=createRace(config,race.weather,race.eventId,null,race.seed).player;result=finishNpc(config,initial,race.eventId,race.weather,race.seed,'field-'+opponent.id,0,opponent.style);}
+  // NPC condition is the existing aggregate maintenance budget, including tires;
+  // unlike the player, NPCs have no second per-component repair invoice.
   npc.condition=Math.max(35,npc.condition-(result.dnf?.damage||0)-(100-result.tires)*.55-(result.seasonSlip||0)*.5);Object.assign(original,npc);rows.push(summarize(opponent.id,result));
  }
  rows.sort((a,b)=>Number(a.dnf||a.falseStart)-Number(b.dnf||b.falseStart)||(race.mode==='drift'?b.score-a.score:0)||a.time-b.time||a.id.localeCompare(b.id));

@@ -63,7 +63,7 @@ test('braking and attacks still heat brakes; hardware helps, engine tune does no
  assert.equal(simulate(engineHeat,state,corner,card('balanced')).next.heat,normal.next.heat);
  for(const car of CARS){const cfg=configuration(car.id,'ren',['slicks']);assert.ok(lap(cfg,'suzuka').heat<155);}
 });
-test('wear persists across actual finishes and reloads; v5 records stay archived',()=>{
+test('wear persists across actual finishes and reloads; previous road records stay archived',()=>{
  let career=unlockEverything(newCareer());career.car='r34';career.builds.r34=['slicks'];
  let first;
  for(let lap=0;lap<2;lap++){
@@ -71,15 +71,15 @@ test('wear persists across actual finishes and reloads; v5 records stay archived
   let race=createRace(cfg,'dry','suzuka',null,42);
   while(!race.finished)race=resolveSector(race,'balanced');
   assert.equal(race.player.dnf,undefined);assert.equal(race.history.length,12);
-  const record=raceRecord(race);assert.ok(record.key.startsWith('6|'));
+  const record=raceRecord(race);assert.ok(record.key.startsWith('7|'));
   career=settleWear(career,race);
-  const old={...record,key:record.key.replace(/^6\|/,'5|')};
+  const old={...record,key:record.key.replace(/^7\|/,'6|')};
   career=validateSave({...career,bests:[old]});
   assert.equal(career.bests[0].key,old.key);assert.equal(bestFor(career,cfg,'suzuka','dry'),null);
   assert.equal(career.wear.r34.slicks,race.player.tires);
   if(lap===0)first=race.player.tires;
   else assert.ok(race.player.tires<first&&race.player.tires>60);
  }
- assert.ok(recordKey(config,'yokohama','dry').startsWith('drag-2|'));
- assert.ok(recordKey(config,'ebisu','dry').startsWith('drift-2|'));
+ assert.ok(recordKey(config,'yokohama','dry').startsWith('drag-3|'));
+ assert.ok(recordKey(config,'ebisu','dry').startsWith('drift-3|'));
 });

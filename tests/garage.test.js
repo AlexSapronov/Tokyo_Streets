@@ -8,7 +8,7 @@ import {awardRace} from '../src/progress.js';
 import {finishRace,generator} from './helpers.js';
 for(const part of PARTS){
  test(`garage purchase/install/remove/reinstall / ${part.id}`,()=>{
-  const initial={...newCareer(),money:1e6,car:part.turboOnly?'chaser':'ae86',ownedCars:['ae86','chaser']},copy=structuredClone(initial),bought=togglePart(initial,part.id);
+  const initial={...preparedCareer(),money:1e6,car:part.turboOnly?'chaser':'ae86',ownedCars:['ae86','chaser']},copy=structuredClone(initial),bought=togglePart(initial,part.id);
   assert.deepEqual(initial,copy);assert.equal(bought.money,initial.money-part.price);
   assert.deepEqual(bought.purchased[initial.car],[part.id]);assert.deepEqual(bought.builds[initial.car],[part.id]);
   const removed=togglePart(bought,part.id);assert.deepEqual(removed.builds[initial.car],[]);assert.equal(removed.money,bought.money);
@@ -17,40 +17,40 @@ for(const part of PARTS){
  });
 }
 test('buying a car charges once and each car owns its equipment separately',()=>{
- let career={...newCareer(),money:200000};
+ let career={...preparedCareer(),money:200000};
  career=selectCar(career,'chaser');assert.equal(career.money,155000);
  const once=career.money;career=selectCar(career,'chaser');assert.equal(career.money,once);
  career=togglePart(career,'brakes');assert.deepEqual(career.builds.ae86,[]);assert.deepEqual(career.builds.chaser,['brakes']);
  career=selectCar(career,'ae86');const before=career.money;career=togglePart(career,'brakes');assert.equal(career.money,before-18000);
 });
 test('insufficient funds and unknown IDs cannot mutate money or inventory',()=>{
- const career={...newCareer(),money:0},copy=structuredClone(career);
+ const career={...preparedCareer(),money:0},copy=structuredClone(career);
  assert.throws(()=>selectCar(career,'evo'),/Недостаточно/);assert.throws(()=>togglePart(career,'tires'),/Недостаточно/);
  assert.throws(()=>selectCar(career,'invented'),/Неизвестный/);assert.throws(()=>togglePart(career,'invented'),/Неизвестная/);
  assert.throws(()=>selectPilot(career,'invented'),/Неизвестный/);assert.deepEqual(career,copy);
 });
 test('exact-balance purchases succeed and never create a negative wallet',()=>{
- const car=selectCar({...newCareer(),money:60000},'evo');assert.equal(car.money,0);
- const part=togglePart({...newCareer(),money:9000},'cooling');assert.equal(part.money,0);
+ const car=selectCar({...preparedCareer(),money:60000},'evo');assert.equal(car.money,0);
+ const part=togglePart({...preparedCareer(),money:9000},'cooling');assert.equal(part.money,0);
 });
 test('active race blocks all four garage transactions',()=>{
- const career=newCareer(),copy=structuredClone(career);
+ const career=preparedCareer(),copy=structuredClone(career);
  for(const action of [()=>selectCar(career,'chaser',true),()=>togglePart(career,'brakes',true),()=>selectPilot(career,'aki',true),()=>serviceCar(career,true)])assert.throws(action,/заезд/);
  assert.deepEqual(career,copy);
 });
 test('service charges the selected car only and a healthy car costs nothing',()=>{
- const career=newCareer();career.condition.ae86=60;career.condition.chaser=50;
+ const career=preparedCareer();career.condition.ae86=60;career.condition.chaser=50;
  assert.equal(serviceCost(career),18000);
  const repaired=serviceCar(career);assert.equal(repaired.money,0);assert.equal(repaired.condition.ae86,100);assert.equal(repaired.condition.chaser,50);
  assert.equal(serviceCar(repaired).money,repaired.money);
  const poor={...career,money:1};assert.throws(()=>serviceCar(poor),/Недостаточно/);assert.equal(poor.condition.ae86,60);
 });
 test('pilot switching is free and does not change the installed build',()=>{
- let career=togglePart(newCareer(),'lsd'),before=structuredClone(career);career=selectPilot(career,'yui');
+ let career=togglePart(preparedCareer(),'lsd'),before=structuredClone(career);career=selectPilot(career,'yui');
  assert.equal(career.money,before.money);assert.deepEqual(career.builds,before.builds);assert.equal(career.pilot,'yui');
 });
 test('seeded 150-transaction campaign preserves funds, build ownership, save roundtrips and repeat guards',()=>{
- const random=generator(7800);let career=newCareer();
+ const random=generator(7800);let career=preparedCareer();
  for(let index=0;index<150;index++){
   const previous=structuredClone(career),choice=Math.floor(random()*5);
   try{
@@ -69,3 +69,5 @@ test('seeded 150-transaction campaign preserves funds, build ownership, save rou
   assert.deepEqual(validateSave(career),career);
  }
 });
+
+function preparedCareer(){return {...newCareer(),street:60,streetPeak:60};}

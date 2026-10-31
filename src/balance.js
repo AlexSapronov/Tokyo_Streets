@@ -1,12 +1,16 @@
 import {tireKey} from './wear.js';
 import {installedEngineId} from './engine-data.js';
-import {partReason} from './tuning.js';
+import {partReason,tunedCar} from './tuning.js';
+import {engineCar} from './engine-data.js';
 import {CARS,EVENTS,PARTS,PILOTS} from './data.js';
 export const START_MONEY=18000;
 export const SERVICE_RATE=450;
 export function raceClass(config){
- const mass=config.car.mass-(config.parts.includes('weight')?65:0)+(config.parts.includes('suspension')?8:0);
- const rating=config.car.power/mass+(config.parts.includes('slicks')?.016:config.parts.includes('tires')?.012:config.parts.includes('wetTires')?.01:config.parts.includes('dragRadial')?.012:config.parts.includes('streetTires')?.005:0)+(config.parts.includes('suspension')?.005:0)+(config.parts.includes('lsd')?.006:0)+(config.parts.includes('aero')?.01:0)+(config.parts.includes('splitter')?.004:0)+(config.parts.includes('brace')?.002:0)+(config.parts.includes('pads')?.002:0);
+ // Class and payouts use the healthy installed build, never damage discounts.
+ const platform=CARS.find(c=>c.id===config.car.id);
+ const car=tunedCar(engineCar(platform,config.engineId),config.parts,config.setup);
+ const mass=car.mass-(config.parts.includes('weight')?65:0)+(config.parts.includes('suspension')?8:0);
+ const rating=car.power/mass+(config.parts.includes('slicks')?.016:config.parts.includes('tires')?.012:config.parts.includes('wetTires')?.01:config.parts.includes('dragRadial')?.012:config.parts.includes('streetTires')?.005:0)+(config.parts.includes('suspension')?.005:0)+(config.parts.includes('lsd')?.006:0)+(config.parts.includes('aero')?.01:0)+(config.parts.includes('splitter')?.004:0)+(config.parts.includes('brace')?.002:0)+(config.parts.includes('pads')?.002:0);
  return rating<.17?{id:'club',name:'CLUB',car:'ae86',reward:.8}:rating<.205?{id:'sport',name:'SPORT',car:'chaser',reward:1}: {id:'expert',name:'EXPERT',car:'evo',reward:1.2};
 }
 export function payoutScale(career,eventId){return Math.max(.5,1/(1+(career.eventCompletions?.[eventId]||0)*.12));}
@@ -16,7 +20,7 @@ export function admissionReason(career,eventId){
  return career.condition[career.car]<minimum?`Для старта нужно состояние машины от ${minimum}%. Доступен ремонт в гараже.`:'';
 }
 export function unlockEverything(career){
- const next=structuredClone(career);next.money=1000000;next.races=Math.max(20,next.races);next.street=Math.max(100,next.street);next.official=Math.max(100,next.official);next.repairDebt=0;
+ const next=structuredClone(career);next.money=1000000;next.races=Math.max(20,next.races);next.street=Math.max(100,next.street);next.official=Math.max(100,next.official);next.streetPeak=Math.max(next.streetPeak||0,next.street);next.repairDebt=0;
  next.championships??={active:null,history:[],completed:[]};next.championships.completed=['club','regional','masters','allstars','legends'];
  next.ownedCars=CARS.map(c=>c.id);
  for(const car of CARS){next.purchased[car.id]=PARTS.filter(p=>!partReason(car.id,p.id,installedEngineId(next,car.id))).map(p=>p.id);next.condition[car.id]=100;}
@@ -30,3 +34,10 @@ export function incidentPrice(chance,config,remaining=1){
 }
 
 export function rewardFactor(config,mode){return .55*raceClass(config).reward*(mode==='drag'?.45:1);}
+
+// Venue purses must match the world map and always reward a better medal.
+export function medalPrize(event,medal){
+ const bronze=Math.max(event.participation+1000,Math.round(event.prize*.4));
+ const silver=Math.max(bronze+1000,Math.round(event.prize*.65));
+ return {bronze,silver,gold:Math.max(silver+1000,event.prize)}[medal]??event.participation;
+}

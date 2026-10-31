@@ -1,3 +1,4 @@
+import {earnedStreet} from './workshop.js';
 import {CARS,EVENTS} from './data.js';
 export const MAX_SERIES=8;
 export const defaultSeries=()=>({name:'Моя клубная серия',kind:'official',maxPower:300,drives:['FR','FF','AWD','MR'],naOnly:false,pool:20000,stages:[['haruna','dry'],['tsukuba','mixed']]});
@@ -18,11 +19,10 @@ export function seriesDefinition(raw,id=raw?.id){
   roster:[['kei','Кэй Накамура','ren','balanced'],['rika','Рика Исикава','yui','safe'],['daichi','Дайти Сато','aki','attack']].map(([npc,name,pilot,style],i)=>[npc,name,cars[i%cars.length].id,pilot,style,['cooling','brakes']])};
 }
 export function organizerReason(career,series){
- if(!career.team.founded)return 'Сначала основать команду';
  if(career.races<8)return 'Нужно восемь финишей';
  if(series.kind==='official'&&career.official<24)return 'Для разрешения нужно 24 Official Rep';
- if(series.kind==='street'&&career.street<40)return 'Для закрытой встречи нужно 40 Street Cred';
- const closed=series.stages.find(([id])=>{const e=EVENTS.find(e=>e.id===id);return career.street<e.unlockStreet||career.races<e.unlockRaces;});
+ if(series.kind==='street'&&earnedStreet(career)<40)return 'Для закрытой встречи нужно 40 Street Cred';
+ const closed=series.stages.find(([id])=>{const e=EVENTS.find(e=>e.id===id);return earnedStreet(career)<e.unlockStreet||career.races<e.unlockRaces;});
  if(closed)return 'Сначала открой маршрут: '+EVENTS.find(e=>e.id===closed[0]).title;
  return '';
 }

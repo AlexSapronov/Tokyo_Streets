@@ -9,7 +9,7 @@ import {configuration,chooseAI,futureSectors,resolveSector} from '../src/engine.
 import {sectorAt} from '../src/data.js';
 import {awardRace} from '../src/progress.js';
 import {serviceCar,togglePart} from '../src/garage.js';
-import {hireStaff,acceptSponsor} from '../src/operations.js';
+import {hireStaff,acceptSponsor,supportCost} from '../src/operations.js';
 import {resolveManagedSector} from '../src/manager.js';
 import {championshipHTML,seasonReportHTML} from '../src/career-view.js';
 const id='custom-test';
@@ -31,9 +31,9 @@ test('editor rejects malformed names, regulations, calendar, funding and unknown
  for(const key of [null,'club','custom-','custom-'+('x'.repeat(65)),'custom-<script>'])assert.throws(()=>seriesDefinition(defaultSeries(),key));
  const s=project({name:'   Моя серия   '});assert.equal(s.name,'Моя серия');assert.equal(project({maxPower:150,pool:10000}).pool,10000);assert.equal(project({maxPower:500,pool:100000}).pool,100000);
 });
-test('permits depend on team, both reputation paths, finished races and open tracks',()=>{
- const official=project(),street=project({kind:'street'}),c=rich();assert.match(organizerReason(newCareer(),official),/команду/);assert.match(organizerReason({...c,races:7},official),/восемь/);assert.match(organizerReason({...c,official:23},official),/Official/);assert.match(organizerReason({...c,street:39},street),/Street/);
- assert.equal(organizerReason({...c,street:0},official),'');assert.match(organizerReason({...c,street:0},project({stages:[['akagi','dry'],['haruna','rain']]})),/маршрут/);
+test('permits depend on both reputation paths, finished races and open tracks',()=>{
+ const official=project(),street=project({kind:'street'}),c=rich();assert.match(organizerReason(newCareer(),official),/восемь/);assert.match(organizerReason({...c,races:7},official),/восемь/);assert.match(organizerReason({...c,official:23},official),/Official/);assert.match(organizerReason({...c,street:39,streetPeak:0},street),/Street/);
+ assert.equal(organizerReason({...c,street:0,streetPeak:0},official),'');assert.match(organizerReason({...c,street:0,streetPeak:0},project({stages:[['akagi','dry'],['haruna','rain']]})),/маршрут/);
  assert.equal(organizerReason(c,street),'');assert.throws(()=>enterCup(saveSeries(newCareer(),defaultSeries(),id),id,'permit'));
 });
 test('blueprint editing, capacity, deleting and locks preserve independent immutable careers',()=>{
@@ -53,7 +53,7 @@ for(const control of ['personal','manager'])test(`full six-stage mixed series su
  let c=saved({name:'Все дисциплины',stages:[['haruna','dry'],['tsukuba','mixed'],['yokohama','dry'],['ebisu','mixed'],['yokohama-half','dry'],['yokohama-mile','dry']]});c.control=control;c=hireStaff(c,'mechanic');c=acceptSponsor(c,'hks','sponsor');const def=c.organizer.series[0],before=c.money;
  c=enterCup(c,id,'full-'+control);assert.equal(before-c.money,def.fee);assert.deepEqual(activeCup(c.championships.active),def);assert.deepEqual(getCup(id,{championships:c.championships}),def);
  for(let i=0;i<6;i++){
-  c=serviceCar(prepareStage(c));const b=bookCupRace(c,'stage-'+control+i),retry=bookCupRace(c,'retry-'+control+i);assert.equal(b.race.seed,retry.race.seed);assert.equal(c.money-b.career.money,450+(b.race.manager?.fee||0));
+  c=serviceCar(prepareStage(c));const b=bookCupRace(c,'stage-'+control+i),retry=bookCupRace(c,'retry-'+control+i);assert.equal(b.race.seed,retry.race.seed);assert.equal(c.money-b.career.money,0);
   const race=finish(b.race),a=awardRace(b.career,race);assert.equal(a.race.seasonReport.custom,true);assert.equal(a.race.seasonReport.name,'Все дисциплины');assert.equal(a.race.seasonReport.stage,i);assert.equal(a.race.seasonReport.finished,i===5);assert.ok(seasonReportHTML(a.race.seasonReport).includes('Все дисциплины'));
   assert.throws(()=>awardRace(a.career,race));if(i<5)assert.equal(standings(a.career.championships.active).length,4);else{assert.equal(a.race.seasonReport.bonus,def.prizes[a.race.seasonReport.rank-1]);assert.equal(a.career.championships.active,null);assert.ok(a.career.championships.history[0].definition);assert.ok(!a.career.championships.completed.includes(id));}
   c=validateSave(a.career);assert.deepEqual(c,a.career);
@@ -81,7 +81,7 @@ test('hostile and legacy saves rebuild definitions and drop invalid projects or 
 });
 test('UI escapes names, exposes financial risk and locks active projects',()=>{
  const c=saved({name:'<img src=x onerror=alert(1)>'}),def=c.organizer.series[0];let html=organizerHTML(c,def,id,false);assert.ok(!html.includes('<img src=x'));assert.ok(html.includes('&lt;img'));assert.match(html,/Провести и участвовать/);assert.match(html,/28/);assert.match(html,/невыплаченные/);assert.match(html,/JSON для обмена/);
- assert.match(organizerHTML(newCareer(),defaultSeries(),null,true),/disabled/);assert.match(seriesQuoteHTML(c,{...defaultSeries(),pool:0}),/negative/);assert.match(seriesQuoteHTML(newCareer(),defaultSeries()),/команду/);
+ assert.match(organizerHTML(newCareer(),defaultSeries(),null,true),/disabled/);assert.match(seriesQuoteHTML(c,{...defaultSeries(),pool:0}),/negative/);assert.match(seriesQuoteHTML(newCareer(),defaultSeries()),/восемь/);
  const active=enterCup(c,id,'ui');html=championshipHTML(active,configuration('ae86','ren'),false);assert.ok(html.includes('&lt;img'));assert.ok(!html.includes('<img src=x'));
  assert.match(organizerHTML({...c,organizer:{series:[]}},defaultSeries()),/первый проект/);
 });

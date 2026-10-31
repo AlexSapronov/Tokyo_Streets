@@ -18,7 +18,7 @@ export function repetitionEffect(state,card) {
   const repeats=card.id==='balanced'?0:(state.recentActions||[]).slice(-HABIT_WINDOW).filter(id=>id===card.id).length;
   const strain=2**repeats-1;
   return {repeats,strain,timeFactor:1+.018*strain,focusFactor:1+.35*strain,
-    wearFactor:1+.3*strain,heatExtra:3*strain,recoveryFactor:1/(1+.5*strain)};
+    wearFactor:card.focus<=0?1:Math.min(3,1+.3*strain),heatExtra:3*strain,recoveryFactor:1/(1+.5*strain)};
 }
 export function rememberAction(state,card) {
   return [...(state.recentActions||[]),card.id].slice(-HABIT_WINDOW);
