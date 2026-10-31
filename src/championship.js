@@ -16,9 +16,16 @@ export const CUPS=[
  {id:'regional',name:'Kanto · региональная серия',tier:2,previous:'club',races:6,street:24,fee:5000,maxPower:330,drives:['FR','FF','AWD','MR'],naOnly:false,prizes:[32000,21000,12000,4000],budget:27000,
   stages:[['tsukuba','rain'],['ebisu','dry'],['yokohama-mile','dry'],['akagi','rain']],
   roster:[['kei','Кэй Накамура','s13','ren','balanced',['suspension','cooling','lsd']],['rika','Рика Исикава','evo','yui','safe',['brakes','cooling']],['daichi','Дайти Сато','chaser','aki','attack',['ecu','cooling','lsd']]]},
- {id:'masters',name:'Japan Masters · финал сезона',tier:3,previous:'regional',races:10,street:36,fee:10000,maxPower:420,drives:['FR','FF','AWD','MR'],naOnly:false,prizes:[55000,35000,20000,7000],budget:36000,
+ {id:'masters',name:'Japan Masters · национальная серия',tier:3,previous:'regional',races:10,street:36,fee:10000,maxPower:420,drives:['FR','FF','AWD','MR'],naOnly:false,prizes:[55000,35000,20000,7000],budget:36000,
   stages:[['haruna','rain'],['ebisu','mixed'],['yokohama-mile','mixed'],['akagi','rain']],
-  roster:[['kei','Кэй Накамура','nsx','ren','balanced',['cams','cooling','brakes','suspension']],['rika','Рика Исикава','r32','yui','safe',['ecu','turbo','cooling','brakes']],['daichi','Дайти Сато','rx7','aki','attack',['ecu','turbo','cooling','lsd']]]}
+  roster:[['kei','Кэй Накамура','nsx','ren','balanced',['cams','cooling','brakes','suspension']],['rika','Рика Исикава','r32','yui','safe',['ecu','turbo','cooling','brakes']],['daichi','Дайти Сато','rx7','aki','attack',['ecu','turbo','cooling','lsd']]]},
+ {id:'allstars',name:'Japan All Stars · элитная серия',tier:4,previous:'masters',races:0,street:0,fee:16000,maxPower:600,drives:['FR','FF','AWD','MR'],naOnly:false,prizes:[75000,48000,28000,10000],budget:50000,
+  stages:[['irohazaka','rain'],['nikko','dry'],['yokohama-mile','mixed'],['hakone','rain']],
+  roster:[['kei','Кэй Накамура','nsx','ren','balanced',['ecu','exhaust','cooling','brakes','suspension'],'ls3'],['rika','Рика Исикава','r32','yui','safe',['ecu','cooling','brakes','tires'],'ls3'],['daichi','Дайти Сато','rx7','aki','attack',['ecu','exhaust','cooling','lsd'],'ls3']]},
+ {id:'legends',name:'Tokyo Legends · вершина карьеры',tier:5,previous:'allstars',races:0,street:0,fee:24000,maxPower:900,drives:['FR','FF','AWD','MR'],naOnly:false,prizes:[110000,70000,42000,16000],budget:70000,
+  stages:[['wangan','rain'],['meihan','mixed'],['yokohama-mile','rain'],['hakone','dry']],
+  roster:[['kei','Кэй Накамура','nsx','ren','balanced',['ecu','exhaust','cooling','brakes','suspension'],'1lr'],['rika','Рика Исикава','r32','yui','safe',['ecu','exhaust','cooling','brakes','tires'],'1lr'],['daichi','Дайти Сато','supra','aki','attack',['ecu','exhaust','cooling','lsd'],'1lr']]}
+
 ];
 export const POINTS=[10,6,4,2];
 export function emptyChampionship(){return {active:null,completed:[],history:[]};}
@@ -27,7 +34,7 @@ export function activeCup(state){return state?.definition||getCup(state?.cupId);
 export function cupUnlockReason(career,cup){
  if(cup.custom)return organizerReason(career,cup);
  if(cup.previous&&!career.championships?.completed?.includes(cup.previous))return 'Нужен подиум в предыдущем кубке';
- if(career.races<cup.races||career.street<cup.street)return `Нужно ${cup.races} финишей и ${cup.street} Street Cred`;
+ if(!cup.previous&&(career.races<cup.races||career.street<cup.street))return `Нужно ${cup.races} финишей и ${cup.street} Street Cred`;
  return '';
 }
 export function regulationReason(config,cup){
@@ -50,7 +57,7 @@ export function prepareStage(career,active=false){
  const next=editable(career,active),state=next.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
  const [eventId,weather]=cup.stages[state.stage];next.car=state.carId;next.eventId=eventId;next.weather=weather;return next;
 }
-function entrants(cup){return [{id:'player',name:'Твоя команда'},...cup.roster.map(([id,name,carId,pilotId,style,parts])=>({id,name,carId,pilotId,style,parts}))];}
+function entrants(cup){return [{id:'player',name:'Твоя команда'},...cup.roster.map(([id,name,carId,pilotId,style,parts,engineId])=>({id,name,carId,pilotId,style,parts,engineId}))];}
 export function standings(state){
  const cup=activeCup(state);
  return entrants(cup).map((e,index)=>({...e,points:state.results.reduce((n,r)=>n+r.rows.find(row=>row.id===e.id).points,0),wins:state.results.filter(r=>r.rows.find(row=>row.id===e.id).points===10).length,
@@ -61,6 +68,11 @@ function repairedNpc(npc){
  const spend=Math.min(npc.budget,Math.max(0,85-npc.condition)*SERVICE_RATE);
  return {...npc,condition:npc.condition+spend/SERVICE_RATE,budget:npc.budget-spend};
 }
+export function previewCupOpponent(career){
+ const state=career.championships?.active,cup=activeCup(state);if(!cup)return null;
+ const featured=standings(state).find(e=>e.id!=='player'),npc=repairedNpc(state.npcs.find(n=>n.id===featured.id));
+ return {id:featured.id,name:featured.name,style:featured.style,rival:configuration(featured.carId,featured.pilotId,featured.parts,npc.condition,{},featured.engineId),dns:npc.condition<minimumCondition(cup.stages[state.stage][0])};
+}
 export function bookCupRace(career,runId){
  const state=career.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
  if(career.car!==state.carId)throw new Error('Для кубка вернись на зарегистрированную машину');
@@ -68,13 +80,12 @@ export function bookCupRace(career,runId){
  const reason=regulationReason(config,cup)||admissionReason(career,eventId);if(reason)throw new Error(reason);
  if(typeof runId!=='string'||!runId||runId.length>80||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
  let next={...career,eventId,weather},race;
- if(career.control==='manager'){const started=beginManagedRace(next,eventId,weather,runId);next=started.career;race=started.race;}else{const support=bookSupport(next,eventId,runId);next=support.career;race=createRace(config,weather,eventId,runId);race.supportFee=support.fee;}
- const seed=hashSeed(`${state.attempt}:${state.stage}`),featured=standings(state).find(e=>e.id!=='player');
- const npc=repairedNpc(state.npcs.find(n=>n.id===featured.id));
- race.seed=seed;race.rewardScale=payoutScale(career,eventId);race.rival=configuration(featured.carId,featured.pilotId,featured.parts,npc.condition);race.rivalStyle=featured.style;race.rivalName=featured.name;
+ if(career.control==='manager'){const started=beginManagedRace(next,eventId,weather,runId,null,true);next=started.career;race=started.race;}else{const support=bookSupport(next,eventId,runId);next=support.career;race=createRace(config,weather,eventId,runId);race.supportFee=support.fee;}
+ const seed=hashSeed(`${state.attempt}:${state.stage}`),opponent=previewCupOpponent(career);
+ race.seed=seed;race.rewardScale=payoutScale(career,eventId);race.rival=opponent.rival;race.rivalStyle=opponent.style;race.rivalName=opponent.name;
  race.opponent=race.mode==='drag'?freshDragState(race.rival):freshState(race.rival);
- if(npc.condition<minimumCondition(eventId))race.opponent.dnf={reason:'Технический недопуск',damage:0,speed:0};
- race.season={cupId:cup.id,attempt:state.attempt,stage:state.stage,featuredId:featured.id};
+ if(opponent.dns)race.opponent.dnf={reason:'Технический недопуск',damage:0,speed:0};
+ race.season={cupId:cup.id,attempt:state.attempt,stage:state.stage,featuredId:opponent.id};
  return {career:next,race};
 }
 function finishNpc(config,state,eventId,weather,seed,side,index,style){
@@ -97,7 +108,7 @@ export function settleCup(career,race){
  const summarize=(id,s)=>({id,time:s.time,score:s.drift?.score||0,dnf:!!s.dnf,falseStart:!!s.drag?.falseStart,position:0,points:0});
  const rows=[summarize('player',race.player)];
  for(const opponent of entrants(cup).slice(1)){
-  const original=season.npcs.find(n=>n.id===opponent.id),npc=repairedNpc(original),config=configuration(opponent.carId,opponent.pilotId,opponent.parts,npc.condition);
+  const original=season.npcs.find(n=>n.id===opponent.id),npc=repairedNpc(original),config=configuration(opponent.carId,opponent.pilotId,opponent.parts,npc.condition,{},opponent.engineId);
   let result;
   if(npc.condition<minimumCondition(race.eventId))result={time:0,tires:100,dnf:{reason:'Технический недопуск',damage:0}};
   else if(opponent.id===tag.featuredId&&['duel','drag'].includes(race.mode))result=finishNpc(config,{...race.opponent,seasonSlip:race.history.reduce((n,row)=>n+(row.aiSlip||0),0)},race.eventId,race.weather,race.seed,'opponent',race.index,opponent.style);
@@ -128,7 +139,7 @@ function historyCup(value){
 export function normalizeChampionship(raw){
  const out=emptyChampionship();if(!raw||typeof raw!=='object')return out;
  out.completed=[...new Set((Array.isArray(raw.completed)?raw.completed:[]).filter(id=>getCup(id)))];
- out.history=(Array.isArray(raw.history)?raw.history:[]).filter(h=>h&&historyCup(h)&&Number.isInteger(h.rank)&&h.rank>=1&&h.rank<=4&&Number.isFinite(h.points)&&h.points>=0&&h.points<=historyCup(h).stages.length*10&&Number.isFinite(h.bonus)&&h.bonus>=0&&h.bonus<=55000&&typeof h.attempt==='string'&&h.attempt.length<=80).slice(0,20).map(h=>({... (historyCup(h).custom?{definition:historyCup(h)}:{}),cupId:h.cupId,rank:h.rank,points:h.points,bonus:h.bonus,attempt:h.attempt}));
+ out.history=(Array.isArray(raw.history)?raw.history:[]).filter(h=>h&&historyCup(h)&&Number.isInteger(h.rank)&&h.rank>=1&&h.rank<=4&&Number.isFinite(h.points)&&h.points>=0&&h.points<=historyCup(h).stages.length*10&&Number.isFinite(h.bonus)&&h.bonus>=0&&h.bonus<=historyCup(h).prizes[0]&&typeof h.attempt==='string'&&h.attempt.length<=80).slice(0,20).map(h=>({... (historyCup(h).custom?{definition:historyCup(h)}:{}),cupId:h.cupId,rank:h.rank,points:h.points,bonus:h.bonus,attempt:h.attempt}));
  const a=raw.active,cup=historyCup(a);if(!cup)return out;
  if(typeof a.attempt!=='string'||!a.attempt||a.attempt.length>80||!CARS.some(c=>c.id===a.carId)||!Number.isInteger(a.stage)||a.stage<0||a.stage>=cup.stages.length||!Array.isArray(a.results)||a.results.length!==a.stage||!Array.isArray(a.npcs)||a.npcs.length!==3)return out;
  const ids=['player',...cup.roster.map(r=>r[0])],runs=new Set();

@@ -68,8 +68,8 @@ test('actual race actions finish into an accessible report and can retry without
 
 test('new career goals navigate to real routes, lock during racing and report paid progress',async t=>{
  const {document:d,values,frames}=await boot(t,newCareer()),q=s=>d.querySelector(s);
- assert.match(q('.journey-focus').textContent,/Первая ночь/);
- q('[data-journey-view]').click();assert.equal(q('#app').dataset.page,'race');
+ assert.match(q('.journey-focus').textContent,/Ночные смены/);
+ q('[data-journey-view]').click();assert.equal(q('#app').dataset.page,'seasons');
  q('[data-view=world]').click();q('[data-pane=journey]').click();assert.equal(q('#pane-world-journey').hidden,false);
  q('[data-journey-event]').click();assert.equal(q('#app').dataset.page,'race');assert.equal(JSON.parse(values.get(SAVE_KEY)).eventId,'haruna');
  q('#start').click();assert.ok(q('[data-journey-view]').disabled);assert.ok(q('[data-journey-event]').disabled);
@@ -77,4 +77,19 @@ test('new career goals navigate to real routes, lock during racing and report pa
  assert.ok(q('.journey-report'));const saved=JSON.parse(values.get(SAVE_KEY));assert.ok(saved.journey.routes.haruna>=1);assert.ok(saved.journey.claimed.includes('debut'));assert.match(q('.journey-report').textContent,/премии/);
  assert.ok(!q('[data-journey-view]').disabled);
  q('[data-journey-view]').click();assert.equal(q('#app').dataset.page,q('[data-journey-view]').dataset.journeyView);
+});
+test('free-race opponent choice persists and is frozen after start; championships expose five cups',async t=>{
+ const c=newCareer();c.money=100000;const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s);
+ assert.equal(d.querySelectorAll('[data-rival-level]').length,3);q('[data-rival-level=hard]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).rivalLevel,'hard');assert.equal(q('[data-rival-level=hard]').getAttribute('aria-pressed'),'true');
+ q('#start').click();for(const button of d.querySelectorAll('[data-rival-level]'))assert.ok(button.disabled);
+ q('[data-view=garage]').click();q('[data-garage-preview=mx5]').click();assert.ok(q('#trade-in').disabled);
+ q('[data-view=race]').click();q('#abandon').click();q('#confirm-abandon').click();
+ q('[data-view=seasons]').click();assert.equal(d.querySelectorAll('[data-cup-enter]').length,5);assert.match(q('#app').textContent,/Japan All Stars/);assert.match(q('#app').textContent,/Tokyo Legends/);
+});
+test('garage trade-in shows the quote before confirmation and replaces inventory only once',async t=>{
+ const c=newCareer();c.money=50000;c.purchased.ae86=['cooling'];c.builds.ae86=['cooling'];
+ const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s);q('[data-view=garage]').click();q('[data-garage-preview=mx5]').click();const before=values.get(SAVE_KEY);
+ assert.ok(q('.trade-in-quote'));q('#trade-in').click();assert.match(q('#modal').textContent,/Подтвердить трейд-ин/);assert.equal(values.get(SAVE_KEY),before);
+ q('#trade-in-confirm').click();const sold=JSON.parse(values.get(SAVE_KEY));assert.equal(sold.car,'mx5');assert.deepEqual(sold.ownedCars,['mx5']);assert.deepEqual(sold.purchased.ae86,[]);assert.ok(!q('#modal').hasAttribute('open'));
+ q('[data-garage-preview=ae86]').click();assert.match(q('[data-car=ae86]').textContent,/Купить/);assert.ok(sold.money<50000);
 });

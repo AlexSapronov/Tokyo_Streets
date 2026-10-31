@@ -5,7 +5,7 @@ import {newCareer,validateSave} from '../src/storage.js';
 import {configuration} from '../src/engine.js';
 import {awardRace,unlockText} from '../src/progress.js';
 import {EVENTS,getEvent} from '../src/data.js';
-import {emptyJourney,normalizeJourney,routeLevel,routeTarget,settleJourney,nextMilestone,MILESTONES} from '../src/journey.js';
+import {emptyJourney,normalizeJourney,routeLevel,routeTarget,settleJourney,nextMilestone,MILESTONES,MAIN_MILESTONES} from '../src/journey.js';
 import {journeyHTML,journeyFocusHTML,routeMasteryHTML,journeyReportHTML} from '../src/journey-view.js';
 import {mountWorkbench} from '../src/workbench.js';
 import {finishRace} from './helpers.js';
@@ -32,11 +32,11 @@ test('new stamps pay each crossed tier once across builds and reloads; no downgr
  for(const player of [{...r.player,dnf:{damage:10}},{...r.player,drag:{falseStart:true}}]){const a=settleJourney(c,{...r,player},{won:true});assert.equal(a.report.bonus,0);assert.deepEqual(a.career,c);}
 });
 test('milestones support multiple disciplines and complete through team and cups',()=>{
- let c=newCareer();assert.equal(nextMilestone(c).id,'debut');
+ let c=newCareer();assert.equal(nextMilestone(c).id,'club');
  for(const [id,outcome] of [['haruna',{}],['tsukuba',{medal:'bronze'}],['ebisu',{medal:'gold'}]])c=settleJourney(c,race(id),outcome).career;
- assert.deepEqual(c.journey.claimed,['debut','result','explore']);assert.equal(nextMilestone(c).id,'team');
- c.team.founded=true;for(const id of ['club','regional','masters'])c.championships.completed.push(id);
- const a=settleJourney(c,race(),{});assert.deepEqual(a.career.journey.claimed,MILESTONES.map(m=>m.id));assert.equal(a.report.milestones.length,4);assert.equal(nextMilestone(a.career),undefined);
+ assert.deepEqual(c.journey.claimed,['debut','result','explore']);assert.equal(nextMilestone(c).id,'club');
+ c.team.founded=true;for(const id of ['club','regional','masters','allstars','legends'])c.championships.completed.push(id);
+ const a=settleJourney(c,race(),{});assert.deepEqual(a.career.journey.claimed,MILESTONES.map(m=>m.id));assert.equal(a.report.milestones.length,6);assert.equal(nextMilestone(a.career),undefined);
  assert.equal(settleJourney(a.career,race(),{}).report.bonus,0);
 });
 test('new premium debt deduction is bounded and transaction shares duplicate-run protection',()=>{
@@ -59,7 +59,7 @@ test('career views expose goals, route targets, discipline progress, completion 
  const c=newCareer();assert.match(journeyFocusHTML(c),/data-journey-event="haruna"/);assert.match(journeyFocusHTML(c,true),/disabled/);
  for(const e of EVENTS)for(let n=0;n<=3;n++){c.journey.routes[e.id]=n;assert.match(routeMasteryHTML(c,e),new RegExp(n+'/3'));}
  assert.ok(journeyHTML(c).includes('Твоя специализация'));
- for(const m of MILESTONES){c.journey.claimed=MILESTONES.slice(0,MILESTONES.indexOf(m)).map(x=>x.id);assert.ok(journeyFocusHTML(c).includes(m.title));}
+ for(const m of MAIN_MILESTONES){c.championships.completed=MAIN_MILESTONES.slice(0,MAIN_MILESTONES.indexOf(m)).map(x=>x.id);assert.ok(journeyFocusHTML(c).includes(m.title));}c.championships.completed=MAIN_MILESTONES.map(m=>m.id);
  c.journey.claimed=MILESTONES.map(m=>m.id);assert.match(journeyFocusHTML(c),/Легенда/);assert.match(journeyHTML(c),/ЗАЧТЕНО/);
  assert.equal(journeyReportHTML(null,'haruna'),'');assert.match(journeyReportHTML({bonus:0},'haruna'),/Новых отметок нет/);
  const a=settleJourney(newCareer(),race(),{won:true});assert.match(journeyReportHTML({...a.report,debtPaid:2},'haruna'),/удержано/);assert.match(journeyReportHTML(a.report,'haruna'),/разовые|Разовые/);

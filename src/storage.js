@@ -20,7 +20,7 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', pilot: 'ren', ownedCars: ['ae86'],
+  return {journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
@@ -49,6 +49,7 @@ function validateRecord(record) {
   if(parts.some(id=>partReason(record.carId,id,record.engineId))||normalizeBuild(record.carId,parts,record.engineId).length!==parts.length)return null;
   if(record.setup!==undefined&&!validSetup(parts,record.setup))return null;
   const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup,record.engineId,record.wear);
+  if(['easy','equal','hard'].includes(record.rivalLevel))config.rivalLevel=record.rivalLevel;
   const event=getEvent(record.eventId);
   const cards=availableCards(config,event.mode,event.id);
   if(record.actions.some((id,i)=>!cards.some(card=>card.id===id&&(!card.phase||card.phase==='any'||card.phase===event.sectors[i].phase))))return null;
@@ -61,7 +62,7 @@ function validateRecord(record) {
   const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key,...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {key,...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -101,8 +102,9 @@ export function validateSave(raw) {
   if (!raw || ![1, 2].includes(raw.version)) throw new Error('Неподдерживаемое сохранение');
   const out = newCareer();
   out.money = finite(raw.money) ? Math.max(0, Math.min(1e9, raw.money)) : START_MONEY;
-  out.ownedCars = unique(['ae86', ...list(raw.ownedCars).filter(validCar)]);
-  out.car = out.ownedCars.includes(raw.car) ? raw.car : 'ae86';
+  out.ownedCars=unique(list(raw.ownedCars).filter(validCar));if(!out.ownedCars.length)out.ownedCars=['ae86'];
+  out.car=out.ownedCars.includes(raw.car)?raw.car:out.ownedCars[0];
+  out.rivalLevel=['easy','equal','hard'].includes(raw.rivalLevel)?raw.rivalLevel:'equal';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
   out.team=normalizeTeam(raw.team);
   out.operations=normalizeOperations(raw.operations);

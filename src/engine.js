@@ -17,6 +17,43 @@ export function configuration(carId,pilotId,parts=[],condition=100,rawSetup={},e
  const setup=normalizeSetup(installed,rawSetup);
  return {car:tunedCar(wornCar(engineCar(car,motor),wear),installed,setup,wear),engineId:motor,wear,tireCondition:wear[tireKey(installed)],setup,pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
 }
+// Ratings use the healthy installed build, so deliberate wear cannot buy easier opposition.
+export function nominalConfiguration(config){return configuration(config.car.id,'ren',config.parts,100,config.setup,config.engineId);}
+export function performanceProfile(config,eventId='haruna',weather='dry'){
+ const event=getEvent(eventId),mass=config.car.mass-(config.parts.includes('weight')?65:0)+(config.parts.includes('suspension')?8:0);
+ let grip=0,length=0;
+ for(let i=0;i<event.sectors.length;i++){
+  const sector=sectorAt(i,weather,eventId),wet=sector.wet;
+  const effective=config.car.grip*tireFactor(config,wet,true,event.mode==='drag'?'drag':'road')*(config.parts.includes('suspension')?1.05:1)*aeroGrip(config,sector.type==='corner'?30:55);
+  grip+=effective*sector.length;length+=sector.length;
+ }
+ grip/=length;
+ const powerWeight=config.car.power/mass;
+ return {mass,power:config.car.power,grip,powerWeight,kgPerHp:mass/config.car.power,rating:100*(powerWeight/(130/940))**(event.mode==='drag'?.9:.65)*(grip/1.02)**(event.mode==='drag'?.1:.35)};
+}
+export const RIVAL_LEVELS=[{id:'easy',name:'Слабее',factor:.8,reward:.7},{id:'equal',name:'На равных',factor:1,reward:1},{id:'hard',name:'Сильнее',factor:1.2,reward:1.35}];
+const rivalsCache=new Map();
+export function freeRivalOptions(config,eventId,weather='dry'){
+ const player=nominalConfiguration(config),profile=performanceProfile(player,eventId,weather),event=getEvent(eventId);
+ const key=JSON.stringify([player.car,player.parts,player.setup,eventId,weather]);
+ if(rivalsCache.has(key))return structuredClone(rivalsCache.get(key));
+ const candidates=CARS.flatMap(car=>[[],['streetTires','lsd'],['ecu','exhaust','cooling','tires','lsd','brakes'],['ecu','turbo','cams','exhaust','intercooler','suspension','slicks','brakes']].map(parts=>configuration(car.id,event.rivalPilot,parts)));
+ const options=RIVAL_LEVELS.map(level=>{
+  const target=profile.rating*level.factor;
+  const fits=candidates.map(rival=>({rival,profile:performanceProfile(rival,eventId,weather)})).filter(c=>level.id==='easy'?c.profile.rating<profile.rating*.9:level.id==='hard'?c.profile.rating>profile.rating*1.1:Math.abs(c.profile.rating/profile.rating-1)<.08);
+  const closest=fits.sort((a,b)=>Math.abs(a.profile.rating-target)-Math.abs(b.profile.rating-target))[0];
+  let rival,prepared=false;
+  if(closest)rival=closest.rival;
+  else{
+   // At the extremes of the catalogue, show a prepared variant with explicit power.
+   rival=configuration(player.car.id,event.rivalPilot,player.parts,100,player.setup,player.engineId);
+   const current=performanceProfile(rival,eventId,weather).rating;
+   rival.car.power=Math.max(1,Math.round(rival.car.power*(target/current)**(1/(event.mode==='drag'?.9:.65))));prepared=true;
+  }
+  return {...level,rival,prepared,profile:performanceProfile(rival,eventId,weather),playerRating:profile.rating};
+ });
+ if(rivalsCache.size>=128)rivalsCache.clear();rivalsCache.set(key,options);return structuredClone(options);
+}
 export function freshState(config){return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
 export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
@@ -132,11 +169,14 @@ export function futureSectors(race) {
   return getEvent(race.eventId).sectors.slice(race.index + 1, race.index + 3)
     .map((_, offset) => sectorAt(race.index + offset + 1, race.weather, race.eventId));
 }
-export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null) {
+export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null,rivalLevel=null) {
   const event = getEvent(eventId);
   const category=raceClass(config);
-  const rival = configuration(event.rivalCar,event.rivalPilot,event.rivalParts,100);
-  return {config, rival, category,rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
+  const offer=rivalLevel&&['duel','drag'].includes(event.mode)?freeRivalOptions(config,eventId,weather).find(o=>o.id===rivalLevel):null;
+  if(rivalLevel&&!RIVAL_LEVELS.some(o=>o.id===rivalLevel))throw new Error('Неизвестный уровень соперника');
+  if(offer)config={...config,rivalLevel:offer.id};
+  const rival=offer?.rival||configuration(event.rivalCar,event.rivalPilot,event.rivalParts,100);
+  return {config, rival, category,...(offer?{rivalLevel:offer.id,difficultyReward:offer.reward,rivalName:offer.name+' · '+offer.rival.pilot.name}:{}),...(event.mode==='timeattack'?{targets:medalTargets(eventId,weather,config)}:{}),rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
 export function resolveSector(race, cardId) {
@@ -171,27 +211,17 @@ export function resolveSector(race, cardId) {
     finished: !!player.next.dnf || race.index === event.sectors.length - 1};
 }
 
-// Medal targets are independent of the player's build: fixed stock reference runs
-// on the same route and weather. They are cached because weather is deterministic.
-const targetCache = new Map();
-export function medalTargets(eventId, weather,category='expert') {
-  const key = eventId + ':' + weather+':'+category;
-  if (targetCache.has(key)) return targetCache.get(key);
-  const baseline = carId => {
-    const config = configuration(carId, 'ren');
-    let state = freshState(config);
-    for (let i = 0; i < getEvent(eventId).sectors.length; i++) {
-      state = simulate(config, state, sectorAt(i, weather, eventId), CARDS[0]).next;
-    }
-    return state.time;
-  };
-  const reference=baseline(category==='club'?'ae86':category==='sport'?'chaser':'evo');
-  const gold = reference*.955;
-  const silver = Math.max(gold+1,reference*.99);
-  const bronze = Math.max(silver+1,reference*1.04);
-  const targets = {gold, silver, bronze};
-  targetCache.set(key, targets);
-  return targets;
+// A neutral Ren drives the exact healthy build through the shared physical model.
+// This continuously accounts for mass/power, wet grip, brakes, gearing and aero.
+const targetCache=new Map();
+export function medalTargets(eventId,weather,build='expert'){
+ const config=typeof build==='string'?configuration(build==='club'?'ae86':build==='sport'?'chaser':'evo','ren'):nominalConfiguration(build);
+ const key=JSON.stringify([eventId,weather,config.car,config.parts,config.setup]);
+ if(targetCache.has(key))return {...targetCache.get(key)};
+ let state=freshState(config);
+ for(let i=0;i<getEvent(eventId).sectors.length;i++)state=simulate(config,state,sectorAt(i,weather,eventId),CARDS[0]).next;
+ const reference=state.time,gold=reference*.955,silver=Math.max(gold+1,reference*.99),bronze=Math.max(silver+1,reference*1.04);
+ const targets={gold,silver,bronze};if(targetCache.size>=256)targetCache.clear();targetCache.set(key,targets);return {...targets};
 }
 function baseOutcome(race) {
   const event = getEvent(race.eventId);
@@ -206,7 +236,7 @@ function baseOutcome(race) {
     return {won:false,medal,label:{gold:'Золото',silver:'Серебро',bronze:'Бронза'}[medal]||'Сессия завершена',
       reward:{gold:22000,silver:14000,bronze:8500}[medal]||event.participation,street:0,official:{gold:12,silver:7,bronze:3}[medal]||1};
   }
-  const targets = medalTargets(event.id, race.weather,(race.category||raceClass(race.config)).id);
+  const targets = race.targets||medalTargets(event.id,race.weather,race.config);
   const medal = ['gold', 'silver', 'bronze'].find(level => race.player.time <= targets[level]) || null;
   return {won: false, medal,
     label: {gold: 'Золото', silver: 'Серебро', bronze: 'Бронза'}[medal] || 'Сессия завершена',
@@ -216,5 +246,5 @@ function baseOutcome(race) {
 
 export function raceOutcome(race){
  const outcome=baseOutcome(race);
- return {...outcome,reward:Math.round(outcome.reward*rewardFactor(race.config,race.mode)*(race.rewardScale??1))};
+ return {...outcome,reward:Math.round(outcome.reward*rewardFactor(race.config,race.mode)*(race.rewardScale??1)*(race.season?1:race.difficultyReward??1))};
 }

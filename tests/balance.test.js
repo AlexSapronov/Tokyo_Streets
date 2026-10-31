@@ -88,7 +88,7 @@ test('archived road, drift and drag ghosts are preserved but separated from the 
 });
 
 test('time attack medal references match the admitted class and remain fixed across attempts',()=>{
- const club=medalTargets('tsukuba','dry','club'),expert=medalTargets('tsukuba','dry','expert');assert.ok(club.gold>expert.gold);assert.deepEqual(club,medalTargets('tsukuba','dry','club'));
+ const club=medalTargets('tsukuba','dry',cfg),expert=medalTargets('tsukuba','dry',configuration('evo','ren'));assert.ok(club.gold>expert.gold);assert.deepEqual(club,medalTargets('tsukuba','dry','club'));
  const race=createRace(cfg,'dry','tsukuba');race.player.time=club.gold;assert.equal(raceOutcome(race).medal,'gold');race.player.time=club.bronze+.1;assert.equal(raceOutcome(race).medal,null);
 });
 test('campaign payouts actually use the snapshotted repetition factor and full-condition damage has a cost',()=>{

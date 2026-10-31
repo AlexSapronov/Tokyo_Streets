@@ -20,11 +20,14 @@ export const MILESTONES=[
  {id:'result',title:'Заявить о себе',detail:'Победи в дуэли или дрэге либо получи медаль в Time Attack или дрифте.',target:1,value:results,reward:5000,view:'world'},
  {id:'explore',title:'Своё место в городе',detail:'Заверши заезды на трёх разных маршрутах. Дисциплины выбираешь сам.',target:3,value:routes,reward:7000,view:'world'},
  {id:'team',title:'Из гаража в команду',detail:'Основать команду: 4 финиша, 24 Street или 12 Official, ¥30 000. Награда после следующего зачётного финиша.',target:1,value:c=>Number(!!c.team?.founded),reward:6000,view:'team'},
- {id:'club',title:'Ночные смены',detail:'Займи подиум в Night Shift. Зарегистрируй лёгкую атмосферную машину до 220 л.с.',target:1,value:c=>Number(c.championships?.completed?.includes('club')||false),reward:8000,view:'seasons'},
- {id:'regional',title:'Имя в Канто',detail:'Займи подиум в региональной серии Kanto.',target:1,value:c=>Number(c.championships?.completed?.includes('regional')||false),reward:10000,view:'seasons'},
- {id:'masters',title:'Tokyo Streets',detail:'Займи подиум в Japan Masters.',target:1,value:c=>Number(c.championships?.completed?.includes('masters')||false),reward:15000,view:'seasons'}
+ {id:'club',main:true,title:'Ночные смены',detail:'Займи подиум в Night Shift. Зарегистрируй лёгкую атмосферную машину до 220 л.с.',target:1,value:c=>Number(c.championships?.completed?.includes('club')||false),reward:8000,view:'seasons'},
+ {id:'regional',main:true,title:'Имя в Канто',detail:'Займи подиум в региональной серии Kanto.',target:1,value:c=>Number(c.championships?.completed?.includes('regional')||false),reward:10000,view:'seasons'},
+ {id:'masters',main:true,title:'Japan Masters',detail:'Займи подиум в Japan Masters.',target:1,value:c=>Number(c.championships?.completed?.includes('masters')||false),reward:15000,view:'seasons'},
+ {id:'allstars',main:true,title:'Japan All Stars',detail:'Займи подиум в элитной серии. Регламент до 600 л.с.; соперники используют V8.',target:1,value:c=>Number(c.championships?.completed?.includes('allstars')||false),reward:18000,view:'seasons'},
+ {id:'legends',main:true,title:'Tokyo Legends',detail:'Займи подиум в финальном чемпионате. Регламент до 900 л.с.; соперники подготовили V10.',target:1,value:c=>Number(c.championships?.completed?.includes('legends')||false),reward:24000,view:'seasons'}
 ];
-export function nextMilestone(career){return MILESTONES.find(m=>!career.journey?.claimed.includes(m.id));}
+export const MAIN_MILESTONES=MILESTONES.filter(m=>m.main);
+export function nextMilestone(career){return MAIN_MILESTONES.find(m=>m.value(career)<m.target);}
 export function normalizeJourney(raw,career){
  const out=emptyJourney();
  if(raw&&typeof raw==='object'){
@@ -47,12 +50,12 @@ export function normalizeJourney(raw,career){
 export function settleJourney(career,race,outcome){
  const next=structuredClone(career),report={stamps:[],milestones:[],bonus:0,debtPaid:0};
  next.journey??=normalizeJourney(null,career);
- if(race.player.dnf||race.player.drag?.falseStart)return {career:next,report};
+ const valid=!race.player.dnf&&!race.player.drag?.falseStart;
  const event=getEvent(race.eventId),before=next.journey.routes[event.id]||0;
- const level=routeLevel(event,{...outcome,weather:race.weather,reaction:race.player.drag?.reaction});
+ const level=valid?routeLevel(event,{...outcome,weather:race.weather,reaction:race.player.drag?.reaction}):0;
  for(let i=before;i<level;i++){report.stamps.push({level:i+1,name:STAMP_NAMES[i],reward:STAMP_REWARDS[i]});report.bonus+=STAMP_REWARDS[i];}
- next.journey.routes[event.id]=Math.max(before,level);
- for(const m of MILESTONES)if(!next.journey.claimed.includes(m.id)&&m.value(next)>=m.target){
+ if(valid)next.journey.routes[event.id]=Math.max(before,level);
+ for(const m of MILESTONES)if((valid||m.main&&race.season)&&!next.journey.claimed.includes(m.id)&&m.value(next)>=m.target){
   next.journey.claimed.push(m.id);report.milestones.push({id:m.id,title:m.title,reward:m.reward});report.bonus+=m.reward;
  }
  next.journey.claimed=MILESTONES.filter(m=>next.journey.claimed.includes(m.id)).map(m=>m.id);

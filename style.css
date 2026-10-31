@@ -46,3 +46,4 @@
 @media(max-width:1100px){.journey-focus{align-items:flex-start}.journey-focus>div{flex-wrap:wrap}.journey-steps,.journey-disciplines{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 @media(min-width:1250px){#app[data-page=race]>.journey-focus{grid-area:journey}}
+.rival-options{margin:0;padding:10px;border:1px solid var(--line);background:var(--panel);border-radius:4px}.rival-options legend{font-size:12px}.rival-options button{display:block;width:100%;text-align:left;padding:8px;margin:5px 0;border:1px solid var(--line)}.rival-options button.selected{border-color:var(--accent);background:#30352e}.rival-options strong{display:block;font-size:12px}.rival-options span{display:block;font-size:10px;color:var(--muted);margin-top:5px}.rival-options p{margin-bottom:0;font-size:10px}.trade-in-quote{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}.trade-in-quote p,.trade-in-quote li{font-size:12px}.trade-in-quote button{margin-top:10px}

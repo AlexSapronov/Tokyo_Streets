@@ -13,7 +13,7 @@ export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
   return [getEvent(eventId).mode==='drift'?'drift-2':getEvent(eventId).mode==='drag'?'drag-2':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
-    ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')+(config.engineId&&config.engineId!==stockEngineId(config.car.id)?';engine='+config.engineId:'')].join('|');
+    ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')+(config.engineId&&config.engineId!==stockEngineId(config.car.id)?';engine='+config.engineId:'')+(config.rivalLevel&&['duel','drag'].includes(getEvent(eventId).mode)?';rival='+config.rivalLevel:'')].join('|');
 }
 export function unlocked(event, career) {
   return career.street >= event.unlockStreet && career.races >= event.unlockRaces;
@@ -22,11 +22,11 @@ export function unlockText(event) {
   return [event.unlockStreet ? `Street Cred ${event.unlockStreet}` : '',event.unlockRaces ? `${event.unlockRaces} завершённых заезда` : ''].filter(Boolean).join(' и ') || 'Доступно';
 }
 export function bestFor(career, config, eventId, weather) {
-  const key = recordKey(config, eventId, weather);
+  const key=recordKey(config,eventId,weather);
   return career.bests.find(best => best.key === key) || null;
 }
 export function raceRecord(race) {
-  return {key: recordKey(race.config, race.eventId, race.weather),...(race.config.engineId!==stockEngineId(race.config.car.id)?{engineId:race.config.engineId}:{}),...(Object.values(race.config.wear||{}).some(n=>n<100)?{wear:{...race.config.wear}}:{}),...(setupKey(race.config.setup)?{setup:{...race.config.setup}}:{}),
+  return {key: recordKey(race.config, race.eventId, race.weather),...(race.rivalLevel?{rivalLevel:race.rivalLevel}:{}),...(race.config.engineId!==stockEngineId(race.config.car.id)?{engineId:race.config.engineId}:{}),...(Object.values(race.config.wear||{}).some(n=>n<100)?{wear:{...race.config.wear}}:{}),...(setupKey(race.config.setup)?{setup:{...race.config.setup}}:{}),
     ...(race.player.dnf?{dnf:{...race.player.dnf}}:{}),
     ...(Number.isInteger(race.seed)?{seed:race.seed,executionVersion:1}:{}),
     eventId: race.eventId, weather: race.weather, carId: race.config.car.id,

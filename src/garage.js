@@ -1,7 +1,8 @@
-import {installedEngineId,getEngine} from './engine-data.js';
-import {emptyWear,normalizeComponentWear} from './wear.js';
+import {emptyEngines} from './powertrain.js';
+import {installedEngineId,getEngine,stockEngineId} from './engine-data.js';
+import {emptyWear,normalizeComponentWear,freshWear,tireKey} from './wear.js';
 import {repairMultiplier} from './operations.js';
-import {normalizeSetup,SETUP_FIELDS} from './setup.js';
+import {normalizeSetup,SETUP_FIELDS,defaultSetup} from './setup.js';
 import {partReason,normalizeBuild} from './tuning.js';
 import {SERVICE_RATE} from './balance.js';
 import {CARS,PILOTS,PARTS} from './data.js';
@@ -70,3 +71,32 @@ export function componentPrice(career,id){return id==='engine'?getEngine(install
 export function componentRepairCost(career,id,target=100){const health=career.wear?.[career.car]?.[id]??100;return Math.ceil(Math.max(0,target-health)*componentPrice(career,id)*.0065*repairMultiplier(career));}
 export function repairComponent(career,id,activeRace=false){const next=editable(career,activeRace);if(!componentIds(next).includes(id))throw new Error('Узел не установлен');next.wear??=emptyWear();const cost=componentRepairCost(next,id);pay(next,cost);next.wear[next.car][id]=100;return next;}
 export function recoveryNeeded(career){return career.condition[career.car]<60||['engine','transmission','stockBrakes','stockSuspension',...componentIds(career).filter(id=>id==='stockTires'||PARTS.find(p=>p.id===id)?.slot==='tires')].some(id=>(career.wear?.[career.car]?.[id]??100)<60);}
+
+export const TRADE_IN_RATE=.6;
+export function tradeInQuote(career,targetId,sourceId=career.car){
+ const source=CARS.find(c=>c.id===sourceId),target=CARS.find(c=>c.id===targetId);
+ if(!source||!target||!career.ownedCars.includes(sourceId))throw new Error('Выбери свою машину и новую модель');
+ if(career.ownedCars.includes(targetId))throw new Error('Новая машина уже есть в гараже');
+ if(career.championships?.active?.carId===sourceId)throw new Error('Машина зарегистрирована в чемпионате: сначала заверши или покинь его');
+ const health=id=>Math.max(0,Math.min(100,career.wear?.[sourceId]?.[id]??100))/100;
+ const core=['engine','transmission','stockBrakes','stockSuspension',tireKey(career.builds[sourceId])];
+ const condition=Math.max(0,Math.min(100,career.condition[sourceId]))/100;
+ const base=source.price*condition*core.reduce((n,id)=>n+health(id),0)/core.length;
+ const engineId=installedEngineId(career,sourceId),engineAdjustment=(getEngine(engineId).price-getEngine(stockEngineId(sourceId)).price)*health('engine');
+ const parts=career.purchased[sourceId].map(id=>{const part=PARTS.find(p=>p.id===id);return {id,name:part.name,price:part.price,condition:health(id),value:part.price*health(id)};});
+ const credit=Math.floor(Math.max(0,base+engineAdjustment+parts.reduce((n,p)=>n+p.value,0))*TRADE_IN_RATE);
+ return {sourceId,targetId,base,condition,engineId,engineAdjustment,parts,rate:TRADE_IN_RATE,credit,price:target.price,due:Math.max(0,target.price-credit),cashback:Math.max(0,credit-target.price),affordable:career.money+credit>=target.price};
+}
+export function tradeInCar(career,targetId,activeRace=false){
+ const next=editable(career,activeRace),quote=tradeInQuote(next,targetId);
+ if(!quote.affordable)throw new Error('Недостаточно денег на доплату по трейд-ин');
+ const sourceId=next.car;
+ next.money+=quote.credit-quote.price;next.ownedCars=next.ownedCars.filter(id=>id!==sourceId);next.ownedCars.push(targetId);next.car=targetId;
+ // The whole car-specific inventory is included in the quote; global spare engines stay.
+ next.builds[sourceId]=[];next.purchased[sourceId]=[];next.presets[sourceId]=[];next.setups[sourceId]=defaultSetup();next.condition[sourceId]=100;
+ next.wear??=emptyWear();next.wear[sourceId]=freshWear();next.engines??=emptyEngines();
+ let sequence=0,instanceId;const used=new Set([...Object.values(next.engines.installed),...next.engines.spares].map(e=>e.instanceId));
+ do{instanceId=`replacement-${sourceId}-${sequence++}`;}while(used.has(instanceId));
+ next.engines.installed[sourceId]={instanceId,engineId:stockEngineId(sourceId)};
+ return next;
+}

@@ -58,7 +58,7 @@ test('time attack has no AI or positional actions and keeps target times ordered
   for(const weather of ['dry','rain','mixed']){
     const targets=medalTargets('tsukuba',weather);
     assert.ok(targets.gold<targets.silver&&targets.silver<targets.bronze);
-    const t={...final,weather};
+    const t={...final,weather,targets};
     for(const [level,time] of Object.entries(targets))assert.equal(raceOutcome({...t,player:{...t.player,time}}).medal,level);
     assert.equal(raceOutcome({...t,player:{...t.player,time:targets.bronze+1}}).medal,null);
   }
