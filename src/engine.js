@@ -1,3 +1,4 @@
+import {normalizeSetup} from './setup.js';
 import {tunedCar,normalizeBuild,tireFactor,aeroGrip} from './tuning.js';
 import {raceClass,incidentPrice,rewardFactor} from './balance.js';
 import {executionRoll,newSeed,hashSeed,applyRunOff,runOffChance} from './execution.js';
@@ -7,10 +8,11 @@ import {repetitionEffect,rememberAction,focusCost,strainAfter,strainEffect} from
 import {freshDragState,dragReason,simulateDrag,dragCards} from './drag.js';
 import {CARS,PILOTS,CARDS,sectorAt,getEvent} from './data.js';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-export function configuration(carId,pilotId,parts=[],condition=100){
+export function configuration(carId,pilotId,parts=[],condition=100,rawSetup={}){
  const car=CARS.find(c=>c.id===carId)||CARS[0],pilot=PILOTS.find(p=>p.id===pilotId)||PILOTS[0];
  const installed=normalizeBuild(car.id,Array.isArray(parts)?parts:[]);
- return {car:tunedCar(car,installed),pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
+ const setup=normalizeSetup(installed,rawSetup);
+ return {car:tunedCar(car,installed,setup),setup,pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
 }
 export function freshState(config){return {time:0,tires:100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
 export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
@@ -49,7 +51,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  const terminal=Math.cbrt(power/car.airResistance);
  const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1.05:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);
  const cornerSpeed=corner?Math.sqrt(grip*9.81*sector.radius):terminal;
- const accel=Math.min(grip*9.81*traction,power/(mass*Math.max(state.velocity,18)))-9.81*sector.slope;
+ const accel=Math.min(grip*9.81*traction,power/(mass*Math.max(state.velocity,18)))-9.81*sector.slope-(car.rollingFactor-1)*.12;
  const exit=corner?Math.min(terminal,cornerSpeed+accel*1.5):Math.min(terminal,Math.sqrt(state.velocity**2+2*accel*sector.length));
  const average=corner?cornerSpeed*.87+exit*.13:Math.max(18,(state.velocity+exit)*.5);
  const braking=corner?Math.max(0,state.velocity-cornerSpeed)/(grip*9.81*brake)*.45:0;
@@ -61,7 +63,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(card.id==='apexEarly')gain*=sector.radius<50?1.25:-.5;
  if(card.id==='power')gain*=traction*(sector.wet>.35&&['FR','MR'].includes(car.drive)&&!has('lsd')?.45:1);
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
- const risk=clamp(card.risk+strain.risk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
+ const risk=clamp(card.risk+strain.risk+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
  // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;

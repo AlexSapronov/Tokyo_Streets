@@ -1,3 +1,4 @@
+import {normalizeSetup,defaultSetup,validSetup,setupKey} from './setup.js';
 import {partReason,normalizeBuild} from './tuning.js';
 import {START_MONEY} from './balance.js';
 import {normalizeTelemetry} from './telemetry.js';
@@ -15,7 +16,7 @@ export function newCareer() {
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -37,7 +38,8 @@ function validateRecord(record) {
   if (!finite(record.time) || Math.abs(total - record.time) > .001) return null;
   const parts = unique(list(record.parts).filter(validPart));
   if(parts.some(id=>partReason(record.carId,id))||normalizeBuild(record.carId,parts).length!==parts.length)return null;
-  const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100);
+  if(record.setup!==undefined&&!validSetup(parts,record.setup))return null;
+  const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup);
   const event=getEvent(record.eventId);
   const cards=availableCards(config,event.mode,event.id);
   if(record.actions.some((id,i)=>!cards.some(card=>card.id===id&&(!card.phase||card.phase==='any'||card.phase===event.sectors[i].phase))))return null;
@@ -50,7 +52,7 @@ function validateRecord(record) {
   const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key, ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {key,...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -98,6 +100,7 @@ export function validateSave(raw) {
   for (const car of CARS) {
     out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(id=>validPart(id)&&!partReason(car.id,id)));
     out.builds[car.id] = normalizeBuild(car.id,list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)));
+    out.setups[car.id]=normalizeSetup(out.builds[car.id],raw.setups?.[car.id]);
     out.condition[car.id] = finite(raw.condition?.[car.id])
       ? Math.max(35, Math.min(100, raw.condition[car.id])) : 100;
   }

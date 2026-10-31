@@ -27,7 +27,7 @@ function tireGrip(config,state,sector) {
   const temperature=clamp(1-Math.abs(drag.temperature-optimum)/180,.67,1);
   const pressure=1+(1-drag.pressure)*.4;
   return config.car.grip*temperature*pressure*(1-wet*(config.car.drive==='AWD'?.2:.35))
-    *tireFactor(config,wet)
+    *tireFactor(config,wet,false)
     *(parts.includes('suspension')?1.025:1)*(.8+.2*state.tires/100);
 }
 // Integrate longitudinal motion at fixed 20 ms steps. No bonus
@@ -79,7 +79,7 @@ export function simulateDrag(config,state,sector,card,execution=null) {
   const reasons=[];
   let time=0,risk=0,slip=0;
   if(prep){
-    drag.temperature=clamp(card.temp+error*60,20,140);drag.rpm=card.rpm*(1-error*.5);drag.pressure=card.pressure;
+    drag.temperature=clamp(card.temp+error*60,20,140);drag.rpm=card.rpm*(1-error*.5);drag.pressure=card.pressure*((config.setup?.pressure??2.2)/2.2);
     if(sector.longDrag){drag.longFormat=true;drag.gearing=card.gearing||1;drag.forceTop=false;drag.splits=[];next.recentActions=rememberAction(state,card);}
     reasons.push(`Шины ${Math.round(drag.temperature)}°C · ${Math.round(drag.rpm)} об/мин · давление ${Math.round(card.pressure*100)}%`);
     reasons.push('Подготовка проходит до сигнала и не входит в зачётное время');

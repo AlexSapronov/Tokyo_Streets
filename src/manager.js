@@ -12,7 +12,7 @@ export function beginManagedRace(career,eventId,weather,runId){
   const fee=CREW[career.pilot].salary;
   if(career.money<fee)throw new Error('Недостаточно денег на оплату пилота');
   const next=structuredClone(career);next.money-=fee;
-  const config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car]);
+  const config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car]);
   const experience=Math.min(30,contract.experience),level=Math.floor(experience/5);
   config.pilot={...config.pilot,skill:Math.min(.995,config.pilot.skill+level*.0025),focus:config.pilot.focus+level};
   const race=createRace(config,weather,eventId,runId);race.rewardScale=payoutScale(career,eventId);

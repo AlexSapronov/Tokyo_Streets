@@ -31,13 +31,14 @@ export const PARTS = [
  {id:'longFinal',slot:'final',name:'CUSCO High Speed Final Drive',type:'Длинная главная пара',price:13000,desc:'Передаточное отношение −12%: ниже обороты, хуже тяга на низкой скорости. Заменяет короткую пару.',effect:'gearing'},
  {id:'aero',name:'Voltex GT Wing',type:'Аэродинамика',price:17000,desc:'Сцепление растёт со скоростью до +10%; сопротивление воздуху +14%, масса +12 кг. На медленной дуге почти не помогает.',effect:'aero'},
  {id:'clutch',name:'EXEDY Hyper Single',type:'Сцепление',price:14000,desc:'Паузы переключений в дрэге −28%. Нагрев +8%, износ +6%: более резкая передача момента.',effect:'shift'},
+ {id:'gearbox',slot:'final',name:'HKS Dog Mission',type:'Регулируемая коробка',price:24000,desc:'Открывает настройку главной пары от ×0.85 до ×1.15. Вместо фиксированной короткой/длинной пары. На стоковой коробке регулировка закрыта.',effect:'adjustable'},
  {id:'angle',rearOnly:true,name:'Wisefab Angle Kit',type:'Дрифтовая геометрия',price:10000,desc:'Для FR/MR: точность дрифта +0.045, отклик угла +8%, масса +4 кг. Требует контроля целевого угла.',effect:'drift'}
 ];
 export const TUNING_GROUPS = [
  {id:'tires',name:'Шины',description:'Состав под покрытие. Установлен только один комплект.',parts:['tires','wetTires','slicks']},
  {id:'engine',name:'Двигатель',description:'Мощность, рабочий диапазон и цена тепловой нагрузки.',parts:['ecu','turbo','cams']},
  {id:'cooling',name:'Охлаждение',description:'Контроль температуры и стабильность под длительной нагрузкой.',parts:['cooling']},
- {id:'transmission',name:'Трансмиссия',description:'Дифференциал, сцепление и выбор главной пары.',parts:['lsd','clutch','shortFinal','longFinal']},
+ {id:'transmission',name:'Трансмиссия',description:'Дифференциал, сцепление и выбор главной пары.',parts:['lsd','clutch','shortFinal','longFinal','gearbox']},
  {id:'chassis',name:'Шасси и тормоза',description:'Торможение, подвеска, облегчение и дрифтовая геометрия.',parts:['brakes','suspension','weight','angle']},
  {id:'aero',name:'Аэродинамика',description:'Сцепление на скорости в обмен на сопротивление и массу.',parts:['aero']}
 ];

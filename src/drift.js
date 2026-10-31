@@ -40,7 +40,7 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const speed=Math.max(20,Math.min(targetSpeed*card.pace*(1-error*.25),maxCornerSpeed*1.12,attainable));
   const angle=card.reset?0:clamp(card.angle*response*(1+wet*.1)*(1+error*.8),0,86);
   const lateral=(speed/3.6)**2/sector.radius/(grip*9.81);
-  const load=clamp((car.drive==='MR'?.04:0)+strainEffect(state,card).risk+Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
+  const load=clamp((car.setupRisk||0)+(car.drive==='MR'?.04:0)+strainEffect(state,card).risk+Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
     +Math.max(0,55-state.focus)/180+Math.max(0,65-state.tires)/170
     +Math.max(0,state.heat-115)/260+repeat.strain*.025-(precision-.85)*.45,0,1.2);
   const spin=!card.reset&&(load>.9||angle>78&&load>.55);
