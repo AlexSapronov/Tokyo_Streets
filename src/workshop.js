@@ -19,24 +19,26 @@ export const WORKSHOP_PRESETS=[
  {id:'drag',name:'Дрэг',money:1200,street:1,description:'Разгон и меньше сопротивление. Для выбранной стоячей мили — длиннее главная пара.'},
  {id:'drift',name:'Дрифт',money:1500,street:2,description:'Отклик на перекладку, задний тормозной баланс и умеренный прижим.'}
 ];
-export function presetQuote(career,id){
- const profile=WORKSHOP_PRESETS.find(p=>p.id===id);if(!profile)throw new Error('Настройка не найдена');
- const parts=career.builds[career.car],current=normalizeSetup(parts,career.setups[career.car]);
+function targetSetup(career,id){
+ const parts=career.builds[career.car];
  const mile=getEvent(career.eventId).id==='yokohama-mile';
  const values={dry:{pressure:2.15,springRate:110,brakeBias:62,wing:50,finalDrive:1},wet:{pressure:2.05,springRate:90,brakeBias:64,wing:70,finalDrive:.96},drag:{pressure:mile?2.3:2.05,springRate:100,brakeBias:60,wing:0,finalDrive:mile?.92:1.08},drift:{pressure:2.1,springRate:105,brakeBias:58,wing:35,finalDrive:1.04}}[id];
- const setup=normalizeSetup(parts,values),changes=SETUP_FIELDS.filter(f=>setup[f.key]!==current[f.key]).map(f=>({key:f.key,label:f.label,unit:f.unit,from:current[f.key],to:setup[f.key]}));
- const reason=!changes.length?'Уже настроено':career.money<profile.money?'Недостаточно денег':career.street<profile.street?'Недостаточно Street Cred':'';
- return {...profile,setup,changes,reason};
+ return normalizeSetup(parts,values);
+}
+// Public quote contains prices and eligibility only, never target parameters.
+export function presetQuote(career,id){
+ const profile=WORKSHOP_PRESETS.find(p=>p.id===id);if(!profile)throw new Error('Настройка не найдена');
+ const reason=career.money<profile.money?'Недостаточно денег':career.street<profile.street?'Недостаточно Street Cred':'';
+ return {...profile,reason};
 }
 const randomUnit=()=>globalThis.crypto?.getRandomValues?globalThis.crypto.getRandomValues(new Uint32Array(1))[0]/4294967295:Math.random();
 export function applyWorkshopPreset(career,id,active=false,rng=randomUnit){
  if(active)throw new Error('Сначала заверши текущий заезд');
  const quote=presetQuote(career,id),next=structuredClone(career);
- if(!quote.changes.length)return next;
  if(quote.reason)throw new Error(quote.reason);
  next.streetPeak=earnedStreet(career);next.money-=quote.money;next.street-=quote.street;
  const draw=()=>{const value=rng();if(!Number.isFinite(value)||value<0||value>1)throw new Error('Недопустимый результат настройки');return value;};
- const quality=Number((.85+.15*draw()).toFixed(6)),parts=next.builds[next.car],values={...quote.setup};
+ const quality=Number((.85+.15*draw()).toFixed(6)),parts=next.builds[next.car],values=targetSetup(career,id);
  for(const field of SETUP_FIELDS){
   if(field.requires&&!parts.includes(field.requires))continue;
   values[field.key]+=(draw()*2-1)*(1-quality)*(field.max-field.min);
