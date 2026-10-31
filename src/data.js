@@ -1,5 +1,5 @@
 export const CARS = [
- {id:'ae86',brand:'TOYOTA',name:'Sprinter Trueno AE86',year:1986,tag:'Лёгкий FR',drive:'FR',power:130,mass:940,grip:1.02,brakes:1.0,cooling:1.0,color:'#eee8d9',price:0,engine:'4A-GE · 1.6 L · NA',description:'Лёгкий кузов и точная смена направления. Прощает меньше ошибок на мокром выходе, зато бережёт тормоза.'},
+ {id:'ae86',brand:'TOYOTA',name:'Sprinter Trueno AE86',year:1986,tag:'Лёгкий FR',drive:'FR',power:130,mass:940,grip:1.02,brakes:1.0,cooling:1.0,color:'#eee8d9',price:18000,engine:'4A-GE · 1.6 L · NA',description:'Лёгкий кузов и точная смена направления. Прощает меньше ошибок на мокром выходе, зато бережёт тормоза.'},
  {id:'chaser',brand:'TOYOTA',name:'Chaser Tourer V JZX100',year:1996,tag:'Мощный FR',drive:'FR',power:280,mass:1470,grip:1.0,brakes:.96,cooling:.9,color:'#944fff',price:45000,engine:'1JZ-GTE · 2.5 L · TURBO',description:'Тяга турбошестёрки решает на прямых. Масса нагружает тормоза, а мокрые шпильки требуют терпения.'},
  {id:'evo',brand:'MITSUBISHI',name:'Lancer Evolution VI',year:1999,tag:'Устойчивый AWD',drive:'AWD',power:280,mass:1360,grip:1.09,brakes:1.06,cooling:1.05,color:'#e34b43',price:60000,engine:'4G63T · 2.0 L · TURBO',description:'Полный привод раньше реализует тягу на мокром асфальте. Тяжелее AE86 и быстрее расходует передние шины.'},
  {id:'mx5',brand:'MAZDA',name:'Eunos Roadster NA6CE',year:1989,tag:'Лёгкий родстер',drive:'FR',power:120,mass:940,grip:1.04,brakes:1.0,cooling:1.04,color:'#3a9e6f',price:24000,engine:'B6-ZE · 1.6 L · NA',description:'Дешёвый лёгкий родстер: точные связки и умеренный расход шин. На длинной прямой не хватает мощности.'},
@@ -102,7 +102,7 @@ export const EVENTS = [
     region: 'GUNMA', japanese: '榛名山', mode: 'duel', theme: 'forest',
     description: 'Первый ночной вызов. Узкие связки и мокрая шпилька.',
     unlockStreet: 0, unlockRaces: 0, prize: 18000, participation: 7000,
-    rivalCar: 'chaser', rivalPilot: 'aki', rivalParts: [],
+    rivalCar: 'ae86', rivalPilot: 'aki', rivalParts: [],
     sectors: SECTORS,
     anchors: [[0,0],[160,0],[260,110],[170,210],[-60,230],[-230,330],[-110,420],[130,430],[310,540],[180,650],[-70,670],[-260,790],[-160,900],[80,950],[250,1070],[100,1190]]
   },

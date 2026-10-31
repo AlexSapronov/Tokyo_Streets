@@ -38,7 +38,7 @@ export function mountWorkbench(root,view,career,race){
   tabs(root,view,[...(active?[{id:'current',label:'Текущий сезон',nodes:panels.slice(0,1)}]:[]),{id:'cups',label:'Кубки карьеры',nodes:pick('.section-grid')},{id:'organizer',label:'Мои серии / редактор',nodes:pick('.organizer-panel')},{id:'history',label:'История сезонов',nodes:panels.slice(active?1:0)}]);
  }else if(view==='world'){
   const grid=children.findIndex(n=>n.matches('.event-grid')),records=children.findIndex((n,i)=>i>grid&&n.matches('.section-title')),history=children.findIndex((n,i)=>i>records&&n.tagName==='H2');
-  tabs(root,view,[{id:'events',label:'Маршруты',nodes:children.slice(grid,records)},{id:'records',label:'Рекорды и повторы',nodes:children.slice(records,history)},{id:'history',label:'История заездов',nodes:children.slice(history)}]);
+  tabs(root,view,[{id:'journey',label:'Путь команды',nodes:pick('.journey-panel')},{id:'events',label:'Маршруты',nodes:children.slice(grid,records)},{id:'records',label:'Рекорды и повторы',nodes:children.slice(records,history)},{id:'history',label:'История заездов',nodes:children.slice(history)}]);
  }else if(view==='race'&&root.querySelector('#report')?.children.length){
   const button=root.ownerDocument.createElement('button');button.className='secondary race-report-toggle';let report=true;const toggle=()=>{root.dataset.racePanel=report?'report':'track';button.textContent=report?'← К трассе и приборам':'Протокол заезда →';};button.onclick=()=>{report=!report;toggle();};root.querySelector('.page-heading').append(button);toggle();const show=root.querySelector('#show-report');if(show)show.onclick=()=>{report=true;toggle();};
  }else delete root.dataset.racePanel;

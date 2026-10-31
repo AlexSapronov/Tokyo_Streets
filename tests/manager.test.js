@@ -82,7 +82,7 @@ for(const event of EVENTS)for(const pilot of PILOTS){
    race=resolveManagedSector(race);moves++;
   }
   assert.equal(moves,event.sectors.length);assert.equal(race.manager.log.length,moves);
-  const result=awardRace(career,race);assert.equal(result.career.money,charged+result.race.outcome.reward);
+  const result=awardRace(career,race);assert.equal(result.career.money,charged+result.race.outcome.reward+result.race.journeyReport.bonus);
   assert.ok(result.race.teamFeedback.after>=40&&result.race.teamFeedback.after<=100);
   const loaded=validateSave(result.career);assert.deepEqual(loaded,result.career);
   const record=raceRecord(race);assert.deepEqual(loaded.bests[0]?.manager,record.manager);

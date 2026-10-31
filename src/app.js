@@ -1,3 +1,4 @@
+import {journeyFocusHTML,journeyHTML,routeMasteryHTML,journeyReportHTML} from './journey-view.js';
 import {powertrainHTML,maintenanceHTML,wearSummaryHTML,mountPowertrain} from './powertrain-view.js';
 import {buyEngine,installEngine,exchangeEngines} from './powertrain.js';
 import {getEngine} from './engine-data.js';
@@ -7,7 +8,7 @@ import {defaultSeries,saveSeries,deleteSeries,exportSeries,importSeries} from '.
 import {organizerHTML,seriesQuoteHTML} from './organizer-view.js';
 import {bookSupport,supportCost,repairMultiplier,hireStaff,dismissStaff,acceptSponsor,cancelSponsor,engineerAdvice} from './operations.js';
 import {staffHTML,sponsorsHTML,engineerHTML,supportReportHTML} from './operations-view.js';
-import {CUPS,getCup,activeCup,enterCup,withdrawCup,prepareStage,bookCupRace} from './championship.js';
+import {CUPS,getCup,activeCup,enterCup,withdrawCup,prepareStage,bookCupRace,previewCupOpponent} from './championship.js';
 import {savePreset,applyPreset,deletePreset} from './presets.js';
 import {escapeHTML,presetsHTML,championshipHTML,seasonReportHTML} from './career-view.js';
 import {setupControlsHTML} from './setup-view.js';
@@ -22,9 +23,9 @@ import {DRIFT_CARDS} from './drift-data.js';
 import {replayIndex,driftFrame} from './replay.js';
 import {qualitativeForecast,focusCost} from './tactics.js';
 import {ALL_DRAG_CARDS as DRAG_CARDS} from './drag-data.js';
-import {selectCar,togglePart,selectPilot,serviceCar,serviceCost,recoveryService,setCarSetup,repairComponent,recoveryNeeded} from './garage.js';
+import {selectCar,togglePart,selectPilot,serviceCar,serviceCost,tradeInQuote,tradeInCar,recoveryService,setCarSetup,repairComponent,recoveryNeeded} from './garage.js';
 import {CARS, PILOTS, PARTS, TUNING_GROUPS, DISCIPLINES, EVENTS, CARDS, getEvent, sectorAt, eventLength} from './data.js';
-import {configuration, availableCards, disabledReason, simulate, createRace, resolveSector, medalTargets, raceOutcome} from './engine.js';
+import {configuration, freeRivalOptions,performanceProfile,nominalConfiguration,availableCards, disabledReason, simulate, createRace, resolveSector, medalTargets, raceOutcome} from './engine.js';
 import {loadCareer, storeCareer, newCareer} from './storage.js';
 import {awardRace, bestFor, unlocked, unlockText, cumulativeTimes, raceRecord} from './progress.js';
 import {vehicleSVG} from './vehicles.js';
@@ -49,14 +50,18 @@ const signed = value => (value >= 0 ? '+' : '−') + Math.abs(value).toFixed(2);
 const weatherName = value => ({dry:'Сухо',mixed:'Переменная влажность',rain:'Дождь'})[value];
 const car = () => CARS.find(car => car.id === career.car);
 const pilot = () => PILOTS.find(pilot => pilot.id === career.pilot);
-function config() { return configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]); }
+function config() { return {...configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]),...(!seasonIntent?{rivalLevel:career.rivalLevel}:{})}; }
 function previewRace() {
   if(replayRecord){
     const saved=configuration(replayRecord.carId,replayRecord.pilotId,replayRecord.parts,replayRecord.condition,replayRecord.setup,replayRecord.engineId,replayRecord.wear);
     saved.pilot={...saved.pilot,focus:saved.pilot.focus+(replayRecord.manager?.level||0)};
     return createRace(saved,replayRecord.weather,replayRecord.eventId);
   }
-  return race || createRace(config(),career.weather,career.eventId);
+  if(race)return race;
+  const preview=createRace(config(),career.weather,career.eventId,null,null,seasonIntent?null:career.rivalLevel);
+  const opponent=seasonIntent?previewCupOpponent(career):null;
+  if(opponent){preview.rival=opponent.rival;preview.rivalName=opponent.name;preview.opponent=createRace(opponent.rival,career.weather,career.eventId).player;if(opponent.dns)preview.opponent.dnf={reason:'Технический недопуск',damage:0,speed:0};}
+  return preview;
 }
 function ghostFor(r) { return race === r && !r.finished ? race.ghost : bestFor(career,r.config,r.eventId,r.weather); }
 function updateWallet() { $('#wallet').textContent = money(career.money); }
@@ -76,22 +81,32 @@ function render() {
   });
   if(view==='garage')renderGarage();else if(view==='tuning')renderTuning();else if(view==='seasons')renderSeasons();else if(view==='world')renderWorld();else if(view==='team')renderTeam();else renderRace();
   mountWorkbench(app,view,career,race);
+  if(!replayRecord)app.querySelector('.context-bar').insertAdjacentHTML('afterend',journeyFocusHTML(career,busy||!!race&&!race.finished));
+  document.querySelectorAll('[data-journey-event]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;career.eventId=button.dataset.journeyEvent;race=null;seasonIntent=false;view='race';save();render();});
+  document.querySelectorAll('[data-journey-view]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;race=null;view=button.dataset.journeyView;if(view==='world')selectWorkspaceTab('world','events');render();});
   app.insertAdjacentHTML('beforeend',`<details class="debug-drawer"><summary>Отладка</summary><aside class="debug-tools"><strong>DEBUG</strong><button id="debug-unlock" class="secondary" ${busy?'disabled':''}>Открыть всё</button><button id="debug-reset" class="secondary" ${busy?'disabled':''}>Сбросить всё</button><span>Локальная карьера в этом браузере</span></aside></details>`);
   $('#debug-unlock').onclick=()=>{stopDebugRun();career=unlockEverything(career);save();render();toast('Открыты все события, машины, детали и пилоты. На счету ¥1 000 000.');};
   $('#debug-reset').onclick=()=>openModal('<h2>Сбросить всё?</h2><p>Будут удалены деньги, покупки, команда, история и повторы. Начнётся новая карьера с ¥18 000.</p><div class="inline-actions"><button class="primary" id="debug-reset-confirm">Сбросить всё</button><button class="secondary" data-close>Отмена</button></div>',()=>{$('#debug-reset-confirm').onclick=()=>{stopDebugRun();career=newCareer();save();$('#modal').close();render();};});
+  fitWorkspace(app);
   updateWallet();
 }
 function stopDebugRun(){autoRun=false;clearTimeout(autoTimer);scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';garagePreview=null;seriesDraft=defaultSeries();seriesEditingId=null;seasonIntent=false;}
 function sectorDescription(s) {
   return `${s.label}${s.mode==='drift'?' · '+s.clip+' · угол '+s.targetAngle+'° · '+s.targetSpeed+' км/ч':''} · ${s.length} м${s.radius?' · радиус '+s.radius+' м':''} · уклон ${Math.round(s.slope*100)}% · влажность ${Math.round(s.wet*100)}%`;
 }
-function medalHTML(eventId,weather) {
-  const targets=medalTargets(eventId,weather,raceClass(config()).id);
-  return `<div class="medal-targets"><span>● Золото <strong>${time(targets.gold)}</strong></span>
+function medalHTML(eventId,weather,r=previewRace()) {
+  const targets=r.targets||medalTargets(eventId,weather,r.config);
+  const profile=performanceProfile(nominalConfiguration(r.config),eventId,weather);
+  return `<p class="micro">Норматив сборки: ${profile.kgPerHp.toFixed(2)} кг/л.с. · сцепление ×${profile.grip.toFixed(2)} · ресурс 100%</p><div class="medal-targets"><span>● Золото <strong>${time(targets.gold)}</strong></span>
     <span>● Серебро <strong>${time(targets.silver)}</strong></span><span>● Бронза <strong>${time(targets.bronze)}</strong></span></div>`;
+}
+function duelOptions(r){
+ if(!['duel','drag'].includes(r.mode)||replayRecord||seasonIntent||r.season)return '';
+ return `<fieldset class="rival-options"><legend>Соперник свободного заезда</legend>${freeRivalOptions(r.config,r.eventId,r.weather).map(o=>`<button class="secondary ${career.rivalLevel===o.id?'selected':''}" data-rival-level="${o.id}" aria-pressed="${career.rivalLevel===o.id}" ${race?'disabled':''}><strong>${o.name} · ${o.rival.car.name}</strong><span>${o.profile.power} л.с. / ${Math.round(o.profile.mass)} кг · рейтинг ${Math.round(o.profile.rating)} / твой ${Math.round(o.playerRating)}${o.prepared?' · спецподготовка':''} · приз ×${o.reward}</span></button>`).join('')}<p class="micro">Рейтинг исправной сборки: мощность/масса и сцепление. Пилот соперников одинаков. Отметки трассы общие для всех уровней.</p></fieldset>`;
 }
 function renderRace() {
   const r=previewRace(),event=getEvent(r.eventId),count=event.sectors.length;
+  const offers=duelOptions(r);
   const s=sectorAt(Math.min(r.index,count-1),r.weather,event.id),duel=['duel','drag'].includes(r.mode),isDrag=r.mode==='drag',isDrift=r.mode==='drift';
   const gap=r.opponent.dnf?Infinity:r.player.time-r.opponent.time,ghost=ghostFor(r),isReplay=!!replayRecord;
   app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">JAPAN / ${event.region}</div>
@@ -108,19 +123,20 @@ function renderRace() {
       <div class="scene-tools"><button id="pause" ${!isReplay?'disabled':''}>Ⅱ Пауза</button><button id="speed">${fast?'2×':'1×'} Скорость</button></div></div>
       <div class="sector-strip">${event.sectors.map((sector,i)=>`<div class="sector-node ${i<r.index?'done':i===r.index?'current':''}" title="${sector.name} · ${sector.length} м">${String(i+1).padStart(2,'0')} ${sector.type==='corner'?'⌁':'—'}</div>`).join('')}</div>
       <details class="route-brief"><summary>${isDrift?'Судейские клипы':isDrag?'Фазы дрэга':'Разведка маршрута'} · ${count}</summary><div class="route-list">${event.sectors.map((_,i)=>{const sector=sectorAt(i,r.weather,event.id);return `<div class="${i===r.index?'current':''}"><span class="micro">${String(i+1).padStart(2,'0')}</span><strong>${sector.name}</strong><span>${sectorDescription(sector)}</span></div>`;}).join('')}</div></details></section>
-      <aside class="sidebar">${seasonIntent&&career.championships.active?'<div class="notice">Этап кубка: '+escapeHTML(activeCup(career.championships.active).name)+'<button id="season-practice" class="secondary">Перейти к свободному заезду</button></div>':''}${dashboardHTML(r.config)}<div class="notice">Класс сборки: <strong>${raceClass(r.config).name}</strong><br>${!unlocked(event,career)?'Доступ: '+unlockText(event):admissionReason(career,r.eventId)||'Машина допущена к старту'}<br>Выплаты за повторение: ${Math.round(payoutScale(career,r.eventId)*100)}%<br>Персонал за старт: ${money(supportCost(career))}<br>Нагрузка атак: ${(r.player.strain||0).toFixed(1)} / 6</div>
+      <aside class="sidebar">${seasonIntent&&career.championships.active?'<div class="notice">Этап кубка: '+escapeHTML(activeCup(career.championships.active).name)+'<button id="season-practice" class="secondary">Перейти к свободному заезду</button></div>':''}${offers}${dashboardHTML(r.config)}<div class="notice">Класс сборки: <strong>${raceClass(r.config).name}</strong><br>${!seasonIntent&&!unlocked(event,career)?'Доступ: '+unlockText(event):admissionReason(career,r.eventId)||'Машина допущена к старту'}<br>${routeMasteryHTML(career,event)}Выплаты за повторение: ${Math.round(payoutScale(career,r.eventId)*100)}%<br>Персонал за старт: ${money(supportCost(career))}<br>Нагрузка атак: ${(r.player.strain||0).toFixed(1)} / 6</div>
       <div class="panel"><div class="eyebrow">${isReplay?'ХРОНОМЕТР':duel?'СОПЕРНИК / AI · ПЛАН НА 3 СЕКТОРА':'ОДИНОЧНАЯ СЕССИЯ'}</div>
       ${duel&&!isReplay?`<div class="entry"><div class="car-swatch" style="--car:${r.rival.car.color}"></div><div><strong>${r.rival.car.name}</strong><span>${r.rivalName||r.rival.pilot.name} / ${r.rival.pilot.trait}</span></div></div>`:''}
       <div class="gap ${isDrag&&r.player.drag.falseStart?'negative':duel&&gap<=0?'positive':duel?'negative':''}" id="live-clock">${isReplay?time(r.player.time):isDrift?score(r.player.drift.score):!duel?time(r.player.time):isDrag&&r.player.drag.falseStart?'RED LIGHT':signed(gap)}
       <small>${isReplay?'ПОВТОР БЕЗ НАГРАД':isDrift?'БАЛЛЫ ЗА СЕССИЮ / МАКС. 800':!duel?'ТВОЁ ВРЕМЯ':gap===0?'НА ОДНОЙ ЛИНИИ':gap<0?'ТЫ ВПЕРЕДИ / СЕК':'ТЫ ПОЗАДИ / СЕК'}</small></div>
       ${isDrift?driftMedals(event)+(isReplay?'<p class="micro">ИТОГ ЗАПИСАННОГО ЗАЕЗДА</p>':'')+driftMetrics(isReplay&&replayRecord.drift?replayRecord.drift:r.player.drift):!duel?medalHTML(event.id,r.weather):isDrag?dragMetrics(isReplay&&replayRecord.drag?replayRecord.drag:r.player.drag):''}
-      ${isReplay?'<button id="stop-replay" class="secondary wide">Завершить просмотр</button>':!race?'<button id="start" class="primary wide" '+(!unlocked(event,career)?'disabled':'')+'>'+(seasonIntent?'На старт этапа ↗':'На старт ↗')+'</button>':r.finished?'<button id="show-report" class="primary wide">Посмотреть результат ↓</button>':'<button id="abandon" class="secondary wide">Покинуть заезд</button>'}</div>
+      ${isReplay?'<button id="stop-replay" class="secondary wide">Завершить просмотр</button>':!race?'<button id="start" class="primary wide" '+(!seasonIntent&&!unlocked(event,career)?'disabled':'')+'>'+(seasonIntent?'На старт этапа ↗':'На старт ↗')+'</button>':r.finished?'<button id="show-report" class="primary wide">Посмотреть результат ↓</button>':'<button id="abandon" class="secondary wide">Покинуть заезд</button>'}</div>
       ${!isReplay?`<div class="panel ghost-panel"><div class="eyebrow">ЛИЧНЫЙ РЕКОРД / ЭТА СБОРКА</div><div class="record-time">${ghost?ghost.drift?score(ghost.drift.score)+' Б':time(ghost.time):'Первый ориентир — ты.'}</div>
-      <p>${ghost?'Та же трасса, погода, машина, пилот и детали. Состояние в рекорде: '+ghost.condition.toFixed(0)+'%.':'Заверши заезд — появятся рекорд, призрак и повтор.'}</p>
+      <p>${ghost?'Та же трасса, погода, машина, пилот, детали и уровень соперника. Состояние в рекорде: '+ghost.condition.toFixed(0)+'%.':'Заверши заезд — появятся рекорд, призрак и повтор.'}</p>
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
     ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Твои решения <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / ROUTES & HARDWARE 0.15</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / CAREER & BALANCE 0.17</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+  document.querySelectorAll('[data-rival-level]').forEach(button=>button.onclick=()=>{if(race||replayRecord||seasonIntent)return;career.rivalLevel=button.dataset.rivalLevel;save();render();});
   $('#control').value=r.manager?'manager':career.control;
   $('#control').onchange=event=>{career.control=event.target.value;save();render();};
   $('#discipline-select').value=r.mode;$('#discipline-select').onchange=e=>{const routes=EVENTS.filter(item=>item.mode===e.target.value);const next=routes.find(item=>unlocked(item,career))||routes[0];career.eventId=next.id;race=null;save();render();};
@@ -191,15 +207,15 @@ function setBusy(value) {
   if(value)document.querySelectorAll('.card,.filter,.command-button,#execute,#abandon,#debug-unlock,#debug-reset').forEach(button=>button.disabled=true);
 }
 function startRace() {
-  if(!unlocked(getEvent(career.eventId),career))return;
+  if(!seasonIntent&&!unlocked(getEvent(career.eventId),career))return;
   const runId=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
   try{
     const blocked=admissionReason(career,career.eventId);if(blocked)throw new Error(blocked);
     if(seasonIntent){const start=bookCupRace(career,runId);career=start.career;race=start.race;seasonIntent=false;save();}
     else if(career.control==='manager'){
-      const start=beginManagedRace(career,career.eventId,career.weather,runId);career=start.career;race=start.race;save();
+      const start=beginManagedRace(career,career.eventId,career.weather,runId,career.rivalLevel);career=start.career;race=start.race;save();
     }else{
-      const support=bookSupport(career,career.eventId,runId),nextRace=createRace(config(),career.weather,career.eventId,runId);
+      const support=bookSupport(career,career.eventId,runId),nextRace=createRace(config(),career.weather,career.eventId,runId,null,career.rivalLevel);
       nextRace.supportFee=support.fee;career=support.career;race=nextRace;save();
     }
     race.rewardScale=payoutScale(career,career.eventId);
@@ -250,7 +266,7 @@ function renderReport() {
   const event=getEvent(race.eventId),outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
   const previous=ghost?cumulativeTimes(ghost.sectorTimes):null;
   let elapsed=0;
-  $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РЕЗУЛЬТАТ'}</div>
+  $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РЕЗУЛЬТАТ'}</div>
     <h2>${outcome.label} · ${time(race.player.time)}</h2>${damageHTML(race)}${managerFeedbackHTML(race)}<span class="micro">${weatherName(race.weather)} · ${race.config.car.name} · ${race.config.pilot.name}</span>
     <p>+${money(outcome.reward)} · ${outcome.street?'Street Cred +'+outcome.street:'Official Rep +'+outcome.official} · Состояние машины ${Math.round(career.condition[race.config.car.id])}%${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''}
     ${ghost&&!race.player.dnf?'<br>К предыдущему рекорду: '+signed(race.player.time-ghost.time)+' с · состояние на старте '+race.config.condition.toFixed(0)+'% / в рекорде '+ghost.condition.toFixed(0)+'%':''}</p></div>
@@ -277,7 +293,7 @@ function bindReportActions(){
 function downloadReport() {
   const report={version:2,eventId:race.eventId,route:getEvent(race.eventId).title,mode:race.mode,weather:race.weather,
     car:race.config.car.name,pilot:race.config.pilot.name,parts:race.config.parts,condition:race.config.condition,engineId:race.config.engineId,wear:race.config.wear,setup:{...race.config.setup},
-    outcome:race.outcome,supportFee:race.supportFee||0,sponsorReport:race.sponsorReport||null,player:race.player,opponent:['duel','drag'].includes(race.mode)?race.opponent:null,sectors:race.history};
+    rivalLevel:race.rivalLevel,difficultyReward:race.difficultyReward,targets:race.targets,outcome:race.outcome,supportFee:race.supportFee||0,sponsorReport:race.sponsorReport||null,player:race.player,opponent:['duel','drag'].includes(race.mode)?race.opponent:null,sectors:race.history};
   const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));
   const anchor=document.createElement('a');anchor.href=url;anchor.download=`tokyo-streets-${race.eventId}-report.json`;anchor.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
@@ -285,17 +301,25 @@ function downloadReport() {
 function serviceHTML(locked){
  return `<section class="panel garage-service"><h2>${car().name} · кузов ${Math.round(career.condition[career.car])}%</h2><p>Базовый сервис: ¥450 за 1 п.п. состояния${repairMultiplier(career)<1?' · скидка механика '+Math.round((1-repairMultiplier(career))*100)+'%':''}. Долг за аварийный ремонт: ${money(career.repairDebt||0)}; погашается из половины призовых.</p><div class="inline-actions"><button id="repair" class="secondary" ${locked||!repairCost()||career.money<repairCost()?'disabled':''}>Полный сервис · ${money(repairCost())}</button><button id="recovery-service" class="secondary" ${locked||!recoveryNeeded(career)?'disabled':''}>Кузов и основные узлы до 60%</button><button id="open-maintenance" class="secondary">Сервис отдельных узлов ↗</button><button id="open-tuning" class="primary">Тюнинг выбранной машины ↗</button></div></section>`;
 }
+function tradeInHTML(targetId,locked){
+ if(career.ownedCars.includes(targetId))return '';
+ try{
+  const q=tradeInQuote(career,targetId);
+  return `<section class="trade-in-quote"><h3>Трейд-ин активной машины</h3><p>${car().name}: оценка кузова и основных узлов ${money(q.base)}${q.engineAdjustment?' · поправка за мотор '+money(q.engineAdjustment):''}. Детали: ${q.parts.length}. Коэффициент выкупа ${q.rate}.</p><p><strong>Зачёт ${money(q.credit)} · доплата ${money(q.due)}${q.cashback?' · возврат '+money(q.cashback):''}</strong></p><details><summary>Состав оценки</summary><ul>${q.parts.map(p=>`<li>${p.name}: ${Math.round(p.condition*100)}% · до коэффициента ${money(p.value)}</li>`).join('')||'<li>Без купленных деталей</li>'}</ul><p>В цену включены все детали этой машины, в том числе снятые. Складские моторы не продаются.</p></details><button id="trade-in" class="secondary" ${locked||!q.affordable?'disabled':''}>Обменять на ${CARS.find(c=>c.id===targetId).name} ↗</button></section>`;
+ }catch(error){return `<p class="micro">Трейд-ин: ${escapeHTML(error.message)}</p>`;}
+}
 function renderGarage(){
  const locked=!!race&&!race.finished,shown=CARS.filter(c=>garageDrive==='all'||c.drive===garageDrive);
  const preview=shown.find(c=>c.id===garagePreview)||shown.find(c=>c.id===career.car)||shown[0];garagePreview=preview.id;const previewBuild=configuration(preview.id,career.pilot,career.builds[preview.id],career.condition[preview.id],career.setups[preview.id],installedEngineId(career,preview.id),career.wear[preview.id]);
  app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">GARAGE / 車庫</div><h1>Автопарк и обслуживание</h1></div><label>Показать <select id="garage-drive"><option value="all">Все приводы</option>${['FR','AWD','FF','MR'].map(d=>'<option value="'+d+'">'+d+'</option>').join('')}</select></label></div>
  ${locked?'<div class="notice">Заезд активен. Просмотр доступен; смена машины и сервис — после финиша или выхода.</div>':''}
  <div class="garage-workspace"><aside class="garage-catalog" aria-label="Список автомобилей">${shown.map(c=>`<button class="garage-car-row ${preview.id===c.id?'selected':''}" data-garage-preview="${c.id}" aria-pressed="${preview.id===c.id}"><span class="mini-car">${vehicleSVG(c)}</span><span><strong>${c.name}</strong><small>${c.drive} · ${c.power} л.с. · ${career.car===c.id?'АКТИВНАЯ':career.ownedCars.includes(c.id)?'В ГАРАЖЕ':money(c.price)}</small></span></button>`).join('')}</aside>
- <section class="garage-detail"><div class="garage-car-detail panel"><div class="eyebrow">${preview.brand} / ${preview.year} · ${previewBuild.car.engine}</div><div class="vehicle-art">${vehicleSVG(preview)}</div><div class="section-title"><div><h2>${preview.name}</h2><span class="badge">${preview.tag}</span></div><button class="primary" data-car="${preview.id}" ${locked||career.car===preview.id||!career.ownedCars.includes(preview.id)&&career.money<preview.price?'disabled':''}>${career.car===preview.id?'✓ Активная машина':career.ownedCars.includes(preview.id)?'Выбрать машину':'Купить · '+money(preview.price)}</button></div><div class="specs"><div>${previewBuild.car.power}<small>Л.С.</small></div><div>${previewBuild.car.mass-(previewBuild.parts.includes('weight')?65:0)+(previewBuild.parts.includes('suspension')?8:0)}<small>КГ</small></div><div>${preview.drive}<small>ПРИВОД</small></div><div>${Math.round(career.condition[preview.id])}%<small>СОСТОЯНИЕ</small></div></div><p>${preview.description}</p></div>
+ <section class="garage-detail"><div class="garage-car-detail panel"><div class="eyebrow">${preview.brand} / ${preview.year} · ${previewBuild.car.engine}</div><div class="vehicle-art">${vehicleSVG(preview)}</div><div class="section-title"><div><h2>${preview.name}</h2><span class="badge">${preview.tag}</span></div><button class="primary" data-car="${preview.id}" ${locked||career.car===preview.id||!career.ownedCars.includes(preview.id)&&career.money<preview.price?'disabled':''}>${career.car===preview.id?'✓ Активная машина':career.ownedCars.includes(preview.id)?'Выбрать машину':'Купить · '+money(preview.price)}</button></div><div class="specs"><div>${previewBuild.car.power}<small>Л.С.</small></div><div>${previewBuild.car.mass-(previewBuild.parts.includes('weight')?65:0)+(previewBuild.parts.includes('suspension')?8:0)}<small>КГ</small></div><div>${preview.drive}<small>ПРИВОД</small></div><div>${Math.round(career.condition[preview.id])}%<small>СОСТОЯНИЕ</small></div></div><p>${preview.description}</p>${tradeInHTML(preview.id,locked)}</div>
  <section class="garage-pilots"><h2>Пилот активной машины</h2><div class="pilot-row">${PILOTS.map(p=>`<button class="pilot ${career.pilot===p.id?'selected':''}" data-pilot="${p.id}" ${locked?'disabled':''}><h3>${p.name}</h3><span class="micro">${p.trait} · ФОКУС ${p.focus}</span><p>${p.description}</p></button>`).join('')}</div></section></section><aside class="garage-tools">${serviceHTML(locked)}<div class="panel"><h3>Просмотр и выбор</h3><p>Список слева открывает характеристики. Активная машина меняется только кнопкой выбора или покупки. Сервис относится к активной машине, указанной сверху.</p><p>Купленные детали и настройки хранятся отдельно для каждой машины.</p></div></aside></div>`;
  $('#garage-drive').value=garageDrive;$('#garage-drive').onchange=e=>{garageDrive=e.target.value;render();};
  document.querySelectorAll('[data-garage-preview]').forEach(button=>button.onclick=()=>{garagePreview=button.dataset.garagePreview;render();});
  document.querySelectorAll('[data-car]').forEach(button=>button.onclick=()=>garageAction(()=>selectCar(career,button.dataset.car,locked)));
+ if($('#trade-in'))$('#trade-in').onclick=()=>{const quote=tradeInQuote(career,preview.id);openModal('<h2>Подтвердить трейд-ин?</h2><p>Будут переданы '+car().name+', установленный мотор и все купленные для этой машины детали. Запасные моторы на общем складе останутся. Пресеты проданной машины удалятся. Долг за ремонт сохраняется.</p><p>Зачёт '+money(quote.credit)+' · новая машина '+money(quote.price)+' · доплата '+money(quote.due)+(quote.cashback?' · возврат '+money(quote.cashback):'')+'</p><button class="primary" id="trade-in-confirm">Обменять машины</button><button class="secondary" data-close>Отмена</button>',()=>{$('#trade-in-confirm').onclick=()=>{try{const next=tradeInCar(career,preview.id,locked);$('#modal').close();garageAction(()=>next);}catch(error){toast(error.message);}};});};
  document.querySelectorAll('[data-pilot]').forEach(button=>button.onclick=()=>garageAction(()=>selectPilot(career,button.dataset.pilot,locked)));
  $('#repair').onclick=()=>garageAction(()=>serviceCar(career,locked));$('#recovery-service').onclick=()=>garageAction(()=>recoveryService(career,locked));$('#open-maintenance').onclick=()=>{selectWorkspaceTab('tuning','maintenance');view='tuning';render();};$('#open-tuning').onclick=()=>{view='tuning';render();};
 }
@@ -349,12 +373,12 @@ function renderWorld() {
     <div class="panel"><div class="eyebrow">Official Reputation</div><div class="big-number">${career.official}</div><span class="micro">КЛУБНАЯ СЕССИЯ В ЦУКУБЕ</span></div>
     <div class="panel"><div class="eyebrow">Победы в дуэлях / Заезды</div><div class="big-number">${career.wins}<span style="font-size:20px;color:var(--muted)"> / ${career.races}</span></div><span class="micro">ВСЕ ЗАВЕРШЁННЫЕ СЕССИИ</span></div>
     <div class="panel"><div class="eyebrow">Рекорд выбранной сборки</div><div class="big-number">${currentBest?currentBest.drift?score(currentBest.drift.score)+' Б':time(currentBest.time):'—'}</div><span class="micro">${getEvent(career.eventId).title} / ${weatherName(career.weather)}</span></div></div>
-    <div class="event-grid">${EVENTS.filter(event=>event.mode===getEvent(career.eventId).mode).map((event,index)=>{
+    ${journeyHTML(career)}<div class="event-grid">${EVENTS.filter(event=>event.mode===getEvent(career.eventId).mode).map((event,index)=>{
       const open=unlocked(event,career);
       return `<article class="event-card ${open?'':'locked'}"><div class="event-card-head"><span class="eyebrow">${event.region} / ${event.mode==='drift'?'DRIFT / JUDGED RUN':event.mode==='drag'?(event.id==='yokohama-mile'?'DRAG / 1 MILE':event.longDrag?'DRAG / 804 M':'DRAG / 402 M'):event.mode==='duel'?'TOUGE DUEL':'OFFICIAL TIME ATTACK'}</span><span class="event-num">${String(index+1).padStart(2,'0')}</span></div>
-        <div class="route-art">${routeMap(event)}</div><h2>${event.title}</h2><p>${event.description}</p><div class="micro">${event.sectors.length} СЕКТОРОВ · ${(eventLength(event)/1000).toFixed(2)} КМ · БЕЗ ВЗНОСА<br>ДО ${money(event.prize*rewardFactor(config(),event.mode)*payoutScale(career,event.id))} / УЧАСТИЕ ${money(event.participation*rewardFactor(config(),event.mode)*payoutScale(career,event.id))}</div>
-        ${['duel','drag'].includes(event.mode)?'<div class="event-rival">Соперник: '+CARS.find(car=>car.id===event.rivalCar).name+'</div>':'<div class="event-rival">Медали: золото / серебро / бронза</div>'}
-        <button class="${open?'primary':'secondary'} wide" data-event="${event.id}" ${!open||race&&!race.finished?'disabled':''}>${open?'Выбрать маршрут ↗':'Откроется: '+unlockText(event)}</button></article>`;
+        <div class="route-art">${routeMap(event)}</div><h2>${event.title}</h2><p>${event.description}</p><div class="micro">${event.sectors.length} СЕКТОРОВ · ${(eventLength(event)/1000).toFixed(2)} КМ · БЕЗ ВЗНОСА<br>ДО ${money(event.prize*rewardFactor(config(),event.mode)*payoutScale(career,event.id)*(['duel','drag'].includes(event.mode)?1.35:1))} / УЧАСТИЕ ${money(event.participation*rewardFactor(config(),event.mode)*payoutScale(career,event.id))}</div>
+        ${['duel','drag'].includes(event.mode)?'<div class="event-rival">Свободный заезд: выбор из трёх соперников</div>':'<div class="event-rival">Медали: золото / серебро / бронза</div>'}
+        ${routeMasteryHTML(career,event)}<button class="${open?'primary':'secondary'} wide" data-event="${event.id}" ${!open||race&&!race.finished?'disabled':''}>${open?'Выбрать маршрут ↗':'Откроется: '+unlockText(event)}</button></article>`;
     }).join('')}</div>
     ${race&&!race.finished?'<div class="notice" style="margin-top:15px">Сначала заверши текущую сессию или выйди из неё на экране заезда.</div>':''}
     <div class="section-title"><div><div class="eyebrow">ТВОИ ОРИЕНТИРЫ</div><h2>Рекорды и сохранённые повторы</h2></div></div>
@@ -403,7 +427,7 @@ function openModal(html,setup) {
   setup?.();$('#modal').showModal();
 }
 function help() {
-  openModal(`<div class="eyebrow">TOKYO STREETS / ROUTES & HARDWARE 0.15</div><h2>Найди свою линию.</h2><ol>
+  openModal(`<div class="eyebrow">TOKYO STREETS / CAREER & BALANCE 0.17</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии на подготовку машины, создай команду и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь команды».</p><ol>
     <li><strong>Гараж.</strong> Выбери машину и пилота, проведи сервис. Во вкладке «Тюнинг» покупай детали и сохраняй давление, главную пару, пружины, тормозной баланс и прижим. Регулировки коробки, подвески и антикрыла требуют соответствующих деталей; настройки у каждой машины свои.</li>
     <li><strong>Событие.</strong> Харуна доступна сразу. Для Акаги нужно 12 Street Cred. После двух завершённых сессий открывается клубный Time Attack в Цукубе.</li>
     <li><strong>Тактика.</strong> Все карты открыты. Повтор активного приёма в последних шести решениях экспоненциально увеличивает нагрузку, износ и потерю темпа. Один промежуточный ход не сбрасывает штраф. Разнообразные действия постепенно выводят его из памяти. Базовый «Чистый темп» всегда остаётся без штрафа. Серые объясняют ограничения. Читай разведку маршрута, прогноз, шины, тормоза и концентрацию.</li>
@@ -429,8 +453,9 @@ document.addEventListener('keydown',event=>{
 render();if(!career.helpSeen)help();
 
 function driftMedals(event){
-  return `<div class="medal-targets"><span>● Золото <strong>${event.medals.gold} Б</strong></span><span>● Серебро <strong>${event.medals.silver} Б</strong></span><span>● Бронза <strong>${event.medals.bronze} Б</strong></span></div>`;
+ return `<div class="medal-targets"><span>● Золото <strong>${event.medals.gold} Б</strong></span><span>● Серебро <strong>${event.medals.silver} Б</strong></span><span>● Бронза <strong>${event.medals.bronze} Б</strong></span></div>`;
 }
+
 function driftMetrics(drift){
   const clip=drift.clips.at(-1);
   return `<div class="drift-metrics"><span>Последний клип<strong>${clip?score(clip.points)+' Б':'—'}</strong></span>
@@ -439,7 +464,7 @@ function driftMetrics(drift){
 }
 function renderDriftReport(){
   const event=getEvent(race.eventId),d= race.player.drift,outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
-  $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ РЕКОРД ПО БАЛЛАМ':'СУДЕЙСКИЙ ПРОТОКОЛ'}</div>
+  $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ РЕКОРД ПО БАЛЛАМ':'СУДЕЙСКИЙ ПРОТОКОЛ'}</div>
     <h2>${outcome.label} · ${score(d.score)} / 800</h2><p>+${money(outcome.reward)} · Official Rep +${outcome.official}${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''} · ${weatherName(race.weather)}
     ${ghost&&!race.player.dnf?'<br>К прошлому рекорду: '+signed(d.score-ghost.drift.score)+' баллов':''}</p>${damageHTML(race)}${managerFeedbackHTML(race)}<span class="micro">ЛИНИЯ 35% · УГОЛ 25% · СКОРОСТЬ 20% · СВЯЗНОСТЬ 20%<br>ВРЕМЯ ${time(race.player.time)} — ДЛЯ ПОВТОРА; ОЦЕНКА ОПРЕДЕЛЯЕТ РЕЗУЛЬТАТ</span></div>
     <div class="drag-result">${driftMetrics(d)}</div><div class="report-actions"><button id="retry" class="primary">Ещё одна связка ↗</button><button id="report-garage" class="secondary">В гараж</button><button id="replay-run" class="secondary">▶ Повтор заезда</button><button id="export" class="secondary">Протокол JSON ↓</button></div></div>

@@ -7,10 +7,10 @@ import {getEvent,sectorAt} from './data.js';
 import {configuration,createRace,chooseAI,futureSectors,resolveSector} from './engine.js';
 import {CREW,contractFor,validOrder,normalizePlan} from './team.js';
 
-export function beginManagedRace(career,eventId,weather,runId){
+export function beginManagedRace(career,eventId,weather,runId,rivalLevel=null,season=false){
   const event=getEvent(eventId),contract=contractFor(career);
   if(!career.team.founded||!contract)throw new Error('Для менеджерского режима нужен контракт с выбранным пилотом');
-  if(career.street<event.unlockStreet||career.races<event.unlockRaces)throw new Error('Событие пока закрыто');
+  if(!season&&(career.street<event.unlockStreet||career.races<event.unlockRaces))throw new Error('Событие пока закрыто');
   if(typeof runId!=='string'||!runId||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
   const reason=admissionReason(career,eventId);if(reason)throw new Error(reason);
   const fee=CREW[career.pilot].salary;
@@ -20,7 +20,7 @@ export function beginManagedRace(career,eventId,weather,runId){
   const config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]);
   const experience=Math.min(30,contract.experience),level=Math.floor(experience/5);
   config.pilot={...config.pilot,skill:Math.min(.995,config.pilot.skill+level*.0025),focus:config.pilot.focus+level};
-  const race=createRace(config,weather,eventId,runId);race.rewardScale=payoutScale(career,eventId);race.supportFee=support.fee;
+  const race=createRace(config,weather,eventId,runId,null,rivalLevel);race.rewardScale=payoutScale(career,eventId);race.supportFee=support.fee;
   race.manager={pilotId:career.pilot,trust:contract.trust,fee,order:career.team.plan.order,
     level,experience:contract.experience,plan:normalizePlan(career.team.plan),log:[]};
   return {career:next,race};
