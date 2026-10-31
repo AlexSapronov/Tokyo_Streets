@@ -1,3 +1,4 @@
+import {executionRoll} from '../src/execution.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CARS,CARDS,sectorAt} from '../src/data.js';
@@ -17,12 +18,13 @@ test('defending penalizes the pursuer symmetrically and AI can select defence to
  race.index=7;race.player.time=51;race.opponent.time=50;race.opponent.focus=8;race.opponent.cooldowns.study=1;
  const ai=chooseAI(race.rival,race.opponent,sectorAt(7),-1,futureSectors(race));
  assert.equal(ai.card.id,'defend');
- const baseline=simulate(race.config,race.player,sectorAt(7),CARDS[0]);
+ const baseline=simulate(race.config,race.player,sectorAt(7),CARDS[0],executionRoll(race.seed,7,'player',race.player.focus));
  const result=resolveSector(race,'balanced');
  assert.ok(Math.abs(result.history[0].playerTime-baseline.time-.35)<1e-9);
  assert.ok(result.history[0].reasons.some(reason=>reason.includes('закрыл')));
  race=createRace(configuration('chaser','aki'));race.player.time=49;race.opponent.time=50;
- const expected=chooseAI(race.rival,race.opponent,sectorAt(0),1,futureSectors(race)).result.time;
+ const action=chooseAI(race.rival,race.opponent,sectorAt(0),1,futureSectors(race)).card;
+ const expected=simulate(race.rival,race.opponent,sectorAt(0),action,executionRoll(race.seed,0,'opponent',race.opponent.focus)).time;
  assert.ok(Math.abs(resolveSector(race,'defend').history[0].aiTime-expected-.35)<1e-9);
 });
 test('a completed run ID cannot be awarded again through an old object or after save reload',()=>{

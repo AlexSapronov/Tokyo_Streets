@@ -1,3 +1,4 @@
+import {executionRoll,newSeed,hashSeed,applyRunOff} from './execution.js';
 import {attachTelemetry,readTelemetry} from './telemetry.js';
 import {freshDriftState,driftReason,simulateDrift,driftCards} from './drift.js';
 import {repetitionEffect,rememberAction,focusCost} from './tactics.js';
@@ -27,9 +28,9 @@ export function disabledReason(card,sector,state,config,gap=0){
  if(card.id==='late'&&state.heat>155)return 'Тормоза перегреты (>155°C)';
  return '';
 }
-function simulateRaw(config,state,sector,card){
- if(sector.mode==='drift')return simulateDrift(config,state,sector,card);
- if(sector.mode==='drag')return simulateDrag(config,state,sector,card);
+function simulateRaw(config,state,sector,card,execution=null){
+ if(sector.mode==='drift')return simulateDrift(config,state,sector,card,execution);
+ if(sector.mode==='drag')return simulateDrag(config,state,sector,card,execution);
  const repeat=repetitionEffect(state,card);
  const {car,pilot,parts}=config,has=id=>parts.includes(id),corner=sector.type==='corner';
  // SI units: metric hp -> watts, kg, m/s. A bounded sector approximation,
@@ -54,10 +55,10 @@ function simulateRaw(config,state,sector,card){
  if(card.id==='power')gain*=traction*(sector.wet>.35&&car.drive==='FR'&&!has('lsd')?.45:1);
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
  const risk=clamp(card.risk+sector.wet*.22+(1-pilot.skill)*.3+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
- // No dice rolls. Above the safety margin, tire slip causes a visible time loss.
+ // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
- const time=unpenalized*repeat.timeFactor;
+ const time=unpenalized*repeat.timeFactor*(1+(execution?.error||0));
  const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:1)*(mass/1100)*repeat.wearFactor;
  const heat=(corner?12: -10)*(mass/1100)+card.heat;
  const repetitionHeat=card.heat>=0?repeat.heatExtra:0;
@@ -76,8 +77,13 @@ function simulateRaw(config,state,sector,card){
  if(has('lsd')&&card.id==='power')reasons.push('CUSCO LSD: лучше реализация тяги');
  return {time,next,risk,slip,speed:exit*3.6,gain:baseTime-time,reasons};
 }
-export function simulate(config,state,sector,card){
-  return attachTelemetry(config,state,sector,card,simulateRaw(config,state,sector,card));
+export function simulate(config,state,sector,card,execution=null){
+  const result=simulateRaw(config,state,sector,card,execution);
+  if(execution){
+    result.execution={...execution};
+    result.reasons.push(`Разброс исполнения при фокусе ${Math.round(execution.focus)}; ${Math.abs(execution.roll)<.25?'небольшое отклонение':Math.abs(execution.roll)<.7?'заметное отклонение':'край диапазона'}`);
+  }
+  return attachTelemetry(config,state,sector,card,applyRunOff(result,sector,card));
 }
 // Three-sector beam search: resource decisions can pay off in the next two sectors.
 // Future positions are unknown, so future branches omit positional duel actions.
@@ -110,10 +116,10 @@ export function futureSectors(race) {
   return getEvent(race.eventId).sectors.slice(race.index + 1, race.index + 3)
     .map((_, offset) => sectorAt(race.index + offset + 1, race.weather, race.eventId));
 }
-export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null) {
+export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null) {
   const event = getEvent(eventId);
   const rival = configuration(event.rivalCar, event.rivalPilot, event.rivalParts, 100);
-  return {config, rival, weather,runId, eventId: event.id, mode: event.mode, index: 0,
+  return {config, rival, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
 export function resolveSector(race, cardId) {
@@ -122,27 +128,30 @@ export function resolveSector(race, cardId) {
   const sector = sectorAt(race.index, race.weather, race.eventId);
   const card = availableCards(race.config,race.mode,race.eventId).find(card => card.id === cardId);
   if (!card) throw new Error('Карта недоступна');
-  const gap = race.player.time - race.opponent.time;
+  const gap = race.opponent.dnf?Infinity:race.player.time - race.opponent.time;
   const reason = disabledReason(card, sector, race.player, race.config, gap);
   if (reason) throw new Error(reason);
-  const player = simulate(race.config, race.player, sector, card);
-  const ai = ['duel','drag'].includes(race.mode)
+  const seed=race.seed??hashSeed(race.runId||'legacy');
+  const player = simulate(race.config, race.player, sector, card,executionRoll(seed,race.index,'player',race.player.focus));
+  const ai = ['duel','drag'].includes(race.mode)&&!race.opponent.dnf
     ? chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race)) : null;
+  if(ai)ai.result=simulate(race.rival,race.opponent,sector,ai.card,executionRoll(seed,race.index,'opponent',race.opponent.focus));
   if (card.id === 'defend' && ai) { ai.result.time += .35; ai.result.next.time += .35; }
   if (ai?.card.id === 'defend') {
     player.time += .35; player.next.time += .35;
     player.reasons.push('Соперник закрыл траекторию: +0.35 с');
   }
   const row = {index: race.index, sector: sector.name, cardId, card: card.name,
-    aiCard: ai?.card.name || '—', aiPlan: ai?.plan || [],
+    aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
     playerTime: player.time, aiTime: ai?.result.time ?? null,
-    gap: ai ? player.next.time - ai.result.next.time : null,
+    gap: ai&&!player.next.dnf&&!ai.result.next.dnf ? player.next.time - ai.result.next.time : null,
+    execution:player.execution,aiExecution:ai?.result.execution||null,aiReasons:ai?.result.reasons||[],
     risk: player.risk, speed: player.speed, slip: player.slip, reasons: player.reasons,
     tires: player.next.tires, heat: player.next.heat, focus: player.next.focus,telemetry:readTelemetry(race.config,player.next,race.mode),
     ...(player.clip?{drift:player.clip}:{})};
   return {...race, index: race.index + 1, player: player.next,
     opponent: ai?.result.next || race.opponent, history: [...race.history, row],
-    finished: race.index === event.sectors.length - 1};
+    finished: !!player.next.dnf || race.index === event.sectors.length - 1};
 }
 
 // Medal targets are independent of the player's build: fixed stock reference runs
@@ -168,9 +177,10 @@ export function medalTargets(eventId, weather) {
 }
 export function raceOutcome(race) {
   const event = getEvent(race.eventId);
+  if(race.player.dnf)return {won:false,medal:null,label:'Сход · вылет с трассы',reward:0,street:0,official:0};
   if (race.mode === 'duel' || race.mode === 'drag') {
-    const won = !race.player.drag?.falseStart && (race.opponent.drag?.falseStart || race.player.time < race.opponent.time);
-    return {won, medal: null, label: race.player.drag?.falseStart ? 'Фальстарт' : won ? 'Победа' : 'Без победы',
+    const won = !race.player.drag?.falseStart && (!!race.opponent.dnf || race.opponent.drag?.falseStart || race.player.time < race.opponent.time);
+    return {won, medal: null, label: race.player.drag?.falseStart ? 'Фальстарт' : won ? race.opponent.dnf?'Победа · сход соперника':'Победа' : 'Без победы',
       reward: won ? event.prize : event.participation, street: race.mode==='drag'?0:won?12:4, official: race.mode==='drag'?(won?10:race.player.drag.falseStart?0:3):0};
   }
   if(race.mode==='drift'){

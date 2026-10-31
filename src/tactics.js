@@ -1,3 +1,4 @@
+import {executionLabel} from './execution.js';
 // Repeated active intentions accumulate strain within the last six decisions.
 // A single filler card does not reset it; a genuinely varied sequence does.
 export const HABIT_WINDOW=6;
@@ -26,10 +27,11 @@ export function qualitativeForecast(config,state,sector,card,prediction) {
   const tireLoss=state.tires-prediction.next.tires;
   const wear=tireLoss>4?'Высокий':tireLoss>1.5?'Умеренный':'Низкий';
   const focus=prediction.next.focus>state.focus?'Восстановление':prediction.next.focus===state.focus?'Без расхода':state.focus-prediction.next.focus>20?'Высокий расход':'Умеренный расход';
-  const warning=prediction.clip?.spin?'Нагрузка грозит разворотом и потерей клипа.':card.reset?'Стабилизация прервёт связку: клип без баллов.':prediction.next.drag?.falseStart?'Фальстарт: результат не будет засчитан.'
+  let warning=prediction.clip?.spin?'Нагрузка грозит разворотом и потерей клипа.':card.reset?'Стабилизация прервёт связку: клип без баллов.':prediction.next.drag?.falseStart?'Фальстарт: результат не будет засчитан.'
     :prediction.slip>.1?'Есть риск потери сцепления и темпа.'
     :state.heat>110?'Перегрев ограничивает исполнение.':'';
-  return {pace,load,wear,focus,warning,
+  if(state.focus<40&&sector.phase!=='prep'&&!card.reset)warning+=(warning?' ':'')+'Низкий фокус: крайняя ошибка исполнения может привести к вылету и сходу.';
+  return {pace,load,wear,focus,warning,execution:executionLabel(state.focus),
     habit:effect.repeats?`Повтор приёма: ${effect.repeats+1}-е применение в последних ${HABIT_WINDOW+1} решениях. Нагрузка растёт экспоненциально.`
       :card.id==='balanced'?'Базовый безопасный темп: без штрафа за повтор.':'Свежий приём: без штрафа за повтор.'};
 }

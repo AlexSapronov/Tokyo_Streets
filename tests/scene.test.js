@@ -100,3 +100,11 @@ test('drift replay with a spin remains finite through its full rotation',t=>{
  const scene=new Scene(canvas(),createRace(config,'rain','ebisu'));scene.replay(record,1000);
  scene.loop(20);scene.loop(60);scene.loop(1000);assert.equal(scene.elapsed,record.time);scene.destroy();
 });
+test('run-off stops both cars off the road without projecting a retired rival to the finish',()=>{
+ let initial=race(),retired=resolveSector(initial,'balanced');
+ retired.player.dnf={damage:30};retired.opponent.dnf={damage:30};retired.finished=true;
+ const scene=new Scene(canvas(),retired),poses=[];scene.elapsed=1000;
+ scene.drawCar=(...args)=>poses.push(args);scene.draw();
+ assert.equal(poses.length,2);for(const pose of poses){assert.ok(pose[0]<1);assert.equal(Math.abs(pose[1]),38);assert.match(pose[3],/DNF/);}
+ retired={...retired,history:[...retired.history,{...retired.history[0],aiTime:null}]};scene.race=retired;scene.draw();scene.destroy();
+});

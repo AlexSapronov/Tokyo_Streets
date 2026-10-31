@@ -13,7 +13,7 @@ const cfg=configuration('ae86','ren'),card=id=>ALL_DRAG_CARDS.find(card=>card.id
 const full=['drag-burnout','drag-soft','drag-band','drag-sustain','drag-sustain','drag-sustain','drag-push'];
 const mixed=['drag-burnout','drag-soft','drag-band','drag-sustain','drag-cooling','drag-bandpull','drag-push'];
 function reachPull(config=cfg,prep='drag-burnout'){
- let race=createRace(config,'dry','yokohama-mile');
+ let race=createRace(config,'dry','yokohama-mile',null,42);
  for(const action of [prep,'drag-soft','drag-band'])race=resolveSector(race,action);
  return race;
 }
@@ -33,7 +33,9 @@ test('new actions stay out of quarter-mile action set and explain contextual res
  assert.match(disabledReason(card('drag-top'),sectorAt(3,'dry','yokohama-mile'),initial,cfg),/120/);
 });
 test('quarter-mile golden reference remains on its original physics and timing',()=>{
- const race=finishRace(cfg,'dry','yokohama',['drag-burnout','drag-edge','drag-band','drag-clean']);
+ let state=freshDragState(cfg);
+ for(const [i,id] of ['drag-burnout','drag-edge','drag-band','drag-clean'].entries())state=simulateDrag(cfg,state,sectorAt(i,'dry','yokohama'),card(id)).next;
+ const race={player:state};
  assert.ok(Math.abs(race.player.time-14.808773852676273)<1e-10);
  assert.equal(race.player.drag.longFormat,undefined);assert.equal(race.player.drag.splits,undefined);
  assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-1|'));

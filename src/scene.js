@@ -201,16 +201,16 @@ export class Scene {
       const playerTimes=this.race.history.map(row=>row.playerTime);
       if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true,driftFrame(this.ghost,this.elapsed)?.yaw||0);
       if(['duel','drag'].includes(this.race.mode)){
-        const aiTimes=this.race.history.map(row=>row.aiTime);
+        const aiTimes=this.race.history.map(row=>row.aiTime).filter(time=>time!==null);
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
         const total=aiTimes.reduce((sum,time)=>sum+time,0);
-        if(aiTimes.length&&this.elapsed>total&&aiTimes.length<this.event.sectors.length){
+        if(!this.race.opponent.dnf&&aiTimes.length&&this.elapsed>total&&aiTimes.length<this.event.sectors.length){
           progress+=(this.elapsed-total)/aiTimes.at(-1)*(this.checkpoints[aiTimes.length+1]-this.checkpoints[aiTimes.length]);
         }
-        this.drawCar(Math.min(1,progress),9,this.race.rival.car.id,'RIVAL');
+        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':'RIVAL',false,this.race.opponent.dnf?.7:0);
       }
       const pose=driftFrame({sectorTimes:playerTimes,drift:this.race.player.drift},this.elapsed);
-      this.drawCar(progressAtTime(playerTimes,this.elapsed,this.event.id),-9,this.race.config.car.id,'YOU',false,pose?.yaw||0);
+      this.drawCar(Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id)),this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:pose?.yaw||0);
     }
     if(this.race.weather!=='dry'){
       c.strokeStyle='#c0d9dc24';c.lineWidth=.8;

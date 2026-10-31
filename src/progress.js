@@ -21,6 +21,8 @@ export function bestFor(career, config, eventId, weather) {
 }
 export function raceRecord(race) {
   return {key: recordKey(race.config, race.eventId, race.weather),
+    ...(race.player.dnf?{dnf:{...race.player.dnf}}:{}),
+    ...(Number.isInteger(race.seed)?{seed:race.seed,executionVersion:1}:{}),
     eventId: race.eventId, weather: race.weather, carId: race.config.car.id,
     pilotId: race.config.pilot.id, parts: [...race.config.parts],
     condition: race.config.condition, time: race.player.time,
@@ -36,24 +38,24 @@ export function awardRace(career, race) {
   const record = raceRecord(race);
   const previous = bestFor(career, race.config, race.eventId, race.weather);
   const improved=!previous||(race.mode==='drift'?record.drift.score>previous.drift.score||record.drift.score===previous.drift.score&&record.time<previous.time:record.time<previous.time);
-  const isBest = !race.player.drag?.falseStart && improved;
+  const isBest = !race.player.dnf && !race.player.drag?.falseStart && improved;
   const next = structuredClone(career);
   next.money += outcome.reward;
-  next.races++;
+  if(!race.player.dnf)next.races++;
   if(race.runId)next.awardedRuns=[...next.awardedRuns,race.runId].slice(-256);
   if (outcome.won) next.wins++;
   next.street += outcome.street;
   next.official += outcome.official;
   next.condition[race.config.car.id] = Math.max(35,
-    race.config.condition - (100 - race.player.tires) * .2
+    race.config.condition - (race.player.dnf?.damage||0) - (100 - race.player.tires) * .2
     - race.history.reduce((sum, row) => sum + row.slip, 0) * .5);
   if (isBest) next.bests = [record, ...next.bests.filter(best => best.key !== record.key)].slice(0, 120);
   next.records.unshift({car: race.config.car.name, time: record.time, won: outcome.won,
-    eventId: race.eventId, weather: race.weather, medal: outcome.medal,
+    eventId: race.eventId, weather: race.weather, medal: outcome.medal,...(race.player.dnf?{dnf:true}:{}),
     ...(race.mode==='drag'?{falseStart:race.player.drag.falseStart}:race.mode==='drift'?{score:race.player.drift.score}:{})});
   next.records = next.records.slice(0, 30);
   // Preserve the legacy all-build Haruna statistic for old saves.
-  if (race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
+  if (!race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
   return {career: next, race: {...race, awarded: true, outcome, isBest,...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }

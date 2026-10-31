@@ -16,9 +16,9 @@ export function dragReason(card,sector,state,config=null) {
   if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации`;
   return '';
 }
-function reactionFor(config,card) {
-  if(card.reaction==='edge')return .18-.16*config.pilot.aggression+(.98-config.pilot.skill)*.08;
-  return card.reaction+(.98-config.pilot.skill)*.08;
+function reactionFor(config,card,error=0) {
+  if(card.reaction==='edge')return .18-.16*config.pilot.aggression+(.98-config.pilot.skill)*.08+error*.6;
+  return card.reaction+(.98-config.pilot.skill)*.08+error*.6;
 }
 function tireGrip(config,state,sector) {
   const wet=sector.wet,drag=state.drag,parts=config.parts;
@@ -29,15 +29,15 @@ function tireGrip(config,state,sector) {
     *(parts.includes('tires')?(wet>.35?.93:1.12):1)
     *(parts.includes('suspension')?1.025:1)*(.8+.2*state.tires/100);
 }
-// Integrate longitudinal motion at fixed 20 ms steps. No dice rolls and no bonus
+// Integrate longitudinal motion at fixed 20 ms steps. No bonus
 // horsepower from cards. Gear timing changes delivered power and interruption.
-function travel(config,state,sector,card) {
-  if(sector.longDrag)return travelLong(config,state,sector,card);
+function travel(config,state,sector,card,error=0) {
+  if(sector.longDrag)return travelLong(config,state,sector,card,error);
   const drag=state.drag,parts=config.parts,car=config.car,launch=sector.phase==='launch';
   const mass=car.mass-(parts.includes('weight')?65:0)+(parts.includes('suspension')?8:0);
   const drive=car.drive==='AWD'?1.18:1;
   const lsd=parts.includes('lsd')?1.045:1;
-  const grip=tireGrip(config,state,sector);
+  const grip=tireGrip(config,state,sector)*(1-error*.4);
   const rpmFactor=clamp(drag.rpm/4800,.7,1.15);
   const request=launch?card.throttle*rpmFactor:1;
   const demand=(car.power/mass)*5.4*request;
@@ -46,10 +46,10 @@ function travel(config,state,sector,card) {
   const launchGrip=launch?clamp(request,.65,1.05)*(1-slipRatio*.25):1;
   const style=sector.phase==='shifts'?card.shift:drag.shiftStyle;
   const shiftPower={short:.91,band:1,redline:.96}[style];
-  const delay={short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14;
+  const delay=({short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14)*(1+error*2);
   const thresholds=[13,23,34,46,59].map(speed=>speed*({short:.89,band:1,redline:1.1}[style]));
   const power=car.power*735.5*.78*(.9+.1*config.condition/100)*shiftPower
-    *(sector.phase==='finish'?card.power:1)*clamp(1-Math.max(0,state.heat-105)/260,.68,1);
+    *(1-error*.7)*(sector.phase==='finish'?card.power:1)*clamp(1-Math.max(0,state.heat-105)/260,.68,1);
   let distance=0,elapsed=0,velocity=state.velocity,shiftIndex=drag.shiftIndex,shifts=0;
   const target=sector.length,dt=.02;
   while(distance<target&&elapsed<90){
@@ -68,7 +68,8 @@ function travel(config,state,sector,card) {
   if(distance<target)throw new Error('Не удалось завершить фазу дрэга');
   return {elapsed,velocity,slipRatio,shifts,shiftIndex,grip};
 }
-export function simulateDrag(config,state,sector,card) {
+export function simulateDrag(config,state,sector,card,execution=null) {
+  const error=execution?.error||0;
   const reason=dragReason(card,sector,state,config);
   if(reason)throw new Error(reason);
   const next=structuredClone(state),drag=next.drag;
@@ -77,19 +78,19 @@ export function simulateDrag(config,state,sector,card) {
   const reasons=[];
   let time=0,risk=0,slip=0;
   if(prep){
-    drag.temperature=card.temp;drag.rpm=card.rpm;drag.pressure=card.pressure;
+    drag.temperature=clamp(card.temp+error*60,20,140);drag.rpm=card.rpm*(1-error*.5);drag.pressure=card.pressure;
     if(sector.longDrag){drag.longFormat=true;drag.gearing=card.gearing||1;drag.forceTop=false;drag.splits=[];next.recentActions=rememberAction(state,card);}
-    reasons.push(`Шины ${card.temp}°C · ${card.rpm} об/мин · давление ${Math.round(card.pressure*100)}%`);
+    reasons.push(`Шины ${Math.round(drag.temperature)}°C · ${Math.round(drag.rpm)} об/мин · давление ${Math.round(card.pressure*100)}%`);
     reasons.push('Подготовка проходит до сигнала и не входит в зачётное время');
   }else{
-    const result=travel(config,state,sector,card);
+    const result=travel(config,state,sector,card,error);
     time=result.elapsed;next.velocity=result.velocity;
     drag.distance+=sector.length;drag.et+=result.elapsed;
     drag.shiftIndex=result.shiftIndex;drag.shifts+=result.shifts;
     if(sector.phase==='shifts'||card.shift)drag.shiftStyle=card.shift;
     if(sector.longDrag){next.heat=result.engineHeat;drag.forceTop=result.forceTop;drag.splits=[...(drag.splits||[]),...result.splits];next.recentActions=rememberAction(state,card);}
     if(launch){
-      drag.reaction=reactionFor(config,card);drag.falseStart=drag.reaction<0;
+      drag.reaction=reactionFor(config,card,error);drag.falseStart=drag.reaction<0;
       drag.sixty=result.elapsed;time+=Math.max(0,drag.reaction);
       reasons.push(`Реакция ${drag.reaction.toFixed(3)} с · 60 ft ${drag.sixty.toFixed(3)} с`);
       if(drag.falseStart)reasons.push('ФАЛЬСТАРТ: отрицательная реакция. Результат не попадёт в рекорды');
@@ -124,17 +125,17 @@ export function simulateDrag(config,state,sector,card) {
 }
 export function dragCards(long=false){return long?ALL_DRAG_CARDS:DRAG_CARDS;}
 
-function travelLong(config,state,sector,card){
+function travelLong(config,state,sector,card,error=0){
   const drag=state.drag,car=config.car,parts=config.parts,launch=sector.phase==='launch';
   const mass=car.mass-(parts.includes('weight')?65:0)+(parts.includes('suspension')?8:0);
-  const grip=tireGrip(config,state,sector),drive=car.drive==='AWD'?1.18:1,lsd=parts.includes('lsd')?1.045:1;
+  const grip=tireGrip(config,state,sector)*(1-error*.4),drive=car.drive==='AWD'?1.18:1,lsd=parts.includes('lsd')?1.045:1;
   const demand=(car.power/mass)*5.4*(launch?card.throttle*clamp(drag.rpm/4800,.7,1.15):1)*(drag.gearing||1);
   const capacity=grip*drive*lsd,slipRatio=launch?clamp((demand-capacity)/capacity,0,.9):0;
   const launchGrip=launch?clamp(card.throttle*clamp(drag.rpm/4800,.7,1.15),.65,1.05)*(1-slipRatio*.25)*(drag.gearing||1):1;
   const profile=transmissionProfile(config),ratio=drag.gearing||1;
   const style=card.shift||drag.shiftStyle,thresholds=longShiftSpeeds(config,style,ratio);
-  const delay={short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14;
-  const basePower=car.power*735.5*.78*(.9+.1*config.condition/100)*(card.power??1);
+  const delay=({short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14)*(1+error*2);
+  const basePower=car.power*735.5*.78*(.9+.1*config.condition/100)*(card.power??1)*(1-error*.7);
   const repeat=repetitionEffect(state,card),cooling=car.cooling*(parts.includes('cooling')?1.3:1);
   let velocity=state.velocity,engineHeat=state.heat,distance=0,elapsed=0,shiftIndex=drag.shiftIndex,shifts=0,forceTop=drag.forceTop||false;
   const changeGear=target=>{if(target!==shiftIndex){shiftIndex=target;shifts++;elapsed+=delay;velocity=Math.max(.1,velocity-delay*.15);}};

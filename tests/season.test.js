@@ -6,7 +6,7 @@ import {newCareer,validateSave} from '../src/storage.js';
 import {recordKey,bestFor,awardRace,raceRecord,unlocked,progressAtTime,checkpointFractions} from '../src/progress.js';
 import {vehicleSVG,topVehicleSVG} from '../src/vehicles.js';
 function complete(carId='ae86',pilotId='ren',weather='mixed',eventId='haruna') {
-  let race=createRace(configuration(carId,pilotId),weather,eventId);
+  let race=createRace(configuration(carId,pilotId),weather,eventId,null,42);
   while(!race.finished) {
     const sector=sectorAt(race.index,weather,eventId);
     const decision=chooseAI(race.config,race.player,sector,race.player.time-race.opponent.time,futureSectors(race));
@@ -14,10 +14,10 @@ function complete(carId='ae86',pilotId='ren',weather='mixed',eventId='haruna') {
   }
   return race;
 }
-test('all 189 car/driver/weather/route configurations complete the actual sector count',()=>{
+test('all 189 car/driver/weather/route configurations finish or correctly stop after a run-off',()=>{
   for(const event of EVENTS)for(const car of CARS)for(const pilot of PILOTS)for(const weather of ['dry','rain','mixed']){
     const race=complete(car.id,pilot.id,weather,event.id);
-    assert.equal(race.history.length,event.sectors.length);
+    if(race.player.dnf)assert.ok(race.history.length<=event.sectors.length);else assert.equal(race.history.length,event.sectors.length);
     assert.ok(Number.isFinite(race.player.time));
     assert.ok(race.player.focus>=0&&race.player.tires>=0);
   }

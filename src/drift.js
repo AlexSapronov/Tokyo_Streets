@@ -15,7 +15,8 @@ export function driftReason(card,sector,state,config){
   if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации с учётом повторов`;
   return '';
 }
-export function simulateDrift(config,state,sector,card){
+export function simulateDrift(config,state,sector,card,execution=null){
+  const error=execution?.error||0;
   const reason=driftReason(card,sector,state,config);
   if(reason)throw new Error(reason);
   const {car,pilot,parts}=config,has=id=>parts.includes(id),repeat=repetitionEffect(state,card);
@@ -25,7 +26,7 @@ export function simulateDrift(config,state,sector,card){
   const tempFade=clamp(1-Math.max(0,previous.temperature-95)/220,.65,1);
   const grip=car.grip*(1-wet*.32)*(has('tires')?(wet>.35?.93:1.12):1)
     *(has('suspension')?1.05:1)*(.75+.25*state.tires/100)*tempFade*condition;
-  const precision=clamp(pilot.skill+(has('suspension')?.035:0)+(has('lsd')?.045:0),.5,1.08);
+  const precision=clamp(pilot.skill+(has('suspension')?.035:0)+(has('lsd')?.045:0)-error,.3,1.08);
   const yaw=car.drive==='AWD'?.82:1.04;
   let response=yaw*(.92+.08*pilot.aggression)*condition;
   if(card.method==='power')response*=clamp(car.power/mass/.16,.74,1.24)*(has('lsd')?1.04:1);
@@ -35,8 +36,8 @@ export function simulateDrift(config,state,sector,card){
   const maxCornerSpeed=Math.sqrt(grip*9.81*sector.radius)*3.6;
   const acceleration=car.power*735.5*.78/(mass*Math.max(state.velocity,12));
   const attainable=Math.sqrt(state.velocity**2+2*acceleration*sector.length*.18)*3.6;
-  const speed=Math.max(20,Math.min(targetSpeed*card.pace,maxCornerSpeed*1.12,attainable));
-  const angle=card.reset?0:clamp(card.angle*response*(1+wet*.1),0,86);
+  const speed=Math.max(20,Math.min(targetSpeed*card.pace*(1-error*.25),maxCornerSpeed*1.12,attainable));
+  const angle=card.reset?0:clamp(card.angle*response*(1+wet*.1)*(1+error*.8),0,86);
   const lateral=(speed/3.6)**2/sector.radius/(grip*9.81);
   const load=clamp(Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
     +Math.max(0,55-state.focus)/180+Math.max(0,65-state.tires)/170

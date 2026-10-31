@@ -4,7 +4,7 @@ import {CARS,PILOTS,CARDS,sectorAt} from '../src/data.js';
 import {configuration,freshState,availableCards,disabledReason,simulate,chooseAI,createRace,resolveSector,futureSectors} from '../src/engine.js';
 import {newCareer,validateSave,loadCareer,storeCareer,SAVE_KEY} from '../src/storage.js';
 const card=id=>CARDS.find(c=>c.id===id),cfg=configuration('ae86','ren');
-function run(config,weather,policy){let r=createRace(config,weather);while(!r.finished){const action=policy?policy(r):chooseAI(r.config,r.player,sectorAt(r.index,weather),r.player.time-r.opponent.time,futureSectors(r)).card.id;r=resolveSector(r,action);}return r;}
+function run(config,weather,policy){let r=createRace(config,weather,'haruna',null,42);while(!r.finished){const action=policy?policy(r):chooseAI(r.config,r.player,sectorAt(r.index,weather),r.player.time-r.opponent.time,futureSectors(r)).card.id;r=resolveSector(r,action);}return r;}
 test('same state and action give identical complete results',()=>{assert.deepEqual(run(cfg,'mixed'),run(cfg,'mixed'));});
 test('all cars and drivers complete every weather without invalid resources',()=>{
  for(const car of CARS)for(const pilot of PILOTS)for(const weather of ['dry','mixed','rain']){
@@ -14,8 +14,10 @@ test('all cars and drivers complete every weather without invalid resources',()=
   for(const state of [r.player,r.opponent]){assert.ok(state.tires>=0&&state.tires<=100);assert.ok(state.heat>=35&&state.heat<=200);assert.ok(state.focus>=0&&state.focus<=110);}
  }
 });
-test('AI and player have equal opportunities with identical builds and actions',()=>{
- const r=run(configuration('chaser','aki'),'mixed');assert.equal(r.player.time,r.opponent.time);
+test('AI and player use independent execution draws with identical builds',()=>{
+ const r=run(configuration('chaser','aki'),'mixed');assert.notEqual(r.player.time,r.opponent.time);
+ assert.equal(r.history[0].execution.range,r.history[0].aiExecution.range);
+ assert.notEqual(r.history[0].execution.roll,r.history[0].aiExecution.roll);
 });
 test('full common set is open from start; character and equipment are conditional',()=>{
  const ids=availableCards(cfg).map(c=>c.id);assert.ok(ids.length>=12);assert.ok(ids.includes('apex'));assert.ok(!ids.includes('rain'));assert.ok(!ids.includes('thermal'));

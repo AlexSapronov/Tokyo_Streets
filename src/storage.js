@@ -24,7 +24,7 @@ const finite = value => Number.isFinite(value);
 const list = value => Array.isArray(value) ? value : [];
 const unique = values => [...new Set(values)];
 function validateRecord(record) {
-  if (!record || !validEvent(record.eventId) || !validCar(record.carId)
+  if (!record || record.dnf || !validEvent(record.eventId) || !validCar(record.carId)
       || !validPilot(record.pilotId) || !validWeather(record.weather)) return null;
   const count = getEvent(record.eventId).sectors.length;
   if (!Array.isArray(record.sectorTimes) || record.sectorTimes.length !== count
@@ -46,7 +46,7 @@ function validateRecord(record) {
   const key=['duel','timeattack'].includes(event.mode)&&record.key===legacyKey?legacyKey:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key, ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {key, ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -111,7 +111,7 @@ export function validateSave(raw) {
     .map(record => ({car: CARS.find(car => car.name === record.car)?.name || CARS[0].name,
       time: record.time, won: record.won, eventId: validEvent(record.eventId) ? record.eventId : 'haruna',
       weather: validWeather(record.weather) ? record.weather : 'mixed',
-      medal: ['gold', 'silver', 'bronze'].includes(record.medal) ? record.medal : null,
+      medal: ['gold', 'silver', 'bronze'].includes(record.medal) ? record.medal : null,...(record.dnf===true?{dnf:true}:{}),
       ...(getEvent(record.eventId).mode==='drag'?{falseStart:record.falseStart===true}:getEvent(record.eventId).mode==='drift'?{score:finite(record.score)?Math.max(0,Math.min(800,record.score)):0}:{})}));
   // v1 records have no trace. Keep their history, but do not invent ghosts.
   const valid = list(raw.bests).slice(0, 120).map(validateRecord).filter(Boolean);

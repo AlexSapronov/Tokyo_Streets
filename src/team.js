@@ -83,11 +83,11 @@ export function teamAfterRace(team,race,outcome){
   const before=contract.trust;
   const caution=race.manager.log.filter(command=>command.caution).length;
   const rebellion=race.manager.log.filter(command=>command.refused&&!command.caution).length;
-  const positive=outcome.won||outcome.medal?2:1;
+  const positive=race.player?.dnf?-3:outcome.won||outcome.medal?2:1;
   contract.trust=Math.max(40,Math.min(100,before+positive-caution*2-rebellion));
   contract.experience=Math.min(100000,contract.experience+1);
   return {team:next,feedback:{before,after:contract.trust,fee:race.manager.fee,caution,rebellion,
-    reason:caution?'Опасные приказы снизили доверие':rebellion?'Разногласия с пилотом повлияли на доверие':'Завершённый заезд укрепил рабочие отношения'}};
+    reason:race.player?.dnf?'Вылет и повреждения снизили доверие':caution?'Опасные приказы снизили доверие':rebellion?'Разногласия с пилотом повлияли на доверие':'Завершённый заезд укрепил рабочие отношения'}};
 }
 export function normalizeCommandRecord(raw,actions,pilotId){
   if(!raw||raw.pilotId!==pilotId||!Number.isFinite(raw.trust)||raw.trust<40||raw.trust>100

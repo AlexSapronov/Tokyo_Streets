@@ -58,7 +58,7 @@ test('forecast exposes categories without exact durations or the simulated time'
  for(const card of CARDS){
   const state=freshState(config);const s=sectorAt(card.only==='corner'?2:0,'rain');
   const result=simulate(config,state,s,card),forecast=qualitativeForecast(config,state,s,card,result);
-  assert.deepEqual(Object.keys(forecast).sort(),['focus','habit','load','pace','warning','wear']);
+  assert.deepEqual(Object.keys(forecast).sort(),['execution','focus','habit','load','pace','warning','wear']);
   for(const value of Object.values(forecast))assert.equal(typeof value,'string');
   assert.ok(!JSON.stringify(forecast).includes(result.time.toFixed(2)));
   assert.ok(!JSON.stringify(forecast).includes('секунд'));

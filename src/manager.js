@@ -68,7 +68,7 @@ export function orderPolicy(order){
 }
 export function decideManagedAction(race){
   const command=interpretOrder(race),sector=sectorAt(race.index,race.weather,race.eventId);
-  const decision=chooseAI(race.config,race.player,sector,race.player.time-race.opponent.time,
+  const decision=chooseAI(race.config,race.player,sector,race.opponent.dnf?Infinity:race.player.time-race.opponent.time,
     futureSectors(race),orderPolicy(command.effective));
   if(!decision)throw new Error('Нет допустимых действий пилота');
   return {...command,cardId:decision.card.id,decision};
