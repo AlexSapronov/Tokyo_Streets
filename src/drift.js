@@ -1,3 +1,4 @@
+import {tireFactor,aeroGrip} from './tuning.js';
 import {DRIFT_CARDS} from './drift-data.js';
 import {focusCost,repetitionEffect,rememberAction,strainEffect} from './tactics.js';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
@@ -24,10 +25,10 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const mass=car.mass-(has('weight')?65:0)+(has('suspension')?8:0);
   const condition=.86+.14*config.condition/100;
   const tempFade=clamp(1-Math.max(0,previous.temperature-95)/220,.65,1);
-  const grip=car.grip*(1-wet*.32)*(has('tires')?(wet>.35?.93:1.12):1)
+  const grip=car.grip*(1-wet*.32)*tireFactor(config,wet)*aeroGrip(config,state.velocity)
     *(has('suspension')?1.05:1)*(.75+.25*state.tires/100)*tempFade*condition;
-  const precision=clamp(pilot.skill+(has('suspension')?.035:0)+(has('lsd')?.045:0)-error,.3,1.08);
-  const yaw=car.drive==='AWD'?.82:1.04;
+  const precision=clamp(pilot.skill+(has('suspension')?.035:0)+(has('lsd')?.045:0)+(car.driftPrecision||0)-error,.3,1.08);
+  const yaw=(car.drive==='AWD'?.82:car.drive==='FF'?.55:car.drive==='MR'?1.1:1.04)*(car.driftYaw||1);
   let response=yaw*(.92+.08*pilot.aggression)*condition;
   if(card.method==='power')response*=clamp(car.power/mass/.16,.74,1.24)*(has('lsd')?1.04:1);
   if(card.method==='feint'||card.id==='drift-flick')response*=clamp(1150/mass,.8,1.13)*(has('suspension')?1.04:1);
@@ -39,7 +40,7 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const speed=Math.max(20,Math.min(targetSpeed*card.pace*(1-error*.25),maxCornerSpeed*1.12,attainable));
   const angle=card.reset?0:clamp(card.angle*response*(1+wet*.1)*(1+error*.8),0,86);
   const lateral=(speed/3.6)**2/sector.radius/(grip*9.81);
-  const load=clamp(strainEffect(state,card).risk+Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
+  const load=clamp((car.drive==='MR'?.04:0)+strainEffect(state,card).risk+Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
     +Math.max(0,55-state.focus)/180+Math.max(0,65-state.tires)/170
     +Math.max(0,state.heat-115)/260+repeat.strain*.025-(precision-.85)*.45,0,1.2);
   const spin=!card.reset&&(load>.9||angle>78&&load>.55);
@@ -54,7 +55,7 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const speedQuality=clamp(1-Math.abs(speed-targetSpeed)/targetSpeed,0,1);
   const continuity=phase==='init'?.8:linked?clamp(.85+previous.combo*.04,0,1):.25;
   const broken=spin||card.reset||!active||phase!=='init'&&!linked;
-  const continuityQuality=broken?0:continuity;
+  const continuityQuality=broken?0:continuity*(car.drive==='FF'?.6:1);
   let points=active?100*(lineQuality*DRIFT_WEIGHTS.line+angleQuality*DRIFT_WEIGHTS.angle
     +speedQuality*DRIFT_WEIGHTS.speed+continuityQuality*DRIFT_WEIGHTS.continuity)/repeat.timeFactor:0;
   if(card.recover&&!previous.active)points*=.7;
@@ -71,12 +72,13 @@ export function simulateDrift(config,state,sector,card,execution=null){
   else if(!linked&&phase!=='init')reasons.push('Связность потеряна: предыдущий занос не поддержан');
   if(card.recover&&!previous.active)reasons.push('Возврат в занос: оценка снижена за разрыв связки');
   if(Math.abs(angle-targetAngle)>15)reasons.push('Больше угол не значит лучше: требуется точность попадания в задание');
+  if(car.drive==='FF')reasons.push('FF: тяга передней оси ограничивает устойчивый занос и связность');
   if(car.drive==='AWD')reasons.push('AWD стабилен на тяге, но сопротивляется большому углу');
   if(has('lsd'))reasons.push('CUSCO LSD улучшает управление углом и тягой');
   if(previous.temperature>95)reasons.push('Перегретые шины теряют сцепление');
   if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: растёт нагрузка, снижается оценка исполнения`);
-  const wear=card.wear*(mass/1100)*(has('tires')?1.25:1)*repeat.wearFactor+(spin?5:0);
-  const heat=card.heat>=0?(card.heat+repeat.heatExtra)/(car.cooling*(has('cooling')?1.3:1))
+  const wear=card.wear*(mass/1100)*(has('tires')?1.25:1)*repeat.wearFactor*(car.wearFactor||1)+(spin?5:0);
+  const heat=card.heat>=0?(card.heat+repeat.heatExtra)*(car.heatFactor||1)/(car.cooling*(has('cooling')?1.3:1))
     :card.heat*repeat.recoveryFactor*car.cooling*(has('cooling')?1.3:1);
   const duration=sector.length/(speed/3.6)*repeat.timeFactor+(spin?2:0);
   const next={...state,time:state.time+duration,velocity:speed/3.6,tires:clamp(state.tires-wear,0,100),

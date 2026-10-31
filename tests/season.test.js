@@ -14,7 +14,7 @@ function complete(carId='ae86',pilotId='ren',weather='mixed',eventId='haruna') {
   }
   return race;
 }
-test('all 189 car/driver/weather/route configurations finish or correctly stop after a run-off',()=>{
+test('all 630 car/driver/weather/route configurations finish or correctly stop after a run-off',()=>{
   for(const event of EVENTS)for(const car of CARS)for(const pilot of PILOTS)for(const weather of ['dry','rain','mixed']){
     const race=complete(car.id,pilot.id,weather,event.id);
     if(race.player.dnf)assert.ok(race.history.length<=event.sectors.length);else assert.equal(race.history.length,event.sectors.length);
@@ -121,6 +121,6 @@ test('ghost timing interpolates by sector length, clamps before start/after fini
 });
 test('vehicle bodies and road sprites are distinct SVG assets with no external URLs',()=>{
   const meshes=CARS.map(vehicleSVG),sprites=CARS.map(topVehicleSVG);
-  assert.equal(new Set(meshes).size,3);assert.equal(new Set(sprites).size,3);
+  assert.equal(new Set(meshes).size,CARS.length);assert.equal(new Set(sprites).size,CARS.length);
   for(const asset of [...meshes,...sprites]){assert.ok(asset.includes('<svg'));assert.ok(!asset.includes('undefined'));assert.ok(!asset.includes('NaN'));assert.ok(!/href=/.test(asset));}
 });

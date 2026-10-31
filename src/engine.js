@@ -1,6 +1,7 @@
+import {tunedCar,normalizeBuild,tireFactor,aeroGrip} from './tuning.js';
 import {raceClass,incidentPrice,rewardFactor} from './balance.js';
 import {executionRoll,newSeed,hashSeed,applyRunOff,runOffChance} from './execution.js';
-import {attachTelemetry,readTelemetry} from './telemetry.js';
+import {attachTelemetry,readTelemetry,transmission} from './telemetry.js';
 import {freshDriftState,driftReason,simulateDrift,driftCards} from './drift.js';
 import {repetitionEffect,rememberAction,focusCost,strainAfter,strainEffect} from './tactics.js';
 import {freshDragState,dragReason,simulateDrag,dragCards} from './drag.js';
@@ -8,7 +9,8 @@ import {CARS,PILOTS,CARDS,sectorAt,getEvent} from './data.js';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 export function configuration(carId,pilotId,parts=[],condition=100){
  const car=CARS.find(c=>c.id===carId)||CARS[0],pilot=PILOTS.find(p=>p.id===pilotId)||PILOTS[0];
- return {car,pilot,parts:[...new Set(Array.isArray(parts)?parts:[])],condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
+ const installed=normalizeBuild(car.id,Array.isArray(parts)?parts:[]);
+ return {car:tunedCar(car,installed),pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
 }
 export function freshState(config){return {time:0,tires:100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
 export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
@@ -38,12 +40,14 @@ function simulateRaw(config,state,sector,card,execution=null){
  // SI units: metric hp -> watts, kg, m/s. A bounded sector approximation,
  // not a wheel-level simulator. Both drivers use exactly this function.
  const mass=car.mass-(has('weight')?65:0)+(has('suspension')?8:0);
- const grip=car.grip*(1-sector.wet*(car.drive==='AWD'?.28:.4))*(has('tires')?(sector.wet>.35?.93:1.12):1)*(has('suspension')?1.05:1)*(.7+.3*state.tires/100)*(.88+.12*config.condition/100);
+ const grip=car.grip*(1-sector.wet*(car.drive==='AWD'?.28:.4))*tireFactor(config,sector.wet)*aeroGrip(config,state.velocity)*(has('suspension')?1.05:1)*(.7+.3*state.tires/100)*(.88+.12*config.condition/100);
  const brakeFade=clamp(1-Math.max(0,state.heat-105)/280,.65,1);
  const brake=car.brakes*(has('brakes')?1.18:1)*brakeFade;
- const power=car.power*735.5*.78*(.9+.1*config.condition/100);
- const terminal=Math.cbrt(power/.43);
- const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1.05:1);
+ const rpm=transmission(config,state.velocity*3.6);
+ const band=parts.some(id=>['shortFinal','longFinal','cams'].includes(id))?clamp(1-((rpm.rpm/rpm.redline-.8)/.8)**2,.75,1)*(rpm.rpm/rpm.redline<.6?car.lowRpmFactor:1):1;
+ const power=car.power*735.5*.78*(.9+.1*config.condition/100)*band;
+ const terminal=Math.cbrt(power/car.airResistance);
+ const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1.05:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);
  const cornerSpeed=corner?Math.sqrt(grip*9.81*sector.radius):terminal;
  const accel=Math.min(grip*9.81*traction,power/(mass*Math.max(state.velocity,18)))-9.81*sector.slope;
  const exit=corner?Math.min(terminal,cornerSpeed+accel*1.5):Math.min(terminal,Math.sqrt(state.velocity**2+2*accel*sector.length));
@@ -55,17 +59,17 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(card.id==='late')gain*=has('brakes')?1.15:brakeFade;
  if(card.id==='weight')gain*=(has('suspension')?1.18:1)*clamp(1100/mass,.8,1.2);
  if(card.id==='apexEarly')gain*=sector.radius<50?1.25:-.5;
- if(card.id==='power')gain*=traction*(sector.wet>.35&&car.drive==='FR'&&!has('lsd')?.45:1);
+ if(card.id==='power')gain*=traction*(sector.wet>.35&&['FR','MR'].includes(car.drive)&&!has('lsd')?.45:1);
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
- const risk=clamp(card.risk+strain.risk+sector.wet*.22+(1-pilot.skill)*.3+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
+ const risk=clamp(card.risk+strain.risk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
  // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
  const time=unpenalized*repeat.timeFactor*strain.timeFactor*(1+(execution?.error||0));
- const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:1)*(mass/1100)*repeat.wearFactor;
+ const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*repeat.wearFactor*car.wearFactor;
  const heat=(corner?12: -10)*(mass/1100)+card.heat;
  const repetitionHeat=card.heat>=0?repeat.heatExtra:0;
- const cooled=(heat>0?heat*(has('brakes')?.7:1):heat*car.cooling*(has('cooling')?1.3:1)*repeat.recoveryFactor)+repetitionHeat;
+ const cooled=(heat>0?heat*car.heatFactor*(has('brakes')?.7:1):heat*car.cooling*(has('cooling')?1.3:1)*repeat.recoveryFactor)+repetitionHeat;
  const actionFocus=focusCost(config,state,card);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;

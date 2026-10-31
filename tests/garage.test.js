@@ -8,11 +8,11 @@ import {awardRace} from '../src/progress.js';
 import {finishRace,generator} from './helpers.js';
 for(const part of PARTS){
  test(`garage purchase/install/remove/reinstall / ${part.id}`,()=>{
-  const initial=newCareer(),copy=structuredClone(initial),bought=togglePart(initial,part.id);
+  const initial={...newCareer(),money:1e6,car:part.turboOnly?'chaser':'ae86',ownedCars:['ae86','chaser']},copy=structuredClone(initial),bought=togglePart(initial,part.id);
   assert.deepEqual(initial,copy);assert.equal(bought.money,initial.money-part.price);
-  assert.deepEqual(bought.purchased.ae86,[part.id]);assert.deepEqual(bought.builds.ae86,[part.id]);
-  const removed=togglePart(bought,part.id);assert.deepEqual(removed.builds.ae86,[]);assert.equal(removed.money,bought.money);
-  const installed=togglePart(removed,part.id);assert.equal(installed.money,bought.money);assert.equal(installed.builds.ae86.length,1);
+  assert.deepEqual(bought.purchased[initial.car],[part.id]);assert.deepEqual(bought.builds[initial.car],[part.id]);
+  const removed=togglePart(bought,part.id);assert.deepEqual(removed.builds[initial.car],[]);assert.equal(removed.money,bought.money);
+  const installed=togglePart(removed,part.id);assert.equal(installed.money,bought.money);assert.equal(installed.builds[initial.car].length,1);
   assert.deepEqual(validateSave(installed),installed);
  });
 }

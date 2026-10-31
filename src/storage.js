@@ -1,3 +1,4 @@
+import {partReason,normalizeBuild} from './tuning.js';
 import {START_MONEY} from './balance.js';
 import {normalizeTelemetry} from './telemetry.js';
 import {emptyTeam,normalizeTeam,normalizeCommandRecord} from './team.js';
@@ -11,8 +12,8 @@ import {recordKey} from './progress.js';
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
   return {version: 2, money: START_MONEY, car: 'ae86', pilot: 'ren', ownedCars: ['ae86'],
-    builds: {ae86: [], chaser: [], evo: []}, purchased: {ae86: [], chaser: [], evo: []},
-    condition: {ae86: 100, chaser: 100, evo: 100}, races: 0, wins: 0,
+    builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
+    condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
     eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
@@ -35,6 +36,7 @@ function validateRecord(record) {
   const total = record.sectorTimes.reduce((sum, time) => sum + time, 0);
   if (!finite(record.time) || Math.abs(total - record.time) > .001) return null;
   const parts = unique(list(record.parts).filter(validPart));
+  if(parts.some(id=>partReason(record.carId,id))||normalizeBuild(record.carId,parts).length!==parts.length)return null;
   const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100);
   const event=getEvent(record.eventId);
   const cards=availableCards(config,event.mode,event.id);
@@ -94,8 +96,8 @@ export function validateSave(raw) {
   out.team=normalizeTeam(raw.team);
   out.control=raw.control==='manager'&&out.team.founded&&out.team.contracts.some(contract=>contract.pilotId===out.pilot)?'manager':'personal';
   for (const car of CARS) {
-    out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(validPart));
-    out.builds[car.id] = unique(list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)));
+    out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(id=>validPart(id)&&!partReason(car.id,id)));
+    out.builds[car.id] = normalizeBuild(car.id,list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)));
     out.condition[car.id] = finite(raw.condition?.[car.id])
       ? Math.max(35, Math.min(100, raw.condition[car.id])) : 100;
   }

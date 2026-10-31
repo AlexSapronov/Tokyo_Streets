@@ -1,3 +1,4 @@
+import {partReason,normalizeBuild} from './tuning.js';
 import {SERVICE_RATE} from './balance.js';
 import {CARS,PILOTS,PARTS} from './data.js';
 
@@ -21,8 +22,9 @@ export function togglePart(career,id,activeRace=false) {
   const part=PARTS.find(part=>part.id===id);
   if(!part)throw new Error('Неизвестная деталь');
   const next=editable(career,activeRace),carId=next.car;
+  const reason=partReason(carId,id);if(reason)throw new Error(reason);
   if(!next.purchased[carId].includes(id)){pay(next,part.price);next.purchased[carId].push(id);}
-  next.builds[carId]=next.builds[carId].includes(id)?next.builds[carId].filter(item=>item!==id):[...next.builds[carId],id];
+  next.builds[carId]=next.builds[carId].includes(id)?next.builds[carId].filter(item=>item!==id):normalizeBuild(carId,[...next.builds[carId],id]);
   return next;
 }
 export function selectPilot(career,id,activeRace=false) {
