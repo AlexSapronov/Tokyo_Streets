@@ -77,7 +77,7 @@ for(const event of EVENTS)for(const pilot of PILOTS){
   let {career,race}=start(pilot.id,event.id);const charged=career.money;let moves=0;
   while(!race.finished){
    race=setManagerOrder(race,ORDERS[moves%ORDERS.length].id);
-   const choice=decideManagedAction(race),sector=sectorAt(race.index,race.weather,race.eventId),card=availableCards(race.config,race.mode).find(c=>c.id===choice.cardId);
+   const choice=decideManagedAction(race),sector=sectorAt(race.index,race.weather,race.eventId),card=availableCards(race.config,race.mode,race.eventId).find(c=>c.id===choice.cardId);
    assert.equal(disabledReason(card,sector,race.player,race.config,race.player.time-race.opponent.time),'');
    race=resolveManagedSector(race);moves++;
   }

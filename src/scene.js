@@ -143,7 +143,7 @@ export class Scene {
       const [x,y]=this.project(-115,20);
       this.path(c,[[x,y],[x,y-85*s]],'#85948c',5*s);
       for(let i=0;i<5;i++){c.beginPath();c.arc(x,y-(70-i*12)*s,4*s,0,7);c.fillStyle=i<3?'#efc979':i===3?'#92d6a1':'#c67066';c.fill();}
-      c.font='bold 10px monospace';c.fillStyle='#c0cbb8';c.fillText('402.336 m / QUARTER MILE',x-45*s,y+25*s);
+      c.font='bold 10px monospace';c.fillStyle='#c0cbb8';c.fillText((this.event.longDrag?this.event.distance.toFixed(3):'402.336')+' m / DRAG',x-45*s,y+25*s);
     }
     for(let i=0;i<this.checkpoints.length;i++) {
       const point=road[Math.min(800,Math.floor(this.checkpoints[i]*800))];

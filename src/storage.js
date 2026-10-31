@@ -1,8 +1,8 @@
 import {normalizeTelemetry} from './telemetry.js';
 import {emptyTeam,normalizeTeam,normalizeCommandRecord} from './team.js';
 import {DRIFT_CARDS} from './drift-data.js';
-import {DRAG_CARDS} from './drag-data.js';
-import {CARS, PILOTS, PARTS, CARDS, EVENTS, getEvent} from './data.js';
+import {ALL_DRAG_CARDS as DRAG_CARDS} from './drag-data.js';
+import {CARS, PILOTS, PARTS, CARDS, EVENTS, getEvent, eventLength} from './data.js';
 import {configuration,availableCards} from './engine.js';
 import {recordKey} from './progress.js';
 
@@ -36,9 +36,10 @@ function validateRecord(record) {
   const parts = unique(list(record.parts).filter(validPart));
   const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100);
   const event=getEvent(record.eventId);
-  const cards=availableCards(config,event.mode);
+  const cards=availableCards(config,event.mode,event.id);
   if(record.actions.some((id,i)=>!cards.some(card=>card.id===id&&(!card.phase||card.phase==='any'||card.phase===event.sectors[i].phase))))return null;
   if(event.mode==='drag'&&(!record.drag||record.drag.falseStart||!['reaction','sixty','et','trap'].every(key=>finite(record.drag[key])&&record.drag[key]>=0)))return null;
+  if(event.longDrag&&!validLongDrag(record,event))return null;
   if(event.mode==='drift'&&!validDriftRecord(record.drift,event))return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
   const legacyKey='2'+currentKey.slice(currentKey.indexOf('|'));
@@ -48,6 +49,19 @@ function validateRecord(record) {
   return {key, ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
+}
+function validLongDrag(record,event){
+  const d=record.drag,total=eventLength(event);
+  if(d.longFormat!==true||!Number.isFinite(d.gearing)||d.gearing<.75||d.gearing>1.25||typeof d.forceTop!=='boolean')return false;
+  if(!Number.isFinite(d.distance)||Math.abs(d.distance-total)>.001||Math.abs(d.et+Math.max(0,d.reaction)-record.time)>.001)return false;
+  const marks=[402.336,804.672,1609.344].filter(mark=>mark<=total+1e-8);
+  if(!Array.isArray(d.splits)||d.splits.length!==marks.length)return false;
+  let previous=0;
+  for(const [index,split] of d.splits.entries()){
+    if(!split||!Number.isFinite(split.distance)||Math.abs(split.distance-marks[index])>1e-6||!Number.isFinite(split.et)||split.et<=previous||split.et>d.et+.001||!Number.isFinite(split.speed)||split.speed<=0||split.speed>400)return false;
+    previous=split.et;
+  }
+  return true;
 }
 function validDriftRecord(drift,event){
   if(!drift||!Array.isArray(drift.clips)||drift.clips.length!==event.sectors.length)return false;

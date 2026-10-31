@@ -6,15 +6,20 @@ const profiles={
   chaser:{ratios:[3.25,1.96,1.31,1,.75],final:3.73,circumference:1.98,redline:7200,idle:800},
   evo:{ratios:[2.93,1.95,1.41,1.03,.72],final:4.53,circumference:1.95,redline:8000,idle:900}
 };
+export function transmissionProfile(config){const p=profiles[config.car.id]||profiles.ae86;return {...p,ratios:[...p.ratios]};}
+export function longShiftSpeeds(config,style='band',gearing=1){
+  const profile=transmissionProfile(config),fraction={short:.78,band:.9,redline:.99}[style]||.9;
+  return profile.ratios.slice(0,-1).map(ratio=>profile.redline*fraction*profile.circumference/(60*ratio*profile.final*gearing));
+}
 export function transmission(config,speed,mode='duel',drag=null){
   const profile=profiles[config.car.id]||profiles.ae86;
   if(speed<1)return {gear:0,rpm:drag?.rpm??profile.idle,redline:profile.redline};
   const velocity=speed/3.6;
   let gear=1;
-  const rpmFor=gear=>velocity/profile.circumference*60*profile.ratios[gear-1]*profile.final;
+  const rpmFor=gear=>velocity/profile.circumference*60*profile.ratios[gear-1]*profile.final*(drag?.gearing||1);
   if(mode==='drag'){
     const style={short:.89,band:1,redline:1.1}[drag?.shiftStyle]||1;
-    gear=1+[13,23,34,46,59].filter(threshold=>velocity>=threshold*style).length;
+    gear=drag?.longFormat?(drag.forceTop?profile.ratios.length:1+longShiftSpeeds(config,drag.shiftStyle,drag.gearing||1).filter(threshold=>velocity>=threshold).length):1+[13,23,34,46,59].filter(threshold=>velocity>=threshold*style).length;
     gear=Math.min(profile.ratios.length,gear);
   }else{
     while(gear<profile.ratios.length&&rpmFor(gear)>profile.redline*.82)gear++;
@@ -54,7 +59,11 @@ export function sampleTelemetry(config,mode,record,elapsed){
   const index=replayIndex(record.sectorTimes,elapsed),start=record.sectorTimes.slice(0,index).reduce((sum,time)=>sum+time,0);
   const to=record.telemetry[index],from=index?record.telemetry[index-1]:{...to,speed:0,rpm:transmission(config,0,mode).rpm,gear:0};
   const fraction=(elapsed-start)/Math.max(.001,record.sectorTimes[index]);
-  return interpolateTelemetry(config,mode,from,to,fraction,record.drag);
+  const t=clamp(fraction,0,1),sample=interpolateTelemetry(config,mode,from,to,t,record.drag);
+  // Replays must retain the recorded manual gear choice, not the final run's
+  // automatic strategy (especially early top gear followed by a downshift).
+  sample.rpm=Math.round(from.rpm+(to.rpm-from.rpm)*t);sample.gear=t<.5?from.gear:to.gear;
+  return sample;
 }
 export function normalizeTelemetry(raw,count){
   if(!Array.isArray(raw)||raw.length!==count)return null;

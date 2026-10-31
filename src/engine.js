@@ -9,10 +9,10 @@ export function configuration(carId,pilotId,parts=[],condition=100){
  return {car,pilot,parts:[...new Set(Array.isArray(parts)?parts:[])],condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
 }
 export function freshState(config){return {time:0,tires:100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
-export function availableCards(config,mode='duel'){if(mode==='drag')return dragCards();if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
+export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
  if(sector.mode==='drift')return driftReason(card,sector,state,config);
- if(sector.mode==='drag')return dragReason(card,sector,state);
+ if(sector.mode==='drag')return dragReason(card,sector,state,config);
  if(card.phase)return 'Карта только для дрэга';
  if(sector.mode==='timeattack'&&(card.category==='Дуэль'||card.gap))return 'В одиночной сессии нет соперника';
  if(card.only==='corner'&&sector.type!=='corner')return 'Нужен поворот';
@@ -82,7 +82,7 @@ export function simulate(config,state,sector,card){
 // Three-sector beam search: resource decisions can pay off in the next two sectors.
 // Future positions are unknown, so future branches omit positional duel actions.
 export function chooseAI(config, state, sector, gap = 0, upcoming = [], policy = null) {
-  const cards = availableCards(config,sector.mode);
+  const cards = availableCards(config,sector.mode,sector);
   const candidates = cards.filter(card => !disabledReason(card, sector, state, config, gap));
   const resourcePrice = state => policy? (state.drag?.falseStart?1000:0)+policy.resourcePrice(state) : (state.drag?.falseStart ? 1000 : 0) + Math.max(0, 60 - state.focus) * .012
     + Math.max(0, state.heat - 115) * .009 + (100 - state.tires) * .008;
@@ -120,7 +120,7 @@ export function resolveSector(race, cardId) {
   if (race.finished) throw new Error('Заезд уже завершён');
   const event = getEvent(race.eventId);
   const sector = sectorAt(race.index, race.weather, race.eventId);
-  const card = availableCards(race.config,race.mode).find(card => card.id === cardId);
+  const card = availableCards(race.config,race.mode,race.eventId).find(card => card.id === cardId);
   if (!card) throw new Error('Карта недоступна');
   const gap = race.player.time - race.opponent.time;
   const reason = disabledReason(card, sector, race.player, race.config, gap);

@@ -5,7 +5,7 @@ import {beginManagedRace,setManagerOrder,interpretOrder,resolveManagedSector} fr
 import {DRIFT_CARDS} from './drift-data.js';
 import {replayIndex,driftFrame} from './replay.js';
 import {qualitativeForecast,focusCost} from './tactics.js';
-import {DRAG_CARDS} from './drag-data.js';
+import {ALL_DRAG_CARDS as DRAG_CARDS} from './drag-data.js';
 import {selectCar,togglePart,selectPilot,serviceCar,serviceCost} from './garage.js';
 import {CARS, PILOTS, PARTS, EVENTS, CARDS, getEvent, sectorAt, eventLength} from './data.js';
 import {configuration, availableCards, disabledReason, simulate, createRace, resolveSector, medalTargets, raceOutcome} from './engine.js';
@@ -75,8 +75,8 @@ function renderRace() {
       <label><span class="micro">ПОКРЫТИЕ</span><select id="weather" ${race||isReplay?'disabled':''}><option value="mixed">☂ Переменная влажность</option><option value="dry">☾ Сухой асфальт</option><option value="rain">☂ Дождь</option></select></label></div></div>
     <div class="race-layout"><section><div class="scene-wrap"><canvas id="scene" aria-label="Изометрическая трасса ${event.title}"></canvas>
       <div class="scene-top"><div><div class="eyebrow">${event.japanese} · ${event.name.toUpperCase()}</div><h2>${event.title}</h2><span class="badge">${isDrift?'DRIFT / JUDGED RUN':isDrag?'DRAG / QUARTER MILE':duel?'TOUGE / DUEL':'OFFICIAL / TIME ATTACK'}</span></div>
-      <div class="route-stats">${(eventLength(event)/1000).toFixed(2)} KM<br>${count} ${isDrift?'КЛИПОВ':isDrag?'ФАЗЫ':'СЕКТОРОВ'}<br>${event.theme==='circuit'?'18:20':'23:48'} / 12°C<br>ЗАКРЫТЫЙ МАРШРУТ</div></div>
-      <div class="scene-caption"><div class="stamp" id="scene-status">${isReplay?'ПОВТОР РЕКОРДА':isDrag&&!race?'4 ФАЗЫ / ET + РЕАКЦИЯ':r.finished?'ФИНИШ':race?'СЕКТОР '+String(r.index+1).padStart(2,'0'):'ПЕРЕД СТАРТОМ'}</div>
+      <div class="route-stats">${(eventLength(event)/1000).toFixed(2)} KM<br>${count} ${isDrift?'КЛИПОВ':isDrag?(count===4?'ФАЗЫ':'ФАЗ'):'СЕКТОРОВ'}<br>${event.theme==='circuit'?'18:20':'23:48'} / 12°C<br>ЗАКРЫТЫЙ МАРШРУТ</div></div>
+      <div class="scene-caption"><div class="stamp" id="scene-status">${isReplay?'ПОВТОР РЕКОРДА':isDrag&&!race?count+(count===4?' ФАЗЫ':' ФАЗ')+' / ET + РЕАКЦИЯ':r.finished?'ФИНИШ':race?'СЕКТОР '+String(r.index+1).padStart(2,'0'):'ПЕРЕД СТАРТОМ'}</div>
       <h3 id="scene-sector">${r.finished?'До следующей встречи.':s.name}</h3>
       <p id="scene-description">${isReplay?'Сохранённые решения и время. Повтор не приносит наград.':race?sectorDescription(s):event.description}</p></div>
       <div class="scene-tools"><button id="pause" ${!isReplay?'disabled':''}>Ⅱ Пауза</button><button id="speed">${fast?'2×':'1×'} Скорость</button></div></div>
@@ -93,8 +93,8 @@ function renderRace() {
       <p>${ghost?'Та же трасса, погода, машина, пилот и детали. Состояние в рекорде: '+ghost.condition.toFixed(0)+'%.':'Заверши заезд — появятся рекорд, призрак и повтор.'}</p>
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
-    ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Твои решения <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / TEAM ORDERS 0.5</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Твои решения <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / LONG DISTANCE 0.6</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   $('#control').value=r.manager?'manager':career.control;
   $('#control').onchange=event=>{career.control=event.target.value;save();render();};
   $('#weather').value=r.weather;$('#event-select').value=event.id;
@@ -132,14 +132,14 @@ function renderRace() {
 }
 function renderCards() {
   const r=previewRace(),sector=sectorAt(r.index,r.weather,r.eventId),gap=r.player.time-r.opponent.time;
-  const cards=availableCards(r.config,r.mode),categories=['Все',...new Set(cards.map(card=>card.category))];
+  const cards=availableCards(r.config,r.mode,r.eventId),categories=['Все',...new Set(cards.map(card=>card.category))];
   if(!categories.includes(filter))filter='Все';
   $('#filters').innerHTML=categories.map(category=>`<button class="filter ${filter===category?'active':''}" data-filter="${category}">${category}</button>`).join('');
   $('#filters').querySelectorAll('button').forEach(button=>button.onclick=()=>{if(busy)return;filter=button.dataset.filter;renderCards();});
   if(!cards.some(card=>card.id===selected&&!disabledReason(card,sector,r.player,r.config,gap)))selected=cards.find(card=>!disabledReason(card,sector,r.player,r.config,gap))?.id;
   $('#cards').innerHTML=cards.filter(card=>filter==='Все'||filter===card.category).map(card=>{
     const reason=disabledReason(card,sector,r.player,r.config,gap);
-    const cost=r.mode==='drag'?card.focus*(r.config.pilot.id==='ren'?.88:1):focusCost(r.config,r.player,card);
+    const cost=r.mode==='drag'&&!getEvent(r.eventId).longDrag?card.focus*(r.config.pilot.id==='ren'?.88:1):focusCost(r.config,r.player,card);
     return `<button class="card ${selected===card.id?'selected':''}" data-card="${card.id}" ${reason||busy?'disabled':''} aria-pressed="${selected===card.id}">
       <div class="card-top"><span class="card-icon">${card.icon}</span><span class="card-type">${card.category}</span></div><strong>${card.name}</strong><span class="en">${card.en}</span><p>${card.desc}</p>
       <div class="card-cost"><span>${cost>0?'−'+Math.ceil(cost):'+'+Math.floor(Math.abs(cost))} ФОКУС</span><span>${card.heat>0?'+':''}${card.heat}°C</span></div>${reason?`<span class="reason">${reason}</span>`:''}</button>`;
@@ -259,6 +259,7 @@ function dragMetrics(drag) {
     <span>60 ft (18.288 м)<strong>${value(drag.sixty)}</strong></span><span>ET (без реакции)<strong>${value(drag.et)}</strong></span>
     <span>Скорость финиша<strong>${drag.trap?drag.trap.toFixed(1)+' км/ч':'—'}</strong></span>
     <span>Шины / обороты<strong>${Math.round(drag.temperature)}°C / ${drag.rpm}</strong></span>
+    ${drag.splits?.length?drag.splits.map(split=>'<span>Отсечка '+split.distance.toFixed(3)+' м<strong>'+split.et.toFixed(3)+' с / '+split.speed.toFixed(1)+' км/ч</strong></span>').join(''):''}
     ${drag.falseStart?'<b class="negative">ФАЛЬСТАРТ · без рекорда</b>':''}</div>`;
 }
 function routeMap(event) {
@@ -302,13 +303,13 @@ function openModal(html,setup) {
   setup?.();$('#modal').showModal();
 }
 function help() {
-  openModal(`<div class="eyebrow">TOKYO STREETS / TEAM ORDERS 0.5</div><h2>Найди свою линию.</h2><ol>
+  openModal(`<div class="eyebrow">TOKYO STREETS / LONG DISTANCE 0.6</div><h2>Найди свою линию.</h2><ol>
     <li><strong>Гараж.</strong> Выбери машину и пилота. Купи детали, которые подходят к маршруту; сборки у каждой машины свои.</li>
     <li><strong>Событие.</strong> Харуна доступна сразу. Для Акаги нужно 12 Street Cred. После двух завершённых сессий открывается клубный Time Attack в Цукубе.</li>
     <li><strong>Тактика.</strong> Все карты открыты. Повтор активного приёма в последних шести решениях экспоненциально увеличивает нагрузку, износ и потерю темпа. Один промежуточный ход не сбрасывает штраф. Разнообразные действия постепенно выводят его из памяти. Базовый «Чистый темп» всегда остаётся без штрафа. Серые объясняют ограничения. Читай разведку маршрута, прогноз, шины, тормоза и концентрацию.</li>
     <li><strong>Дуэль.</strong> Соперник планирует на три сектора по тем же правилам. Защита и слипстрим требуют реального окна.</li>
     <li><strong>Time Attack.</strong> Соперника нет; карты дуэли недоступны. Пороги медалей видны до старта. Завершённая сессия приносит Official Reputation.</li>
-    <li><strong>Дрэг.</strong> После трёх финишей откроется Йокогама. Прогрев не входит во время. Выбирай старт, режим переключений и финиш. Победу определяет реакция + ET; фальстарт проигрывает даже с лучшим ET.</li><li><strong>Дрифт.</strong> При 20 Street Cred откроется Эбису: две связки по четыре клипа. Важны линия, заданный угол, скорость и непрерывность, а не минимальное время. Стабилизация доступна всегда, но обрывает связку.</li><li><strong>Команда.</strong> После четырёх финишей и 24 Street Cred либо 12 Official Rep можно основать команду и заключить контракты. Выбери менеджерское управление: пилот играет теми же картами по приказам и условному плану. Оплата пилота списывается при старте и не возвращается при выходе.</li><li><strong>Повтор.</strong> Лучший заезд сохраняет решения и время секторов. В следующем заезде с той же сборкой можно включить призрак или посмотреть полный повтор.</li>
+    <li><strong>Дрэг.</strong> После трёх финишей откроется 402 м, после четырёх — 804 м, после пяти — стоячая миля. На длинной дистанции есть выбор главной пары и давления перед стартом, затем управление высшей передачей, рабочим диапазоном и тепловой нагрузкой. Прогрев не входит во время. Выбирай старт, режим переключений и финиш. Победу определяет реакция + ET; фальстарт проигрывает даже с лучшим ET.</li><li><strong>Дрифт.</strong> При 20 Street Cred откроется Эбису: две связки по четыре клипа. Важны линия, заданный угол, скорость и непрерывность, а не минимальное время. Стабилизация доступна всегда, но обрывает связку.</li><li><strong>Команда.</strong> После четырёх финишей и 24 Street Cred либо 12 Official Rep можно основать команду и заключить контракты. Выбери менеджерское управление: пилот играет теми же картами по приказам и условному плану. Оплата пилота списывается при старте и не возвращается при выходе.</li><li><strong>Повтор.</strong> Лучший заезд сохраняет решения и время секторов. В следующем заезде с той же сборкой можно включить призрак или посмотреть полный повтор.</li>
     </ol><p class="micro">НАГРУЗКА — ИНДЕКС ПРЕДЕЛА, НЕ ВЕРОЯТНОСТЬ. КАРЬЕРА СОХРАНЯЕТСЯ В БРАУЗЕРЕ. НЕЗАВЕРШЁННЫЙ ЗАЕЗД ПРИ ПЕРЕЗАГРУЗКЕ СБРАСЫВАЕТСЯ. ПОВТОРЫ НЕ ПРИНОСЯТ НАГРАД.</p><button class="primary" data-close>На дорогу ↗</button>`);
   career.helpSeen=true;save();
 }

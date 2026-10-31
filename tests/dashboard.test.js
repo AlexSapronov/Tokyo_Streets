@@ -71,7 +71,7 @@ test('live interpolation preserves endpoints and moves every sensor continuously
  const stationary=interpolateTelemetry(cfg,'drag',{...from,speed:0,rpm:3500},{...to,speed:0,rpm:5700},.5);
  assert.equal(stationary.rpm,4600);assert.equal(stationary.gear,0);
 });
-test('recorded telemetry survives all five disciplines, migrates old replays and rejects corrupted overlays',()=>{
+test('recorded telemetry survives all event formats, migrates old replays and rejects corrupted overlays',()=>{
  for(const event of EVENTS){
   const race=finishRace(cfg,'mixed',event.id),record=raceRecord(race),loaded=validateSave(awardRace(newCareer(),race).career);
   assert.equal(record.telemetry.length,event.sectors.length);assert.deepEqual(loaded.bests[0].telemetry,record.telemetry);

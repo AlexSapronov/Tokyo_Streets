@@ -124,6 +124,21 @@ EVENTS.push({
   anchors:[[0,0],[220,80],[260,240],[20,310],[-260,330],[-300,530],[-80,620],[210,610],[300,800],[50,920],[-200,950],[-220,1140],[100,1200]]
 });
 
+// Half-mile and mile share the closed strip, but not their high-speed decisions.
+for(const spec of [
+  {id:'yokohama-half',name:'Yokohama Half Mile',title:'Йокогама · 804 м',distance:804.672,unlockRaces:4,prize:24000,participation:7000,
+    pulls:[{end:600,name:'Вторая половина разгона'}]},
+  {id:'yokohama-mile',name:'Yokohama Standing Mile',title:'Йокогама · 1 миля',distance:1609.344,unlockRaces:5,prize:30000,participation:8500,
+    pulls:[{end:600,name:'Выход на высокую скорость'},{end:1000,name:'Тепловая нагрузка'},{end:1400,name:'Подготовка финального рывка'}]}
+]){
+  const base=EVENTS.find(event=>event.id==='yokohama');
+  const sectors=base.sectors.slice(0,3).map(sector=>({...sector}));
+  let start=300;
+  for(const pull of spec.pulls){sectors.push({name:pull.name,type:'straight',label:'Длинный разгон',phase:'pull',length:pull.end-start,radius:0,slope:0,wet:.1});start=pull.end;}
+  sectors.push({name:'Финиш длинной дистанции',type:'straight',label:'Финиш',phase:'finish',length:spec.distance-start,radius:0,slope:0,wet:.1});
+  EVENTS.push({...base,...spec,longDrag:true,description:spec.id==='yokohama-half'?'Полмили: стартовая тяга против запаса по оборотам и охлаждению.':'Стоячая миля: три окна решений на высокой скорости и борьба за ресурс мотора.',
+    sectors:sectors.map(sector=>({...sector,longDrag:true,totalDistance:spec.distance}))});
+}
 export function getEvent(id = 'haruna') {
   return EVENTS.find(event => event.id === id) || EVENTS[0];
 }
