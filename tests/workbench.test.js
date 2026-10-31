@@ -103,3 +103,17 @@ test('player-only interface hides driver recruitment and JSON export while prese
  while(q('#execute')&&turns++<12){const card=q('[data-card=balanced]');if(card&&!card.disabled)card.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);}
  assert.ok(q('.report'));assert.equal(q('#export'),null);assert.ok(q('.race-recap'));
 });
+
+test('garage interface shows sorted prices and raster previews with SVG fallback',async t=>{
+ const {document:d}=await boot(t),q=s=>d.querySelector(s);
+ q('[data-view=garage]').click();
+ assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),
+  ['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','nsx']);
+ assert.match(q('.garage-price-sort').textContent,/ЦЕНА/);
+ assert.ok(q('.garage-car-detail .garage-render-ae86'));
+ q('[data-garage-preview=rx7]').click();assert.ok(q('.garage-car-detail .garage-render-rx7'));
+ q('[data-garage-preview=r32]').click();assert.ok(q('.garage-car-detail .vehicle-art svg'));
+ assert.equal(q('.garage-car-detail .garage-render-r34'),null);
+ q('#garage-drive').value='AWD';q('#garage-drive').onchange({target:q('#garage-drive')});
+ assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),['evo','r32']);
+});
