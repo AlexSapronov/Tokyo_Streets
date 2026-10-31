@@ -55,7 +55,7 @@ test('foul runs earn participation but no official reputation or leaderboard tra
  const career=newCareer(),awarded=awardRace(career,race);
  assert.equal(awarded.isBest,false);assert.deepEqual(awarded.career.bests,[]);
  assert.equal(awarded.career.official,0);assert.equal(awarded.career.records[0].falseStart,true);
- assert.equal(awarded.career.money,career.money+getEvent('yokohama').participation);
+ assert.equal(awarded.career.money,career.money+Math.round(getEvent('yokohama').participation*.55*1.2*.45));
  assert.equal(validateSave(awarded.career).records[0].falseStart,true);
 });
 test('AWD realizes a faster sixty-foot launch than the equal-power FR sedan',()=>{
@@ -142,6 +142,6 @@ test('all 64 equipment combinations preserve valid drag results',()=>{
  }
 });
 test('drag key is independent of road balance version',()=>{
- assert.ok(recordKey(cfg,'haruna','dry').startsWith('3|'));
- assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-1|'));
+ assert.ok(recordKey(cfg,'haruna','dry').startsWith('4|'));
+ assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-2|'));
 });

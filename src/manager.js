@@ -1,3 +1,4 @@
+import {admissionReason,payoutScale} from './balance.js';
 import {getEvent,sectorAt} from './data.js';
 import {configuration,createRace,chooseAI,futureSectors,resolveSector} from './engine.js';
 import {CREW,contractFor,validOrder,normalizePlan} from './team.js';
@@ -7,13 +8,16 @@ export function beginManagedRace(career,eventId,weather,runId){
   if(!career.team.founded||!contract)throw new Error('Для менеджерского режима нужен контракт с выбранным пилотом');
   if(career.street<event.unlockStreet||career.races<event.unlockRaces)throw new Error('Событие пока закрыто');
   if(typeof runId!=='string'||!runId||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
+  const reason=admissionReason(career,eventId);if(reason)throw new Error(reason);
   const fee=CREW[career.pilot].salary;
   if(career.money<fee)throw new Error('Недостаточно денег на оплату пилота');
   const next=structuredClone(career);next.money-=fee;
   const config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car]);
-  const race=createRace(config,weather,eventId,runId);
+  const experience=Math.min(30,contract.experience),level=Math.floor(experience/5);
+  config.pilot={...config.pilot,skill:Math.min(.995,config.pilot.skill+level*.0025),focus:config.pilot.focus+level};
+  const race=createRace(config,weather,eventId,runId);race.rewardScale=payoutScale(career,eventId);
   race.manager={pilotId:career.pilot,trust:contract.trust,fee,order:career.team.plan.order,
-    plan:normalizePlan(career.team.plan),log:[]};
+    level,experience:contract.experience,plan:normalizePlan(career.team.plan),log:[]};
   return {career:next,race};
 }
 export function setManagerOrder(race,order){
@@ -30,7 +34,7 @@ export function interpretOrder(race){
   if(rules.focus&&state.focus<30){requested='conserve';trigger='focus';reason='План: концентрация ниже 30';}
   else if(rules.heat&&state.heat>130){requested='conserve';trigger='heat';reason='План: температура выше 130°C';}
   else if(rules.wet&&sector.wet>=.55){requested='safe';trigger='wet';reason='План: мокрый участок';}
-  else if(rules.chase&&['duel','drag'].includes(race.mode)&&state.time-race.opponent.time>=2){requested='attack';trigger='chase';reason='План: нужно сокращать отставание';}
+  else if(rules.chase&&!race.opponent.dnf&&['duel','drag'].includes(race.mode)&&state.time-race.opponent.time>=2){requested='attack';trigger='chase';reason='План: нужно сокращать отставание';}
   let effective=requested,refused=false,caution=false;
   const discipline=CREW[pilot.id].discipline,trust=manager.trust;
   const reserveLimit=pilot.aggression>1?18:28;
@@ -69,7 +73,7 @@ export function orderPolicy(order){
 export function decideManagedAction(race){
   const command=interpretOrder(race),sector=sectorAt(race.index,race.weather,race.eventId);
   const decision=chooseAI(race.config,race.player,sector,race.opponent.dnf?Infinity:race.player.time-race.opponent.time,
-    futureSectors(race),orderPolicy(command.effective));
+    futureSectors(race).slice(0,race.manager.trust>=85?2:race.manager.trust>=60?1:0),orderPolicy(command.effective));
   if(!decision)throw new Error('Нет допустимых действий пилота');
   return {...command,cardId:decision.card.id,decision};
 }

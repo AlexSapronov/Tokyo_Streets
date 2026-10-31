@@ -11,7 +11,7 @@ const cfg=configuration('ae86','ren');
 function fakeRoot(){
  const node=dataset=>({dataset,textContent:'',style:{},attributes:{},classes:new Set(),
   setAttribute(key,value){this.attributes[key]=value;},classList:{toggle(key,on){this.owner.classes[on?'add':'delete'](key);}}});
- const fields=['speed','rpm','gear','coolant','oil','brakes','tireTemp','tires','focus','warning'];
+ const fields=['speed','rpm','gear','coolant','oil','brakes','tireTemp','tires','focus','warning','focusTrack','focusFill','focusStatus'];
  const groups={'[data-value]':fields.map(value=>node({value})),
   '[data-needle]':['speed','rpm'].map(needle=>node({needle})),
   '[data-meter]':['speed','rpm'].map(meter=>node({meter})),
@@ -25,7 +25,7 @@ test('dashboard contains two instrument dials, gear and all four thermal sensors
  for(const car of CARS){const html=dashboardHTML(configuration(car.id,'ren'));
   assert.ok(html.includes(car.name));assert.ok(html.includes('data-meter="speed"'));assert.ok(html.includes('data-meter="rpm"'));
   for(const field of ['gear','coolant','oil','brakes','tireTemp','tires','focus'])assert.ok(html.includes(`data-value="${field}"`));
-  assert.ok(!html.includes('NaN'));assert.ok(!html.includes('undefined'));assert.equal((html.match(/role="meter"/g)||[]).length,2);
+  assert.ok(!html.includes('NaN'));assert.ok(!html.includes('undefined'));assert.equal((html.match(/role="meter"/g)||[]).length,3);
  }
 });
 test('speedometer and tachometer update their needles, numbers, gear and accessible meter values',()=>{
@@ -94,4 +94,12 @@ test('telemetry validator requires finite bounded values and integral gears',()=
  const values=readTelemetry(cfg,createRace(cfg).player,'duel');assert.deepEqual(normalizeTelemetry([values],1),[values]);
  assert.equal(normalizeTelemetry(null,1),null);assert.equal(normalizeTelemetry([],1),null);
  for(const patch of [{speed:NaN},{rpm:10001},{gear:1.5},{oil:-1},{coolant:1000},{focus:-1},{tireTemp:500},{tires:101}])assert.equal(normalizeTelemetry([{...values,...patch}],1),null);
+});
+test('focus has a visible full-width meter with accessible value and escalating low-focus messages',()=>{
+ const root=fakeRoot(),update=bindDashboard(root,cfg),base=readTelemetry(cfg,createRace(cfg).player,'duel');
+ for(const [focus,width,text] of [[100,'100%','Стабильное'],[60,'60%','Повышенный'],[30,'30%','НИЗКИЙ'],[10,'10%','КРИТИЧНО']]){
+  update({...base,focus});assert.equal(root.values.focusFill.style.width,width);assert.equal(root.values.focusTrack.attributes['aria-valuenow'],focus);assert.ok(root.values.focusStatus.textContent.includes(text));
+  assert.equal(root.values.focusTrack.classes.has('low'),focus<40);assert.equal(root.values.focusTrack.classes.has('critical'),focus<20);
+ }
+ assert.ok(dashboardHTML(cfg).includes('aria-label="Фокус пилота"'));
 });

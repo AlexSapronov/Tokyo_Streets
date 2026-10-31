@@ -100,5 +100,5 @@ export function normalizeCommandRecord(raw,actions,pilotId){
     log.push({requested:command.requested,effective:command.effective,cardId:command.cardId,
       reason:command.reason,refused:command.refused,caution:command.caution,trigger:command.trigger});
   }
-  return {pilotId,trust:raw.trust,fee:raw.fee,log};
+  return {pilotId,...(Number.isInteger(raw.level)&&raw.level>=0&&raw.level<=6?{level:raw.level}:{}),trust:raw.trust,fee:raw.fee,log};
 }

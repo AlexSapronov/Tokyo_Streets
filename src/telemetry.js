@@ -67,7 +67,7 @@ export function sampleTelemetry(config,mode,record,elapsed){
 }
 export function normalizeTelemetry(raw,count){
   if(!Array.isArray(raw)||raw.length!==count)return null;
-  const ranges={speed:[0,400],rpm:[0,10000],gear:[0,6],coolant:[20,160],oil:[20,220],brakes:[20,250],tireTemp:[0,200],tires:[0,100],focus:[0,110]};
+  const ranges={speed:[0,400],rpm:[0,10000],gear:[0,6],coolant:[20,160],oil:[20,220],brakes:[20,250],tireTemp:[0,200],tires:[0,100],focus:[0,120]};
   const output=[];
   for(const row of raw){
     if(!row||Object.entries(ranges).some(([key,[min,max]])=>!Number.isFinite(row[key])||row[key]<min||row[key]>max)||!Number.isInteger(row.gear))return null;

@@ -40,8 +40,8 @@ test('active race blocks all four garage transactions',()=>{
 });
 test('service charges the selected car only and a healthy car costs nothing',()=>{
  const career=newCareer();career.condition.ae86=60;career.condition.chaser=50;
- assert.equal(serviceCost(career),6000);
- const repaired=serviceCar(career);assert.equal(repaired.money,74000);assert.equal(repaired.condition.ae86,100);assert.equal(repaired.condition.chaser,50);
+ assert.equal(serviceCost(career),18000);
+ const repaired=serviceCar(career);assert.equal(repaired.money,0);assert.equal(repaired.condition.ae86,100);assert.equal(repaired.condition.chaser,50);
  assert.equal(serviceCar(repaired).money,repaired.money);
  const poor={...career,money:1};assert.throws(()=>serviceCar(poor),/Недостаточно/);assert.equal(poor.condition.ae86,60);
 });

@@ -26,7 +26,7 @@ test('routes have different distances, elevation and duel opposition',()=>{
   assert.equal(eventLength(getEvent('haruna')),2770);
   assert.equal(eventLength(getEvent('tsukuba')),2045);
   assert.ok(getEvent('akagi').sectors.some(sector=>sector.slope>0));
-  assert.equal(createRace(configuration('ae86','ren'),'dry','akagi').rival.car.id,'evo');
+  assert.equal(createRace(configuration('ae86','ren'),'dry','akagi').rival.car.id,'ae86');
 });
 test('three-sector planner is deterministic, legal and can choose a different action from myopic AI',()=>{
   let observed=false;

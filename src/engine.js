@@ -1,7 +1,8 @@
-import {executionRoll,newSeed,hashSeed,applyRunOff} from './execution.js';
+import {raceClass,incidentPrice,rewardFactor} from './balance.js';
+import {executionRoll,newSeed,hashSeed,applyRunOff,runOffChance} from './execution.js';
 import {attachTelemetry,readTelemetry} from './telemetry.js';
 import {freshDriftState,driftReason,simulateDrift,driftCards} from './drift.js';
-import {repetitionEffect,rememberAction,focusCost} from './tactics.js';
+import {repetitionEffect,rememberAction,focusCost,strainAfter,strainEffect} from './tactics.js';
 import {freshDragState,dragReason,simulateDrag,dragCards} from './drag.js';
 import {CARS,PILOTS,CARDS,sectorAt,getEvent} from './data.js';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -32,6 +33,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(sector.mode==='drift')return simulateDrift(config,state,sector,card,execution);
  if(sector.mode==='drag')return simulateDrag(config,state,sector,card,execution);
  const repeat=repetitionEffect(state,card);
+ const strain=strainEffect(state,card);
  const {car,pilot,parts}=config,has=id=>parts.includes(id),corner=sector.type==='corner';
  // SI units: metric hp -> watts, kg, m/s. A bounded sector approximation,
  // not a wheel-level simulator. Both drivers use exactly this function.
@@ -47,18 +49,19 @@ function simulateRaw(config,state,sector,card,execution=null){
  const exit=corner?Math.min(terminal,cornerSpeed+accel*1.5):Math.min(terminal,Math.sqrt(state.velocity**2+2*accel*sector.length));
  const average=corner?cornerSpeed*.87+exit*.13:Math.max(18,(state.velocity+exit)*.5);
  const braking=corner?Math.max(0,state.velocity-cornerSpeed)/(grip*9.81*brake)*.45:0;
- const baseTime=sector.length/average+braking;
+ const entryLoss=corner?Math.max(0,cornerSpeed-state.velocity)*.035:0;
+ const baseTime=sector.length/average+braking+entryLoss;
  let gain=card.gain*pilot.aggression*(.7+.3*pilot.skill)+(state.study?.015:0);
  if(card.id==='late')gain*=has('brakes')?1.15:brakeFade;
- if(card.id==='weight')gain*=has('suspension')?1.18:1;
+ if(card.id==='weight')gain*=(has('suspension')?1.18:1)*clamp(1100/mass,.8,1.2);
  if(card.id==='apexEarly')gain*=sector.radius<50?1.25:-.5;
  if(card.id==='power')gain*=traction*(sector.wet>.35&&car.drive==='FR'&&!has('lsd')?.45:1);
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
- const risk=clamp(card.risk+sector.wet*.22+(1-pilot.skill)*.3+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
+ const risk=clamp(card.risk+strain.risk+sector.wet*.22+(1-pilot.skill)*.3+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
  // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
- const time=unpenalized*repeat.timeFactor*(1+(execution?.error||0));
+ const time=unpenalized*repeat.timeFactor*strain.timeFactor*(1+(execution?.error||0));
  const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:1)*(mass/1100)*repeat.wearFactor;
  const heat=(corner?12: -10)*(mass/1100)+card.heat;
  const repetitionHeat=card.heat>=0?repeat.heatExtra:0;
@@ -66,8 +69,10 @@ function simulateRaw(config,state,sector,card,execution=null){
  const actionFocus=focusCost(config,state,card);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;
- const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:exit*(slip>0?.92:1),cooldowns};
+ const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:exit*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
  const reasons=[corner?`Радиус ${sector.radius} м: предел дуги ${Math.round(cornerSpeed*3.6)} км/ч`:`${car.power} л.с. / ${mass} кг: разгон до ${Math.round(exit*3.6)} км/ч`];
+ if(strain.strain>2)reasons.push('Накопленная нагрузка от атак: смена приёма не снимает напряжение');
+ if(['late','apexEarly','power','defend'].includes(card.id))reasons.push('Траектория изменила скорость входа в следующий сектор');
  if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: нагрузка растёт экспоненциально, потеря ${(time-unpenalized).toFixed(2)} с`);
  if(sector.wet>.35)reasons.push(`Мокрое покрытие ${Math.round(sector.wet*100)}%: сцепление снижено`);
  if(brakeFade<1)reasons.push(`Перегрев: эффективность тормозов ${Math.round(brakeFade*100)}%`);
@@ -79,6 +84,8 @@ function simulateRaw(config,state,sector,card,execution=null){
 }
 export function simulate(config,state,sector,card,execution=null){
   const result=simulateRaw(config,state,sector,card,execution);
+  result.next.strain=strainAfter(state,card);
+  result.risk=clamp(result.risk+(sector.mode==='drag'?strainEffect(state,card).risk:0),0,1);
   if(execution){
     result.execution={...execution};
     result.reasons.push(`Разброс исполнения при фокусе ${Math.round(execution.focus)}; ${Math.abs(execution.roll)<.25?'небольшое отклонение':Math.abs(execution.roll)<.7?'заметное отклонение':'край диапазона'}`);
@@ -92,17 +99,17 @@ export function chooseAI(config, state, sector, gap = 0, upcoming = [], policy =
   const candidates = cards.filter(card => !disabledReason(card, sector, state, config, gap));
   const resourcePrice = state => policy? (state.drag?.falseStart?1000:0)+policy.resourcePrice(state) : (state.drag?.falseStart ? 1000 : 0) + Math.max(0, 60 - state.focus) * .012
     + Math.max(0, state.heat - 115) * .009 + (100 - state.tires) * .008;
-  const stepCost=(action,result,current)=>policy?policy.stepCost(action,result,current):current.mode==='drift'?-result.clip.points/12:result.time;
+  const stepCost=(action,result,current,focus)=> (policy?policy.stepCost(action,result,current):current.mode==='drift'?-result.clip.points/12:result.time)+incidentPrice(runOffChance(focus,result.risk,current,action),config,1+upcoming.length);
   const scored = candidates.map(card => {
     const result = simulate(config, state, sector, card);
-    let beam = [{state: result.next, cost: stepCost(card,result,sector), plan: [card.name]}];
+    let beam = [{state: result.next, cost: stepCost(card,result,sector,state.focus), plan: [card.name]}];
     for (const nextSector of upcoming.slice(0, 2)) {
       const expanded = [];
       for (const node of beam) {
         for (const action of cards) {
           if (action.gap || disabledReason(action, nextSector, node.state, config)) continue;
           const step = simulate(config, node.state, nextSector, action);
-          expanded.push({state: step.next, cost: node.cost + stepCost(action,step,nextSector), plan: [...node.plan, action.name]});
+          expanded.push({state: step.next, cost: node.cost + stepCost(action,step,nextSector,node.state.focus), plan: [...node.plan, action.name]});
         }
       }
       beam = expanded.sort((a,b) => a.cost + resourcePrice(a.state) - b.cost - resourcePrice(b.state)).slice(0, 5);
@@ -118,8 +125,9 @@ export function futureSectors(race) {
 }
 export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null) {
   const event = getEvent(eventId);
-  const rival = configuration(event.rivalCar, event.rivalPilot, event.rivalParts, 100);
-  return {config, rival, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
+  const category=raceClass(config);
+  const rival = configuration(['duel','drag'].includes(event.mode)?category.car:event.rivalCar, event.rivalPilot, category.id==='expert'?event.rivalParts:[], 100);
+  return {config, rival, category,rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
 export function resolveSector(race, cardId) {
@@ -157,8 +165,8 @@ export function resolveSector(race, cardId) {
 // Medal targets are independent of the player's build: fixed stock reference runs
 // on the same route and weather. They are cached because weather is deterministic.
 const targetCache = new Map();
-export function medalTargets(eventId, weather) {
-  const key = eventId + ':' + weather;
+export function medalTargets(eventId, weather,category='expert') {
+  const key = eventId + ':' + weather+':'+category;
   if (targetCache.has(key)) return targetCache.get(key);
   const baseline = carId => {
     const config = configuration(carId, 'ren');
@@ -168,14 +176,15 @@ export function medalTargets(eventId, weather) {
     }
     return state.time;
   };
-  const gold = baseline('evo') * 1.015;
-  const silver = Math.max(gold + 1, baseline('chaser') * 1.015);
-  const bronze = Math.max(silver + 1, baseline('ae86') * 1.04);
+  const reference=baseline(category==='club'?'ae86':category==='sport'?'chaser':'evo');
+  const gold = reference*.955;
+  const silver = Math.max(gold+1,reference*.99);
+  const bronze = Math.max(silver+1,reference*1.04);
   const targets = {gold, silver, bronze};
   targetCache.set(key, targets);
   return targets;
 }
-export function raceOutcome(race) {
+function baseOutcome(race) {
   const event = getEvent(race.eventId);
   if(race.player.dnf)return {won:false,medal:null,label:'Сход · вылет с трассы',reward:0,street:0,official:0};
   if (race.mode === 'duel' || race.mode === 'drag') {
@@ -188,10 +197,15 @@ export function raceOutcome(race) {
     return {won:false,medal,label:{gold:'Золото',silver:'Серебро',bronze:'Бронза'}[medal]||'Сессия завершена',
       reward:{gold:22000,silver:14000,bronze:8500}[medal]||event.participation,street:0,official:{gold:12,silver:7,bronze:3}[medal]||1};
   }
-  const targets = medalTargets(event.id, race.weather);
+  const targets = medalTargets(event.id, race.weather,(race.category||raceClass(race.config)).id);
   const medal = ['gold', 'silver', 'bronze'].find(level => race.player.time <= targets[level]) || null;
   return {won: false, medal,
     label: {gold: 'Золото', silver: 'Серебро', bronze: 'Бронза'}[medal] || 'Сессия завершена',
     reward: {gold: 16000, silver: 10000, bronze: 6500}[medal] || event.participation,
     street: 0, official: {gold: 12, silver: 7, bronze: 3}[medal] || 1};
+}
+
+export function raceOutcome(race){
+ const outcome=baseOutcome(race);
+ return {...outcome,reward:Math.round(outcome.reward*rewardFactor(race.config,race.mode)*(race.rewardScale??1))};
 }

@@ -1,3 +1,4 @@
+import {START_MONEY} from './balance.js';
 import {normalizeTelemetry} from './telemetry.js';
 import {emptyTeam,normalizeTeam,normalizeCommandRecord} from './team.js';
 import {DRIFT_CARDS} from './drift-data.js';
@@ -9,11 +10,11 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {version: 2, money: 80000, car: 'ae86', pilot: 'ren', ownedCars: ['ae86'],
+  return {version: 2, money: START_MONEY, car: 'ae86', pilot: 'ren', ownedCars: ['ae86'],
     builds: {ae86: [], chaser: [], evo: []}, purchased: {ae86: [], chaser: [], evo: []},
     condition: {ae86: 100, chaser: 100, evo: 100}, races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -42,8 +43,9 @@ function validateRecord(record) {
   if(event.longDrag&&!validLongDrag(record,event))return null;
   if(event.mode==='drift'&&!validDriftRecord(record.drift,event))return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
-  const legacyKey='2'+currentKey.slice(currentKey.indexOf('|'));
-  const key=['duel','timeattack'].includes(event.mode)&&record.key===legacyKey?legacyKey:currentKey;
+  const suffix=currentKey.slice(currentKey.indexOf('|'));
+  const legacyPrefixes=['2','3','drag-1','drift-1'];
+  const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
   return {key, ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
@@ -85,7 +87,7 @@ function validDriftRecord(drift,event){
 export function validateSave(raw) {
   if (!raw || ![1, 2].includes(raw.version)) throw new Error('Неподдерживаемое сохранение');
   const out = newCareer();
-  out.money = finite(raw.money) ? Math.max(0, Math.min(1e9, raw.money)) : 80000;
+  out.money = finite(raw.money) ? Math.max(0, Math.min(1e9, raw.money)) : START_MONEY;
   out.ownedCars = unique(['ae86', ...list(raw.ownedCars).filter(validCar)]);
   out.car = out.ownedCars.includes(raw.car) ? raw.car : 'ae86';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
@@ -100,6 +102,8 @@ export function validateSave(raw) {
   for (const key of ['races', 'wins', 'street', 'official']) {
     out[key] = finite(raw[key]) ? Math.max(0, Math.floor(raw[key])) : 0;
   }
+  out.repairDebt=finite(raw.repairDebt)?Math.max(0,Math.min(1e7,raw.repairDebt)):0;
+  out.eventCompletions=Object.fromEntries(EVENTS.filter(e=>finite(raw.eventCompletions?.[e.id])&&raw.eventCompletions[e.id]>0).map(e=>[e.id,Math.min(100000,Math.floor(raw.eventCompletions[e.id]))]));
   out.best = finite(raw.best) && raw.best > 0 ? raw.best : null;
   out.weather = validWeather(raw.weather) ? raw.weather : 'mixed';
   out.eventId = validEvent(raw.eventId) ? raw.eventId : 'haruna';

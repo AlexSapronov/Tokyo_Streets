@@ -2,11 +2,11 @@ import {teamAfterRace} from './team.js';
 import {getEvent} from './data.js';
 import {raceOutcome} from './engine.js';
 
-export const MODEL_VERSION = 3;
+export const MODEL_VERSION = 4;
 export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
-  return [getEvent(eventId).mode==='drift'?'drift-1':getEvent(eventId).mode==='drag'?'drag-1':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
+  return [getEvent(eventId).mode==='drift'?'drift-2':getEvent(eventId).mode==='drag'?'drag-2':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
     [...config.parts].sort().join(',') || 'stock'].join('|');
 }
 export function unlocked(event, career) {
@@ -29,7 +29,7 @@ export function raceRecord(race) {
     sectorTimes: race.history.map(row => row.playerTime),
     actions: race.history.map(row => row.cardId),
     ...(race.history.every(row=>row.telemetry)?{telemetry:race.history.map(row=>({...row.telemetry}))}:{}),
-    ...(race.manager?{manager:{pilotId:race.config.pilot.id,trust:race.manager.trust,fee:race.manager.fee,log:structuredClone(race.manager.log)}}:{}),
+    ...(race.manager?{manager:{pilotId:race.config.pilot.id,level:race.manager.level||0,trust:race.manager.trust,fee:race.manager.fee,log:structuredClone(race.manager.log)}}:{}),
     ...(race.mode==='drag'?{drag:structuredClone(race.player.drag)}:race.mode==='drift'?{drift:structuredClone(race.player.drift)}:{})};
 }
 export function awardRace(career, race) {
@@ -40,14 +40,16 @@ export function awardRace(career, race) {
   const improved=!previous||(race.mode==='drift'?record.drift.score>previous.drift.score||record.drift.score===previous.drift.score&&record.time<previous.time:record.time<previous.time);
   const isBest = !race.player.dnf && !race.player.drag?.falseStart && improved;
   const next = structuredClone(career);
-  next.money += outcome.reward;
-  if(!race.player.dnf)next.races++;
+  const debtPaid=Math.min(next.repairDebt||0,Math.floor(outcome.reward*.5));
+  next.repairDebt=(next.repairDebt||0)-debtPaid;
+  next.money += outcome.reward-debtPaid;
+  if(!race.player.dnf){next.races++;next.eventCompletions={...next.eventCompletions,[race.eventId]:(next.eventCompletions?.[race.eventId]||0)+1};}
   if(race.runId)next.awardedRuns=[...next.awardedRuns,race.runId].slice(-256);
   if (outcome.won) next.wins++;
   next.street += outcome.street;
   next.official += outcome.official;
   next.condition[race.config.car.id] = Math.max(35,
-    race.config.condition - (race.player.dnf?.damage||0) - (100 - race.player.tires) * .2
+    race.config.condition - (race.player.dnf?.damage||0) - (100 - race.player.tires) * .55
     - race.history.reduce((sum, row) => sum + row.slip, 0) * .5);
   if (isBest) next.bests = [record, ...next.bests.filter(best => best.key !== record.key)].slice(0, 120);
   next.records.unshift({car: race.config.car.name, time: record.time, won: outcome.won,
@@ -57,7 +59,7 @@ export function awardRace(career, race) {
   // Preserve the legacy all-build Haruna statistic for old saves.
   if (!race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
-  return {career: next, race: {...race, awarded: true, outcome, isBest,...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
+  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }
 export function checkpointFractions(eventId) {
   const sectors = getEvent(eventId).sectors;

@@ -1,3 +1,4 @@
+import {SERVICE_RATE} from './balance.js';
 import {CARS,PILOTS,PARTS} from './data.js';
 
 function editable(career,activeRace) {
@@ -29,9 +30,17 @@ export function selectPilot(career,id,activeRace=false) {
   const next=editable(career,activeRace);next.pilot=id;return next;
 }
 export function serviceCost(career) {
-  return Math.ceil((100-career.condition[career.car])*150);
+  return Math.ceil((100-career.condition[career.car])*SERVICE_RATE);
 }
 export function serviceCar(career,activeRace=false) {
   const next=editable(career,activeRace),cost=serviceCost(next);
   pay(next,cost);next.condition[next.car]=100;return next;
+}
+
+export function recoveryService(career,activeRace=false){
+ const next=editable(career,activeRace),condition=next.condition[next.car];
+ if(condition>=60)throw new Error('Аварийный ремонт доступен при состоянии ниже 60%');
+ const cost=Math.ceil((60-condition)*SERVICE_RATE),paid=Math.min(next.money,cost);
+ next.money-=paid;next.repairDebt=(next.repairDebt||0)+cost-paid;next.condition[next.car]=60;
+ return next;
 }

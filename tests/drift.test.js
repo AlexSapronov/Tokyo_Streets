@@ -119,7 +119,7 @@ test('medal boundaries award score rather than the shortest elapsed time',()=>{
   assert.equal(raceOutcome(fixture).medal,medal);assert.equal(raceOutcome(fixture).won,false);
  }
  const empty=finishRace(cfg,'dry','ebisu',Array(8).fill('drift-reset'));
- assert.equal(empty.player.drift.score,0);assert.equal(raceOutcome(empty).medal,null);assert.equal(raceOutcome(empty).reward,5500);
+ assert.equal(empty.player.drift.score,0);assert.equal(raceOutcome(empty).medal,null);assert.equal(raceOutcome(empty).reward,2420);
  assert.equal(validateSave(awardRace(newCareer(),empty).career).bests[0].drift.score,0);
 });
 test('higher score replaces a faster record, while lower score and slower ties cannot replace it',()=>{
@@ -187,5 +187,5 @@ test('replay frame sampling retains drift yaw, records completed points, and cla
  const next=driftFrame(record,first);assert.ok(next.score>0);assert.equal(next.index,1);
  const finish=driftFrame(record,record.time+1e-6);assert.equal(finish.score,record.drift.score);assert.equal(finish.index,7);
  assert.equal(replayIndex([0,2,8,3],0),1);assert.equal(replayIndex([0,2,8,3],2),2);assert.equal(replayIndex([0,2,8,3],14),3);
- assert.equal(recordKey(cfg,'ebisu','dry').split('|')[0],'drift-1');
+ assert.equal(recordKey(cfg,'ebisu','dry').split('|')[0],'drift-2');
 });

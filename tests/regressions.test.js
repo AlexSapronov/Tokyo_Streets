@@ -41,7 +41,7 @@ test('save validation rejects unsupported formats and repairs malformed defaults
  const raw={version:2,money:Infinity,car:'evo',pilot:'unknown',ownedCars:'evo',builds:null,purchased:null,
   condition:{ae86:NaN,chaser:-100,evo:300},races:-3,wins:'oops',street:NaN,official:-10,
   best:-1,weather:'snow',eventId:'missing',ghostEnabled:false,helpSeen:'yes'};
- const fixed=validateSave(raw);assert.equal(fixed.money,80000);assert.equal(fixed.car,'ae86');assert.equal(fixed.pilot,'ren');
+ const fixed=validateSave(raw);assert.equal(fixed.money,18000);assert.equal(fixed.car,'ae86');assert.equal(fixed.pilot,'ren');
  assert.deepEqual(fixed.condition,{ae86:100,chaser:35,evo:100});assert.equal(fixed.races,0);assert.equal(fixed.wins,0);
  assert.equal(fixed.weather,'mixed');assert.equal(fixed.eventId,'haruna');assert.equal(fixed.ghostEnabled,false);assert.equal(fixed.helpSeen,false);
  assert.equal(validateSave({...newCareer(),money:2e9}).money,1e9);

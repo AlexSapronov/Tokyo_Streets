@@ -12,7 +12,7 @@ export function dragReason(card,sector,state,config=null) {
   if(!card.phase)return 'Эта карта не используется в дрэге';
   if(card.phase!==sector.phase)return 'Доступно в фазе: '+({prep:'Подготовка',launch:'Старт',shifts:'Переключения',finish:'Финиш',pull:'Длинный разгон'})[card.phase];
   if(card.minSpeed&&state.velocity*3.6<card.minSpeed)return `Нужна скорость от ${card.minSpeed} км/ч`;
-  const cost=sector.longDrag&&config?focusCost(config,state,card):card.focus;
+  const cost=config?focusCost(config,state,card):card.focus;
   if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации`;
   return '';
 }
@@ -117,7 +117,7 @@ export function simulateDrag(config,state,sector,card,execution=null) {
   const cooling=config.car.cooling*(config.parts.includes('cooling')?1.3:1);
   const heat=card.heat>0?card.heat/cooling:card.heat*cooling;
   if(!sector.longDrag||prep)next.heat=clamp(state.heat+heat,35,200);
-  next.focus=clamp(state.focus-(sector.longDrag?focusCost(config,state,card):card.focus*(config.pilot.id==='ren'?.88:1)),0,config.pilot.focus);
+  next.focus=clamp(state.focus-focusCost(config,state,card),0,config.pilot.focus);
   next.tires=clamp(state.tires-card.wear*(config.parts.includes('tires')?1.25:1)*(repeat?.wearFactor||1)-slip*2,0,100);
   next.time+=time;
   if(config.parts.includes('cooling'))reasons.push('HKS уменьшает нагрев мотора');

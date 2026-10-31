@@ -38,7 +38,7 @@ test('quarter-mile golden reference remains on its original physics and timing',
  const race={player:state};
  assert.ok(Math.abs(race.player.time-14.808773852676273)<1e-10);
  assert.equal(race.player.drag.longFormat,undefined);assert.equal(race.player.drag.splits,undefined);
- assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-1|'));
+ assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-2|'));
 });
 test('long gearing changes actual engine RPM and launch performance without adding power',()=>{
  const base=reachPull(cfg,'drag-pressure'),long=reachPull(cfg,'drag-longgear');
