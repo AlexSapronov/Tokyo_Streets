@@ -1,3 +1,5 @@
+import {emptyRivals,normalizeRivals,getChallenge} from './rivals.js';
+import {RACING_LINES,roadMode} from './racing-lines.js';
 import {emptyJourney,normalizeJourney} from './journey.js';
 import {emptyWear,normalizeWear} from './wear.js';
 import {emptyEngines,normalizeEngines} from './powertrain.js';
@@ -20,7 +22,7 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
+  return {rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
@@ -50,19 +52,21 @@ function validateRecord(record) {
   if(record.setup!==undefined&&!validSetup(parts,record.setup))return null;
   const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup,record.engineId,record.wear);
   if(['easy','equal','hard'].includes(record.rivalLevel))config.rivalLevel=record.rivalLevel;
+  if(record.challengeId!==undefined){if(!getChallenge(record.challengeId))return null;config.challengeId=record.challengeId;}
   const event=getEvent(record.eventId);
   const cards=availableCards(config,event.mode,event.id);
   if(record.actions.some((id,i)=>!cards.some(card=>card.id===id&&(!card.phase||card.phase==='any'||card.phase===event.sectors[i].phase))))return null;
   if(event.mode==='drag'&&(!record.drag||record.drag.falseStart||!['reaction','sixty','et','trap'].every(key=>finite(record.drag[key])&&record.drag[key]>=0)))return null;
   if(event.longDrag&&!validLongDrag(record,event))return null;
   if(event.mode==='drift'&&!validDriftRecord(record.drift,event))return null;
+  if(record.lines!==undefined&&(!roadMode(event.mode)||!Array.isArray(record.lines)||record.lines.length!==count||record.lines.some((id,i)=>!RACING_LINES.some(line=>line.id===id)||(event.sectors[i].type!=='corner'&&id!=='neutral'))))return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
   const suffix=currentKey.slice(currentKey.indexOf('|'));
-  const legacyPrefixes=['2','3','drag-1','drift-1'];
+  const legacyPrefixes=['2','3','4','drag-1','drift-1'];
   const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key,...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {key,...(config.challengeId?{challengeId:config.challengeId}:{}),...(record.lines?{lines:[...record.lines]}:{}),...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -106,6 +110,7 @@ export function validateSave(raw) {
   out.car=out.ownedCars.includes(raw.car)?raw.car:out.ownedCars[0];
   out.rivalLevel=['easy','equal','hard'].includes(raw.rivalLevel)?raw.rivalLevel:'equal';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
+  out.rivals=normalizeRivals(raw.rivals);
   out.team=normalizeTeam(raw.team);
   out.operations=normalizeOperations(raw.operations);
   if(!out.team.founded)out.operations=emptyOperations();

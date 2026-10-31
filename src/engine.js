@@ -1,3 +1,4 @@
+import {lineGeometry,lineReason,lineCard,lineName,RACING_LINES,roadMode} from './racing-lines.js';
 import {engineCar,stockEngineId,getEngine} from './engine-data.js';
 import {normalizeComponentWear,wornCar,tireKey} from './wear.js';
 import {orderPolicy} from './ai-policy.js';
@@ -76,6 +77,7 @@ export function disabledReason(card,sector,state,config,gap=0){
 function simulateRaw(config,state,sector,card,execution=null){
  if(sector.mode==='drift')return simulateDrift(config,state,sector,card,execution);
  if(sector.mode==='drag')return simulateDrag(config,state,sector,card,execution);
+ const line=lineGeometry(card.lineId,sector,config.car);
  const repeat=repetitionEffect(state,card);
  const strain=strainEffect(state,card);
  const {car,pilot,parts}=config,has=id=>parts.includes(id),corner=sector.type==='corner';
@@ -90,33 +92,34 @@ function simulateRaw(config,state,sector,card,execution=null){
  const power=car.power*735.5*.78*(.9+.1*config.condition/100)*band;
  const terminal=Math.cbrt(power/car.airResistance);
  const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1+.05*car.partLsdHealth:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);
- const cornerSpeed=corner?Math.sqrt(grip*9.81*sector.radius):terminal;
+ const cornerSpeed=corner?Math.sqrt(grip*9.81*sector.radius*line.radius):terminal;
  const accel=Math.min(grip*9.81*traction,power/(mass*Math.max(state.velocity,18)))-9.81*sector.slope-(car.rollingFactor-1)*.12;
  const exit=corner?Math.min(terminal,cornerSpeed+accel*1.5):Math.min(terminal,Math.sqrt(state.velocity**2+2*accel*sector.length));
  const average=corner?cornerSpeed*.87+exit*.13:Math.max(18,(state.velocity+exit)*.5);
  const braking=corner?Math.max(0,state.velocity-cornerSpeed)/(grip*9.81*brake)*.45:0;
  const entryLoss=corner?Math.max(0,cornerSpeed-state.velocity)*.035:0;
- const baseTime=sector.length/average+braking+entryLoss;
+ const baseTime=sector.length*line.length/average+braking+entryLoss;
  let gain=card.gain*pilot.aggression*(.7+.3*pilot.skill)+(state.study?.015:0);
  if(card.id==='late')gain*=has('brakes')?1.15:brakeFade;
  if(card.id==='weight')gain*=(has('suspension')?1.18:1)*clamp(1100/mass,.8,1.2);
  if(card.id==='apexEarly')gain*=sector.radius<50?1.25:-.5;
  if(card.id==='power')gain*=traction*(sector.wet>.35&&['FR','MR'].includes(car.drive)&&!has('lsd')?.45:1);
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
- const risk=clamp(card.risk+strain.risk+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
+ const risk=clamp(card.risk+line.risk+strain.risk+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
  // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
  const time=unpenalized*repeat.timeFactor*strain.timeFactor*(1+(execution?.error||0));
- const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*repeat.wearFactor*car.wearFactor;
+ const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*repeat.wearFactor*car.wearFactor*line.wear;
  const heat=(corner?12: -10)*(mass/1100)+card.heat;
  const repetitionHeat=card.heat>=0?repeat.heatExtra:0;
  const cooled=(heat>0?heat*car.heatFactor*(car.engineHeat||1)*(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1):heat*car.cooling*(has('cooling')?car.coolerFactor:1)*repeat.recoveryFactor)+repetitionHeat;
  const actionFocus=focusCost(config,state,card);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;
- const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:exit*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
+ const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit)*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
  const reasons=[corner?`Радиус ${sector.radius} м: предел дуги ${Math.round(cornerSpeed*3.6)} км/ч`:`${car.power} л.с. / ${mass} кг: разгон до ${Math.round(exit*3.6)} км/ч`];
+ if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
  if(strain.strain>2)reasons.push('Накопленная нагрузка от атак: смена приёма не снимает напряжение');
  if(['late','apexEarly','power','defend'].includes(card.id))reasons.push('Траектория изменила скорость входа в следующий сектор');
  if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: нагрузка растёт экспоненциально, потеря ${(time-unpenalized).toFixed(2)} с`);
@@ -129,6 +132,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  return {time,next,risk,slip,speed:exit*3.6,gain:baseTime-time,reasons};
 }
 export function simulate(config,state,sector,card,execution=null){
+  const blocked=lineReason(card.lineId||'neutral',sector);if(blocked)throw new Error(blocked);
   const result=simulateRaw(config,state,sector,card,execution);
   result.next.strain=strainAfter(state,card);
   result.risk=clamp(result.risk+(sector.mode==='drag'?strainEffect(state,card).risk:0),0,1);
@@ -165,6 +169,15 @@ export function chooseAI(config, state, sector, gap = 0, upcoming = [], policy =
   });
   return scored.sort((a,b) => a.score - b.score)[0];
 }
+export function chooseRacingLine(config,state,sector,card,nextSector,style=null){
+ const policy=orderPolicy(style);
+ return RACING_LINES.filter(line=>!lineReason(line.id,sector)).map(line=>{
+  const action=lineCard(card,line.id),result=simulate(config,state,sector,action);
+  const next=nextSector?simulate(config,result.next,nextSector,CARDS[0]):null;
+  const score=result.time+(next?.time||0)+incidentPrice(runOffChance(state.focus,result.risk,sector,action),config,2)+(policy?.resourcePrice(result.next)||0)+(100-result.next.tires)*.01;
+  return {card:action,result,score};
+ }).sort((a,b)=>a.score-b.score)[0];
+}
 export function futureSectors(race) {
   return getEvent(race.eventId).sectors.slice(race.index + 1, race.index + 3)
     .map((_, offset) => sectorAt(race.index + offset + 1, race.weather, race.eventId));
@@ -179,11 +192,12 @@ export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=n
   return {config, rival, category,...(offer?{rivalLevel:offer.id,difficultyReward:offer.reward,rivalName:offer.name+' · '+offer.rival.pilot.name}:{}),...(event.mode==='timeattack'?{targets:medalTargets(eventId,weather,config)}:{}),rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
-export function resolveSector(race, cardId) {
+export function resolveSector(race, cardId, lineId='neutral') {
   if (race.finished) throw new Error('Заезд уже завершён');
   const event = getEvent(race.eventId);
   const sector = sectorAt(race.index, race.weather, race.eventId);
-  const card = availableCards(race.config,race.mode,race.eventId).find(card => card.id === cardId);
+  const baseCard = availableCards(race.config,race.mode,race.eventId).find(card => card.id === cardId);
+  const card=baseCard?lineCard(baseCard,lineId):null;
   if (!card) throw new Error('Карта недоступна');
   const gap = race.opponent.dnf?Infinity:race.player.time - race.opponent.time;
   const reason = disabledReason(card, sector, race.player, race.config, gap);
@@ -192,6 +206,10 @@ export function resolveSector(race, cardId) {
   const player = simulate(race.config, race.player, sector, card,executionRoll(seed,race.index,'player',race.player.focus));
   const ai = ['duel','drag'].includes(race.mode)&&!race.opponent.dnf
     ? chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race),race.rivalStyle?orderPolicy(race.rivalStyle):null) : null;
+  if(ai&&roadMode(race.mode)){
+    const choice=chooseRacingLine(race.rival,race.opponent,sector,ai.card,futureSectors(race)[0],race.rivalStyle);
+    ai.card=choice.card;ai.plan[0]+=' / '+lineName(ai.card.lineId);
+  }
   if(ai)ai.result=simulate(race.rival,race.opponent,sector,ai.card,executionRoll(seed,race.index,'opponent',race.opponent.focus));
   if (card.id === 'defend' && ai) { ai.result.time += .35; ai.result.next.time += .35; }
   if (ai?.card.id === 'defend') {
@@ -199,6 +217,7 @@ export function resolveSector(race, cardId) {
     player.reasons.push('Соперник закрыл траекторию: +0.35 с');
   }
   const row = {index: race.index, sector: sector.name, cardId, card: card.name,
+    ...(roadMode(race.mode)?{lineId,aiLineId:ai?.card.lineId||'neutral'}:{}),
     aiSlip:ai?.result.slip||0,aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
     playerTime: player.time, aiTime: ai?.result.time ?? null,
     gap: ai&&!player.next.dnf&&!ai.result.next.dnf ? player.next.time - ai.result.next.time : null,

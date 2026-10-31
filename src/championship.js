@@ -2,7 +2,7 @@ import {installedEngineId} from './engine-data.js';
 import {seriesDefinition,organizerReason} from './organizer.js';
 import {bookSupport} from './operations.js';
 import {CARS,getEvent,sectorAt} from './data.js';
-import {configuration,createRace,chooseAI,simulate} from './engine.js';
+import {configuration,createRace,chooseAI,chooseRacingLine,simulate} from './engine.js';
 import {freshDragState} from './drag.js';
 import {freshState} from './engine.js';
 import {hashSeed,executionRoll} from './execution.js';
@@ -93,7 +93,8 @@ function finishNpc(config,state,eventId,weather,seed,side,index,style){
  for(let i=index;i<event.sectors.length&&!state.dnf;i++){
   const sector=sectorAt(i,weather,eventId),upcoming=event.sectors.slice(i+1,i+3).map((_,j)=>sectorAt(i+j+1,weather,eventId));
   const action=chooseAI(config,state,sector,Infinity,upcoming,orderPolicy(style));
-  const result=simulate(config,state,sector,action.card,executionRoll(seed,i,side,state.focus));
+  const card=['duel','timeattack'].includes(event.mode)?chooseRacingLine(config,state,sector,action.card,upcoming[0],style).card:action.card;
+  const result=simulate(config,state,sector,card,executionRoll(seed,i,side,state.focus));
   state={...result.next,seasonSlip:(state.seasonSlip||0)+result.slip};
  }
  return state;

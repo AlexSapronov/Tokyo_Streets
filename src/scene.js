@@ -1,3 +1,4 @@
+import {lineFrame} from './racing-lines.js';
 import {driftFrame} from './replay.js';
 import {CARS, getEvent} from './data.js';
 import {checkpointFractions, progressAtTime} from './progress.js';
@@ -180,7 +181,8 @@ export class Scene {
     const duration=this.motion.duration/(multiplier/this.speed);
     this.motion.started=now-fraction*duration;this.motion.duration=duration;this.speed=multiplier;
   }
-  drawCar(progress,lane,carId,label,ghost=false,yaw=0) {
+  drawCar(progress,lane,carId,label,ghost=false,yaw=0,lineOffset=0) {
+    lane+=lineOffset;
     const n=Math.max(0,Math.min(799,Math.floor(progress*800))),point=this.project(...this.route[n]),next=this.project(...this.route[n+1]);
     const c=this.ctx,s=this.scale,a=Math.atan2(next[1]-point[1],next[0]-point[0]);
     c.save();c.translate(point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s);c.rotate(a+yaw);
@@ -200,10 +202,10 @@ export class Scene {
     c.setTransform(1,0,0,1,0,0);c.drawImage(this.background,0,0);c.setTransform(this.dpr,0,0,this.dpr,0,0);
     if(this.replayRecord){
       const pose=driftFrame(this.replayRecord,this.elapsed);
-      this.drawCar(progressAtTime(this.replayRecord.sectorTimes,this.elapsed,this.event.id),-4,this.replayRecord.carId,'REPLAY',false,pose?.yaw||0);
+      this.drawCar(progressAtTime(this.replayRecord.sectorTimes,this.elapsed,this.event.id),-4,this.replayRecord.carId,'REPLAY',false,pose?.yaw||lineFrame(this.replayRecord,this.elapsed).yaw,lineFrame(this.replayRecord,this.elapsed).offset);
     }else{
       const playerTimes=this.race.history.map(row=>row.playerTime);
-      if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true,driftFrame(this.ghost,this.elapsed)?.yaw||0);
+      if(this.ghost&&this.showGhost)this.drawCar(progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),0,this.ghost.carId,'BEST',true,driftFrame(this.ghost,this.elapsed)?.yaw||lineFrame(this.ghost,this.elapsed).yaw,lineFrame(this.ghost,this.elapsed).offset);
       if(['duel','drag'].includes(this.race.mode)){
         const aiTimes=this.race.history.map(row=>row.aiTime).filter(time=>time!==null);
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
@@ -211,10 +213,11 @@ export class Scene {
         if(!this.race.opponent.dnf&&aiTimes.length&&this.elapsed>total&&aiTimes.length<this.event.sectors.length){
           progress+=(this.elapsed-total)/aiTimes.at(-1)*(this.checkpoints[aiTimes.length+1]-this.checkpoints[aiTimes.length]);
         }
-        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':'RIVAL',false,this.race.opponent.dnf?.7:0);
+        const aiLine=lineFrame({sectorTimes:aiTimes,lines:this.race.history.map(row=>row.aiLineId)},this.elapsed);
+        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':'RIVAL',false,this.race.opponent.dnf?.7:aiLine.yaw,aiLine.offset);
       }
-      const pose=driftFrame({sectorTimes:playerTimes,drift:this.race.player.drift},this.elapsed);
-      this.drawCar(Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id)),this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:pose?.yaw||0);
+      const pose=driftFrame({sectorTimes:playerTimes,drift:this.race.player.drift},this.elapsed),line=lineFrame({sectorTimes:playerTimes,lines:this.race.history.map(row=>row.lineId)},this.elapsed);
+      this.drawCar(Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id)),this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:pose?.yaw||line.yaw,line.offset);
     }
     if(this.race.weather!=='dry'){
       c.strokeStyle='#c0d9dc24';c.lineWidth=.8;

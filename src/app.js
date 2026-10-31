@@ -1,3 +1,7 @@
+import {getChallenge,previewChallenge,bookChallenge,challengeReason} from './rivals.js';
+import {rivalsHTML,challengeReportHTML} from './rivals-view.js';
+import {racingLinesHTML} from './racing-lines-view.js';
+import {lineCard,lineReason,lineName} from './racing-lines.js';
 import {getLanguage,setLanguage,localize} from './i18n.js';
 import {summarizeRace,raceSummaryHTML} from './race-summary.js';
 import {journeyFocusHTML,journeyHTML,routeMasteryHTML,journeyReportHTML} from './journey-view.js';
@@ -41,6 +45,7 @@ let career = loadCareer(storage);
 // A single playable driver for now; preserve legacy pilots and team contracts in the save for future updates.
 career.pilot='ren';career.control='personal';
 if (!unlocked(getEvent(career.eventId),career)) career.eventId = 'haruna';
+let challengeIntent=null,selectedLine='neutral';
 let motorSelection={},garagePreview=null,garageDrive='all',seasonIntent=false,seriesDraft=defaultSeries(),seriesEditingId=null;
 let view = 'race', race = null, selected = 'balanced', filter = 'Все';
 let dashboardUpdate=null;
@@ -60,6 +65,7 @@ function previewRace() {
     return createRace(saved,replayRecord.weather,replayRecord.eventId);
   }
   if(race)return race;
+  if(challengeIntent)return previewChallenge(config(),challengeIntent);
   const preview=createRace(config(),career.weather,career.eventId,null,null,seasonIntent?null:career.rivalLevel);
   const opponent=seasonIntent?previewCupOpponent(career):null;
   if(opponent){preview.rival=opponent.rival;preview.rivalName=opponent.name;preview.opponent=createRace(opponent.rival,career.weather,career.eventId).player;if(opponent.dns)preview.opponent.dnf={reason:'Технический недопуск',damage:0,speed:0};}
@@ -83,7 +89,7 @@ function render() {
   if(view==='garage')renderGarage();else if(view==='tuning')renderTuning();else if(view==='seasons')renderSeasons();else if(view==='world')renderWorld();else if(view==='team')renderTeam();else renderRace();
   mountWorkbench(app,view,career,race);
   if(!replayRecord)app.querySelector('.context-bar').insertAdjacentHTML('afterend',journeyFocusHTML(career,busy||!!race&&!race.finished));
-  document.querySelectorAll('[data-journey-event]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;career.eventId=button.dataset.journeyEvent;race=null;seasonIntent=false;view='race';save();render();});
+  document.querySelectorAll('[data-journey-event]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;career.eventId=button.dataset.journeyEvent;race=null;seasonIntent=false;challengeIntent=null;view='race';save();render();});
   document.querySelectorAll('[data-journey-view]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;race=null;view=button.dataset.journeyView;if(view==='world')selectWorkspaceTab('world','events');render();});
   app.insertAdjacentHTML('beforeend',`<details class="debug-drawer"><summary>Отладка</summary><aside class="debug-tools"><strong>DEBUG</strong><button id="debug-unlock" class="secondary" ${busy?'disabled':''}>Открыть всё</button><button id="debug-reset" class="secondary" ${busy?'disabled':''}>Сбросить всё</button><span>Локальная карьера в этом браузере</span></aside></details>`);
   $('#debug-unlock').onclick=()=>{stopDebugRun();career=unlockEverything(career);save();render();toast('Открыты все события, машины, детали и детали. На счету ¥1 000 000.');};
@@ -92,7 +98,7 @@ function render() {
   fitWorkspace(app);
   updateWallet();
 }
-function stopDebugRun(){scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';garagePreview=null;seriesDraft=defaultSeries();seriesEditingId=null;seasonIntent=false;}
+function stopDebugRun(){scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';garagePreview=null;seriesDraft=defaultSeries();seriesEditingId=null;seasonIntent=false;challengeIntent=null;selectedLine='neutral';}
 function sectorDescription(s) {
   return `${s.label}${s.mode==='drift'?' · '+s.clip+' · угол '+s.targetAngle+'° · '+s.targetSpeed+' км/ч':''} · ${s.length} м${s.radius?' · радиус '+s.radius+' м':''} · уклон ${Math.round(s.slope*100)}% · влажность ${Math.round(s.wet*100)}%`;
 }
@@ -103,7 +109,7 @@ function medalHTML(eventId,weather,r=previewRace()) {
     <span>● Серебро <strong>${time(targets.silver)}</strong></span><span>● Бронза <strong>${time(targets.bronze)}</strong></span></div>`;
 }
 function duelOptions(r){
- if(!['duel','drag'].includes(r.mode)||race||replayRecord||seasonIntent||r.season)return '';
+ if(!['duel','drag'].includes(r.mode)||race||replayRecord||seasonIntent||challengeIntent||r.season||r.challenge)return '';
  return `<fieldset class="rival-options"><legend>Выбор соперника</legend>${freeRivalOptions(r.config,r.eventId,r.weather).map(o=>`<button class="secondary ${career.rivalLevel===o.id?'selected':''}" data-rival-level="${o.id}" aria-pressed="${career.rivalLevel===o.id}" ${race?'disabled':''}><strong>${o.name} · ${o.rival.car.name}</strong><span>${o.profile.power} л.с. / ${Math.round(o.profile.mass)} кг · рейтинг ${Math.round(o.profile.rating)} / твой ${Math.round(o.playerRating)}${o.prepared?' · подготовленный автомобиль':''} · приз ×${o.reward}</span></button>`).join('')}<p class="micro">Сила соперника зависит от мощности, массы и сцепления его машины. Уровень пилота одинаковый. Рекорды трассы не зависят от сложности.</p></fieldset>`;
 }
 function renderRace() {
@@ -113,9 +119,9 @@ function renderRace() {
   const gap=r.opponent.dnf?Infinity:r.player.time-r.opponent.time,ghost=ghostFor(r),isReplay=!!replayRecord;
   app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">JAPAN / ${event.region}</div>
       <h1>${isReplay?'Твой лучший заезд':event.title}</h1></div><div class="event-controls ${race||isReplay?'session-active':''}">
-      <label><span class="micro">ДИСЦИПЛИНА</span><select id="discipline-select" ${race||isReplay||seasonIntent?'disabled':''}>${DISCIPLINES.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}</select></label><label><span class="micro">ТРАССА</span><select id="event-select" ${race||isReplay||seasonIntent?'disabled':''}>
+      <label><span class="micro">ДИСЦИПЛИНА</span><select id="discipline-select" ${race||isReplay||seasonIntent||challengeIntent?'disabled':''}>${DISCIPLINES.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}</select></label><label><span class="micro">ТРАССА</span><select id="event-select" ${race||isReplay||seasonIntent||challengeIntent?'disabled':''}>
       ${EVENTS.filter(item=>item.mode===r.mode).map(item=>`<option value="${item.id}" ${!unlocked(item,career)?'disabled':''}>${item.title}${!unlocked(item,career)?' · '+unlockText(item):''}</option>`).join('')}</select></label>
-      <label><span class="micro">ПОКРЫТИЕ</span><select id="weather" ${race||isReplay||seasonIntent?'disabled':''}><option value="mixed">☂ Переменная влажность</option><option value="dry">☾ Сухой асфальт</option><option value="rain">☂ Дождь</option></select></label></div>
+      <label><span class="micro">ПОКРЫТИЕ</span><select id="weather" ${race||isReplay||seasonIntent||challengeIntent?'disabled':''}><option value="mixed">☂ Переменная влажность</option><option value="dry">☾ Сухой асфальт</option><option value="rain">☂ Дождь</option></select></label></div>
     ${race||isReplay?'<div class="session-context"><span>ЗА РУЛЁМ: ТЫ</span><strong>'+escapeHTML(event.title)+'</strong><span>'+weatherName(r.weather)+'</span></div>':''}</div>
     <div class="race-layout"><section><div class="scene-wrap"><canvas id="scene" aria-label="Изометрическая трасса ${event.title}"></canvas>
       <div class="scene-top"><div><div class="eyebrow">${event.japanese} · ${event.name.toUpperCase()}</div><h2>${event.title}</h2><span class="badge">${isDrift?'DRIFT / JUDGED RUN':isDrag?(event.id==='yokohama-mile'?'DRAG / STANDING MILE':event.longDrag?'DRAG / HALF MILE':'DRAG / QUARTER MILE'):duel?'TOUGE / DUEL':'OFFICIAL / TIME ATTACK'}</span></div>
@@ -126,18 +132,18 @@ function renderRace() {
       <div class="scene-tools"><button id="pause" ${!isReplay?'disabled':''}>Ⅱ Пауза</button><button id="speed">${fast?'2×':'1×'} Скорость</button></div></div>
       <div class="sector-strip">${event.sectors.map((sector,i)=>`<div class="sector-node ${i<r.index?'done':i===r.index?'current':''}" title="${sector.name} · ${sector.length} м">${String(i+1).padStart(2,'0')} ${sector.type==='corner'?'⌁':'—'}</div>`).join('')}</div>
       <details class="route-brief"><summary>${isDrift?'Судейские клипы':isDrag?'Фазы дрэга':'Информация о трассе'} · ${count}</summary><div class="route-list">${event.sectors.map((_,i)=>{const sector=sectorAt(i,r.weather,event.id);return `<div class="${i===r.index?'current':''}"><span class="micro">${String(i+1).padStart(2,'0')}</span><strong>${sector.name}</strong><span>${sectorDescription(sector)}</span></div>`;}).join('')}</div></details></section>
-      <aside class="sidebar">${seasonIntent&&career.championships.active?'<div class="notice">Этап кубка: '+escapeHTML(activeCup(career.championships.active).name)+'<button id="season-practice" class="secondary">Перейти к свободному заезду</button></div>':''}${offers}${dashboardHTML(r.config)}<div class="notice">Класс сборки: <strong>${raceClass(r.config).name}</strong><br>${!seasonIntent&&!unlocked(event,career)?'Доступ: '+unlockText(event):admissionReason(career,r.eventId)||'Машина допущена к старту'}<br>${routeMasteryHTML(career,event)}Выплаты за повторение: ${Math.round(payoutScale(career,r.eventId)*100)}%<br>Персонал за старт: ${money(supportCost(career))}<br>Нагрузка атак: ${(r.player.strain||0).toFixed(1)} / 6</div>
+      <aside class="sidebar">${challengeIntent&&!race&&!isReplay?'<div class="notice">Вызов: '+getChallenge(challengeIntent).name+'<br>'+getChallenge(challengeIntent).tell+'<button id="challenge-cancel" class="secondary">К свободным заездам</button></div>':''}${seasonIntent&&career.championships.active?'<div class="notice">Этап кубка: '+escapeHTML(activeCup(career.championships.active).name)+'<button id="season-practice" class="secondary">Перейти к свободному заезду</button></div>':''}${offers}${dashboardHTML(r.config)}<div class="notice">Класс сборки: <strong>${raceClass(r.config).name}</strong><br>${!seasonIntent&&!unlocked(event,career)?'Доступ: '+unlockText(event):admissionReason(career,r.eventId)||'Машина допущена к старту'}<br>${routeMasteryHTML(career,event)}Выплаты за повторение: ${Math.round(payoutScale(career,r.eventId)*100)}%<br>Персонал за старт: ${money(supportCost(career))}<br>Нагрузка атак: ${(r.player.strain||0).toFixed(1)} / 6</div>
       <div class="panel"><div class="eyebrow">${isReplay?'ХРОНОМЕТР':duel?'СОПЕРНИК / AI · ПЛАН НА 3 СЕКТОРА':'ОДИНОЧНАЯ СЕССИЯ'}</div>
       ${duel&&!isReplay?`<div class="entry"><div class="car-swatch" style="--car:${r.rival.car.color}"></div><div><strong>${r.rival.car.name}</strong><span>${r.rivalName||r.rival.pilot.name} / ${r.rival.pilot.trait}</span></div></div>`:''}
       <div class="gap ${isDrag&&r.player.drag.falseStart?'negative':duel&&gap<=0?'positive':duel?'negative':''}" id="live-clock">${isReplay?time(r.player.time):isDrift?score(r.player.drift.score):!duel?time(r.player.time):isDrag&&r.player.drag.falseStart?'RED LIGHT':r.opponent.dnf?'СОПЕРНИК СОШЁЛ':signed(gap)}
       <small>${isReplay?'ПОВТОР БЕЗ НАГРАД':isDrift?'БАЛЛЫ ЗА СЕССИЮ / МАКС. 800':!duel?'ТВОЁ ВРЕМЯ':r.opponent.dnf?'ПОБЕДА · СОПЕРНИК СОШЁЛ':gap===0?'НА ОДНОЙ ЛИНИИ':gap<0?'ТЫ ВПЕРЕДИ / СЕК':'ТЫ ПОЗАДИ / СЕК'}</small></div>
-      ${isDrift?driftMedals(event)+(isReplay?'<p class="micro">ИТОГ ЗАПИСАННОГО ЗАЕЗДА</p>':'')+driftMetrics(isReplay&&replayRecord.drift?replayRecord.drift:r.player.drift):!duel?medalHTML(event.id,r.weather):isDrag?dragMetrics(isReplay&&replayRecord.drag?replayRecord.drag:r.player.drag):''}
+      ${r.challenge?.target!==null&&r.challenge?.target!==undefined?'<p class="notice">Цель соперника: <strong>'+r.challenge.target+' баллов</strong></p>':''}${isDrift?driftMedals(event)+(isReplay?'<p class="micro">ИТОГ ЗАПИСАННОГО ЗАЕЗДА</p>':'')+driftMetrics(isReplay&&replayRecord.drift?replayRecord.drift:r.player.drift):!duel?medalHTML(event.id,r.weather):isDrag?dragMetrics(isReplay&&replayRecord.drag?replayRecord.drag:r.player.drag):''}
       ${isReplay?'<button id="stop-replay" class="secondary wide">Завершить просмотр</button>':!race?'<button id="start" class="primary wide" '+(!seasonIntent&&!unlocked(event,career)?'disabled':'')+'>'+(seasonIntent?'На старт этапа ↗':'На старт ↗')+'</button>':r.finished?'<button id="show-report" class="primary wide">Посмотреть результат ↓</button>':'<button id="abandon" class="secondary wide">Покинуть заезд</button>'}</div>
       ${!isReplay?`<div class="panel ghost-panel"><div class="eyebrow">ЛИЧНЫЙ РЕКОРД / ЭТА СБОРКА</div><div class="record-time">${ghost?ghost.drift?score(ghost.drift.score)+' Б':time(ghost.time):'Рекорда пока нет.'}</div>
       <p>${ghost?'Та же трасса, погода, машина, детали и уровень соперника. Состояние в рекорде: '+ghost.condition.toFixed(0)+'%.':'Заверши заезд — появятся рекорд, призрак и повтор.'}</p>
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
-    ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Выбор приёма <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
+    ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Выбор приёма <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
     <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / CAREER & BALANCE 0.17</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   document.querySelectorAll('[data-rival-level]').forEach(button=>button.onclick=()=>{if(race||replayRecord||seasonIntent)return;career.rivalLevel=button.dataset.rivalLevel;save();render();});
   $('#discipline-select').value=r.mode;$('#discipline-select').onchange=e=>{const routes=EVENTS.filter(item=>item.mode===e.target.value);const next=routes.find(item=>unlocked(item,career))||routes[0];career.eventId=next.id;race=null;save();render();};
@@ -145,6 +151,7 @@ function renderRace() {
   $('#weather').onchange=e=>{career.weather=e.target.value;save();render();};
   $('#event-select').onchange=e=>{if(!unlocked(getEvent(e.target.value),career))return;career.eventId=e.target.value;save();render();};
   scene=new Scene($('#scene'),r,ghost,career.ghostEnabled);scene.speed=fast?2:1;
+  if($('#challenge-cancel'))$('#challenge-cancel').onclick=()=>{challengeIntent=null;render();};
   if($('#season-practice'))$('#season-practice').onclick=()=>{seasonIntent=false;render();};
   dashboardUpdate=bindDashboard($('.dashboard'),r.config);
   const initial=readTelemetry(r.config,!race&&!isReplay?{...r.player,velocity:0}:r.player,r.mode);dashboardUpdate(initial);
@@ -163,7 +170,7 @@ function renderRace() {
       if(isDrift){const pose=driftFrame(replayRecord,elapsed);$('#live-clock').innerHTML=score(pose.score)+'<small>ПОВТОР · БАЛЛЫ ЗА ЗАВЕРШЁННЫЕ КЛИПЫ</small>';}
       $('#scene-sector').textContent=event.sectors[index].name;
       const action=[...CARDS,...DRAG_CARDS,...DRIFT_CARDS].find(card=>card.id===replayRecord.actions[index]);
-      $('#scene-description').textContent=action.name+' · '+sectorDescription(sectorAt(index,r.weather,event.id))+(replayRecord.manager?' · '+orderName(replayRecord.manager.log[index].effective):'')+(!replayRecord.telemetry?' · телеметрия старого повтора недоступна':'');
+      $('#scene-description').textContent=action.name+(replayRecord.lines?' / '+lineName(replayRecord.lines[index]):'')+' · '+sectorDescription(sectorAt(index,r.weather,event.id))+(replayRecord.manager?' · '+orderName(replayRecord.manager.log[index].effective):'')+(!replayRecord.telemetry?' · телеметрия старого повтора недоступна':'');
       document.querySelectorAll('.sector-node').forEach((node,i)=>{node.classList.toggle('current',i===index);node.classList.toggle('done',i<index);});
     };
     scene.onComplete=()=>{stopReplay();toast('Повтор завершён. Время и награды карьеры не изменились.');};
@@ -177,6 +184,9 @@ function renderRace() {
 }
 function renderCards() {
   const r=previewRace(),sector=sectorAt(r.index,r.weather,r.eventId),gap=r.opponent.dnf?Infinity:r.player.time-r.opponent.time;
+  if(lineReason(selectedLine,sector))selectedLine='neutral';
+  $('#racing-plan').innerHTML=racingLinesHTML(r,selectedLine,busy);
+  document.querySelectorAll('[data-line]').forEach(button=>button.onclick=()=>{if(busy)return;selectedLine=button.dataset.line;renderCards();localize(document);});
   const cards=availableCards(r.config,r.mode,r.eventId),categories=['Все',...new Set(cards.map(card=>card.category))];
   if(!categories.includes(filter))filter='Все';
   $('#filters').innerHTML=categories.map(category=>`<button class="filter ${filter===category?'active':''}" data-filter="${category}">${category}</button>`).join('');
@@ -192,7 +202,7 @@ function renderCards() {
   }).join('');
   $('#cards').scrollTop=cardScroll;
   $('#cards').querySelectorAll('button').forEach(button=>button.onclick=()=>{if(busy)return;selected=button.dataset.card;renderCards();});
-  const card=cards.find(card=>card.id===selected),prediction=simulate(r.config,r.player,sector,card);
+  const card=cards.find(card=>card.id===selected),prediction=simulate(r.config,r.player,sector,lineCard(card,selectedLine));
   const forecast=qualitativeForecast(r.config,r.player,sector,card,prediction);
   $('#forecast').innerHTML=`<div class="forecast"><div class="forecast-main"><strong>${card.name} <span class="subtle">/ ${sector.label}</span></strong>
     <p>${forecast.habit}</p><p>${forecast.execution}</p>${forecast.warning?`<p class="negative">${forecast.warning}</p>`:''}</div>
@@ -205,14 +215,15 @@ function renderCards() {
 function setBusy(value) {
   busy=value;
   document.querySelectorAll('[data-view]').forEach(button=>button.disabled=value);
-  if(value)document.querySelectorAll('.card,.filter,.command-button,#execute,#abandon,#debug-unlock,#debug-reset').forEach(button=>button.disabled=true);
+  if(value)document.querySelectorAll('.card,.filter,.command-button,[data-line],#execute,#abandon,#debug-unlock,#debug-reset').forEach(button=>button.disabled=true);
 }
 function startRace() {
   if(!seasonIntent&&!unlocked(getEvent(career.eventId),career))return;
   const runId=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
   try{
     const blocked=admissionReason(career,career.eventId);if(blocked)throw new Error(blocked);
-    if(seasonIntent){const start=bookCupRace(career,runId);career=start.career;race=start.race;seasonIntent=false;save();}
+    if(challengeIntent){const start=bookChallenge(career,challengeIntent,runId);career=start.career;race=start.race;save();}
+    else if(seasonIntent){const start=bookCupRace(career,runId);career=start.career;race=start.race;seasonIntent=false;save();}
     else{
       const support=bookSupport(career,career.eventId,runId),nextRace=createRace(config(),career.weather,career.eventId,runId,null,career.rivalLevel);
       nextRace.supportFee=support.fee;career=support.career;race=nextRace;save();
@@ -225,7 +236,7 @@ function startRace() {
 function execute() {
   if(!race||busy||race.finished)return;
   try {
-    const next=resolveSector(race,selected);
+    const next=resolveSector(race,selected,selectedLine);
     setBusy(true);paused=false;$('#pause').disabled=false;
     scene.animateSector(next,race.ghost,fast?900:1800);
     race=next;$('#execute').textContent='Исполнение…';
@@ -262,14 +273,14 @@ function renderReport() {
   const event=getEvent(race.eventId),outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
   const previous=ghost?cumulativeTimes(ghost.sectorTimes):null;
   let elapsed=0;
-  $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РЕЗУЛЬТАТ'}</div>
+  $('#report').innerHTML=`<section class="report">${challengeReportHTML(race.challengeReport)}${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РЕЗУЛЬТАТ'}</div>
     <h2>${outcome.label} · ${time(race.player.time)}</h2>${damageHTML(race)}<span class="micro">${weatherName(race.weather)} · ${race.config.car.name} · За рулём: ты</span>
     <p>+${money(outcome.reward)} · ${outcome.street?'Street Cred +'+outcome.street:'Official Rep +'+outcome.official} · Состояние машины ${Math.round(career.condition[race.config.car.id])}%${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''}
     ${ghost&&race.history.length===event.sectors.length&&!race.player.dnf?'<br>К предыдущему рекорду: '+signed(race.player.time-ghost.time)+' с · состояние на старте '+race.config.condition.toFixed(0)+'% / в рекорде '+ghost.condition.toFixed(0)+'%':''}</p></div>
     ${race.mode==='drag'?'<div class="drag-result"><h3>Твоя дорожка</h3>'+dragMetrics(race.player.drag)+'<h3>Соперник</h3>'+dragMetrics(race.opponent.drag)+'</div>':''}<div class="report-actions"><button id="retry" class="primary">Ещё один заезд ↗</button><button id="report-garage" class="secondary">В гараж</button><button id="replay-run" class="secondary">▶ Повтор заезда</button></div></div>
     ${raceSummaryHTML(summarizeRace(race,outcome,event,getLanguage()),escapeHTML)}
     <div class="table-wrap"><table><thead><tr><th>Сектор / причина</th><th>Твоё решение</th><th>${race.mode!=='timeattack'?'Решение AI / план':'Медаль'}</th><th>Ты</th><th>Разрыв</th><th>К призраку</th><th>Ресурсы</th></tr></thead><tbody>
-    ${race.history.map(row=>{elapsed+=row.playerTime;return `<tr><td>${row.index+1}. ${row.sector}<small>${row.reasons.join('. ')}</small></td><td>${row.card}${row.command?'<small>'+orderName(row.command.requested)+' → '+orderName(row.command.effective)+'<br>'+row.command.reason+'</small>':''}</td>
+    ${race.history.map(row=>{elapsed+=row.playerTime;return `<tr><td>${row.index+1}. ${row.sector}<small>${row.reasons.join('. ')}</small></td><td>${row.card}${row.lineId?'<small>'+lineName(row.lineId)+'</small>':''}${row.command?'<small>'+orderName(row.command.requested)+' → '+orderName(row.command.effective)+'<br>'+row.command.reason+'</small>':''}</td>
       <td>${row.aiTime!==null||race.opponent.dnf?row.aiCard:outcome.label}${row.aiReasons?.some(reason=>reason.includes('ВЫЛЕТ'))?'<small class="negative">Соперник вылетел с трассы и сошёл</small>':''}${row.aiPlan.length?'<small>План: '+row.aiPlan.join(' → ')+'<br>Фактический следующий ход зависит от ситуации.</small>':''}</td>
       <td>${row.playerTime.toFixed(2)} с</td><td class="${row.gap<=0?'positive':'negative'}">${row.gap===null?'—':signed(row.gap)+' с'}</td>
       <td class="${previous&&elapsed<=previous[row.index]?'positive':'negative'}">${previous?signed(elapsed-previous[row.index])+' с':'—'}</td>
@@ -278,6 +289,7 @@ function renderReport() {
   bindReportActions();
 }
 function bindReportActions(){
+  if($('#return-rivals'))$('#return-rivals').onclick=()=>{race=null;challengeIntent=null;view='world';selectWorkspaceTab('world','rivals');render();};
   if($('#season-return'))$('#season-return').onclick=()=>{race=null;view='seasons';render();};
   $('#retry').onclick=()=>{race=null;render();};
   $('#report-maintenance').onclick=()=>{race=null;selectWorkspaceTab('tuning','maintenance');view='tuning';render();};
@@ -369,15 +381,16 @@ function renderWorld() {
         ${routeMasteryHTML(career,event)}<button class="${open?'primary':'secondary'} wide" data-event="${event.id}" ${!open||race&&!race.finished?'disabled':''}>${open?'Выбрать маршрут ↗':'Откроется: '+unlockText(event)}</button></article>`;
     }).join('')}</div>
     ${race&&!race.finished?'<div class="notice" style="margin-top:15px">Сначала заверши текущую сессию или выйди из неё на экране заезда.</div>':''}
-    <div class="section-title"><div><div class="eyebrow">ТВОИ ОРИЕНТИРЫ</div><h2>Рекорды и сохранённые повторы</h2></div></div>
+    ${rivalsHTML(career,!!race&&!race.finished)}<div class="section-title"><div><div class="eyebrow">ТВОИ ОРИЕНТИРЫ</div><h2>Рекорды и сохранённые повторы</h2></div></div>
     <div class="notice">Рекорды разделены по трассе, погоде, машине, пилоту и деталям. Состояние машины указано отдельно: износ может изменить результат той же сборки. Старые заезды v0.1 остаются в истории, но без выдуманного повтора.</div>
-    ${career.bests.length?`<div class="table-wrap"><table><thead><tr><th>Событие</th><th>Погода</th><th>Машина / детали</th><th>Стартовое состояние</th><th>Результат</th><th>Повтор</th></tr></thead><tbody>${career.bests.map((best,index)=>`<tr><td>${getEvent(best.eventId).title}${['2','3','drag-1','drift-1'].includes(best.key.split('|')[0])?'<small>Архив: баланс до 0.8</small>':''}</td><td>${weatherName(best.weather)}</td><td>${CARS.find(car=>car.id===best.carId).name}<small>${best.parts.map(id=>PARTS.find(part=>part.id===id).name).join(', ')||'Сток'}</small>${best.setup?'<small>'+best.setup.pressure+' бар · пара ×'+best.setup.finalDrive+' · пружины '+best.setup.springRate+'% · баланс '+best.setup.brakeBias+'%</small>':''}</td><td>${Math.round(best.condition)}%</td><td class="positive">${best.drift?score(best.drift.score)+' Б':time(best.time)}</td><td><button class="secondary" data-replay="${index}" ${race&&!race.finished?'disabled':''}>▶ Смотреть</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Первый финиш сохранит твой ориентир и повтор.</div>'}
+    ${career.bests.length?`<div class="table-wrap"><table><thead><tr><th>Событие</th><th>Погода</th><th>Машина / детали</th><th>Стартовое состояние</th><th>Результат</th><th>Повтор</th></tr></thead><tbody>${career.bests.map((best,index)=>`<tr><td>${getEvent(best.eventId).title}${['2','3','4','drag-1','drift-1'].includes(best.key.split('|')[0])?'<small>Архив прежней модели</small>':''}</td><td>${weatherName(best.weather)}</td><td>${CARS.find(car=>car.id===best.carId).name}<small>${best.parts.map(id=>PARTS.find(part=>part.id===id).name).join(', ')||'Сток'}</small>${best.setup?'<small>'+best.setup.pressure+' бар · пара ×'+best.setup.finalDrive+' · пружины '+best.setup.springRate+'% · баланс '+best.setup.brakeBias+'%</small>':''}</td><td>${Math.round(best.condition)}%</td><td class="positive">${best.drift?score(best.drift.score)+' Б':time(best.time)}</td><td><button class="secondary" data-replay="${index}" ${race&&!race.finished?'disabled':''}>▶ Смотреть</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Первый финиш сохранит твой ориентир и повтор.</div>'}
     <h2 style="margin-top:30px">История заездов</h2>${career.records.length?`<div class="table-wrap"><table><thead><tr><th>Событие / условия</th><th>Машина</th><th>Баллы / время</th><th>Результат</th></tr></thead><tbody>${career.records.map(record=>`<tr><td>${getEvent(record.eventId).title}<small>${weatherName(record.weather)}</small></td><td>${record.car}</td><td>${getEvent(record.eventId).mode==='drift'?score(record.score)+' Б':time(record.time)}</td><td>${record.dnf?'Сход · вылет с трассы':record.medal?{gold:'Золото',silver:'Серебро',bronze:'Бронза'}[record.medal]:['timeattack','drift'].includes(getEvent(record.eventId).mode)?'Сессия завершена':record.falseStart?'Фальстарт':record.won?'Победа':'Без победы'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Ночь ещё только начинается.</div>'}
     <div class="section-title"><span class="micro">АВТОСОХРАНЕНИЕ · V2 / ПРОГРЕСС V1 СОХРАНЁН</span><button id="reset" class="secondary">Новая карьера</button></div>`;
+  document.querySelectorAll('[data-challenge]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;const id=button.dataset.challenge;if(challengeReason(career,id))return;const c=getChallenge(id);challengeIntent=id;seasonIntent=false;career.eventId=c.eventId;career.weather=c.weather;race=null;view='race';save();render();});
   $('#world-discipline').onchange=e=>{const next=EVENTS.find(item=>item.mode===e.target.value&&unlocked(item,career))||EVENTS.find(item=>item.mode===e.target.value);if(race&&!race.finished)return;career.eventId=next.id;save();render();};
   document.querySelectorAll('[data-event]').forEach(button=>button.onclick=()=>{
     const event=getEvent(button.dataset.event);if(!unlocked(event,career)||race&&!race.finished)return;
-    career.eventId=event.id;race=null;seasonIntent=false;view='race';save();render();
+    career.eventId=event.id;race=null;seasonIntent=false;challengeIntent=null;view='race';save();render();
   });
   document.querySelectorAll('[data-replay]').forEach(button=>button.onclick=()=>playReplay(career.bests[Number(button.dataset.replay)]));
   $('#reset').onclick=()=>openModal('<h2>Начать с чистого листа?</h2><p>Деньги, машины, детали, история и повторы будут удалены в этом браузере.</p><div class="inline-actions"><button id="confirm-reset" class="primary">Сбросить прогресс</button><button class="secondary" data-close>Отмена</button></div>',()=>{
@@ -388,7 +401,7 @@ function renderSeasons(){
  const locked=!!race&&!race.finished;app.innerHTML=championshipHTML(career,config(),locked)+organizerHTML(career,seriesDraft,seriesEditingId,locked);
  bindOrganizer(locked);
  document.querySelectorAll('[data-cup-enter]').forEach(button=>button.onclick=()=>garageAction(()=>enterCup(career,button.dataset.cupEnter,globalThis.crypto.randomUUID(),locked)));
- if($('#season-prepare'))$('#season-prepare').onclick=()=>{try{career=prepareStage(career,locked);seasonIntent=true;race=null;view='race';save();render();}catch(error){toast(error.message);}};
+ if($('#season-prepare'))$('#season-prepare').onclick=()=>{try{career=prepareStage(career,locked);seasonIntent=true;challengeIntent=null;race=null;view='race';save();render();}catch(error){toast(error.message);}};
  if($('#season-withdraw'))$('#season-withdraw').onclick=()=>openModal('<h2>Покинуть кубок?</h2><p>Очки текущего сезона будут потеряны. Вступительный взнос не возвращается.</p><button id="confirm-withdraw" class="primary">Покинуть кубок</button><button class="secondary" data-close>Продолжить</button>',()=>{$('#confirm-withdraw').onclick=()=>{try{career=withdrawCup(career,locked);seasonIntent=false;save();$('#modal').close();render();}catch(error){toast(error.message);}};});
 }
 function readSeriesDraft(){
@@ -454,13 +467,13 @@ function driftMetrics(drift){
 }
 function renderDriftReport(){
   const event=getEvent(race.eventId),d= race.player.drift,outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
-  $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ РЕКОРД ПО БАЛЛАМ':'СУДЕЙСКИЙ ПРОТОКОЛ'}</div>
+  $('#report').innerHTML=`<section class="report">${challengeReportHTML(race.challengeReport)}${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ РЕКОРД ПО БАЛЛАМ':'СУДЕЙСКИЙ ПРОТОКОЛ'}</div>
     <h2>${outcome.label} · ${score(d.score)} / 800</h2><p>+${money(outcome.reward)} · Official Rep +${outcome.official}${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''} · ${weatherName(race.weather)}
     ${ghost&&race.history.length===event.sectors.length&&!race.player.dnf?'<br>К прошлому рекорду: '+signed(d.score-ghost.drift.score)+' баллов':''}</p>${damageHTML(race)}<span class="micro">ЛИНИЯ 35% · УГОЛ 25% · СКОРОСТЬ 20% · СВЯЗНОСТЬ 20%<br>ВРЕМЯ ${time(race.player.time)} — ДЛЯ ПОВТОРА; ОЦЕНКА ОПРЕДЕЛЯЕТ РЕЗУЛЬТАТ</span></div>
     <div class="drag-result">${driftMetrics(d)}</div><div class="report-actions"><button id="retry" class="primary">Ещё один заезд ↗</button><button id="report-garage" class="secondary">В гараж</button><button id="replay-run" class="secondary">▶ Повтор заезда</button></div></div>
     ${raceSummaryHTML(summarizeRace(race,outcome,event,getLanguage()),escapeHTML)}
     <div class="table-wrap"><table><thead><tr><th>Клип / разбор</th><th>Приём</th><th>Линия</th><th>Угол</th><th>Скорость</th><th>Связность</th><th>Штраф</th><th>Баллы / к рекорду</th></tr></thead><tbody>
-    ${race.history.map(row=>{const clip=row.drift,previous=ghost?.drift.clips[row.index];return `<tr><td>${row.index+1}. ${row.sector}<small>${row.reasons.join('. ')}</small></td><td>${row.card}${row.command?'<small>'+orderName(row.command.requested)+' → '+orderName(row.command.effective)+'<br>'+row.command.reason+'</small>':''}</td>
+    ${race.history.map(row=>{const clip=row.drift,previous=ghost?.drift.clips[row.index];return `<tr><td>${row.index+1}. ${row.sector}<small>${row.reasons.join('. ')}</small></td><td>${row.card}${row.lineId?'<small>'+lineName(row.lineId)+'</small>':''}${row.command?'<small>'+orderName(row.command.requested)+' → '+orderName(row.command.effective)+'<br>'+row.command.reason+'</small>':''}</td>
       <td>${score(clip.line)}</td><td>${score(clip.angle)}<small>${score(clip.angleDegrees)}° / задание ${event.sectors[row.index].targetAngle}°</small></td>
       <td>${score(clip.speed)}<small>${Math.round(clip.velocity)} км/ч</small></td><td>${score(clip.continuity)}</td><td>${score(clip.penalty)}</td>
       <td class="${clip.valid?'positive':'negative'}">${score(clip.points)} Б${previous?'<small>'+signed(clip.points-previous.points)+' Б</small>':''}</td></tr>`;}).join('')}
