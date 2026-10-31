@@ -1,13 +1,13 @@
 import {tireKey} from './wear.js';
-import {CARS,PILOTS,getEvent} from './data.js';
+import {CARS,getEvent} from './data.js';
 import {escapeHTML} from './career-view.js';
 import {supportCost} from './operations.js';
 const selectedTabs=new Map();
 export function selectWorkspaceTab(view,id){selectedTabs.set(view,id);}
 let lastSeasonAttempt=null;
 export function contextHTML(career,view,race){
- const config=race?.config,car=config?.car||CARS.find(c=>c.id===career.car),pilot=config?.pilot||PILOTS.find(p=>p.id===career.pilot),event=getEvent(race?.eventId||career.eventId),condition=career.condition[car.id];
- return `<section class="context-bar" aria-label="Важная информация"><div><span>АКТИВНАЯ МАШИНА</span><strong>${escapeHTML(car.name)}</strong></div><div><span>СОСТОЯНИЕ</span><strong class="${condition<60?'negative':''}">${Math.round(condition)}%</strong></div><div><span>МОТОР / ШИНЫ</span><strong>${Math.round(career.wear?.[car.id]?.engine??100)}% / ${Math.round(career.wear?.[car.id]?.[tireKey(career.builds[car.id])]??100)}%</strong></div><div><span>ПИЛОТ</span><strong>${escapeHTML(pilot.name)}</strong></div><div><span>${view==='race'?'СЕССИЯ':'ВЫБРАННЫЙ МАРШРУТ'}</span><strong>${escapeHTML(event.title)}${race?' · '+(race.finished?(race.player?.dnf?'Сход':'Финиш'):race.index+1+'/'+event.sectors.length):''}</strong></div><div><span>РЕПУТАЦИЯ</span><strong>${career.street} Street / ${career.official} Official</strong></div><div><span>ПЕРСОНАЛ ЗА СТАРТ</span><strong>¥${supportCost(career).toLocaleString('ru-RU')}</strong></div></section>`;
+ const config=race?.config,car=config?.car||CARS.find(c=>c.id===career.car),event=getEvent(race?.eventId||career.eventId),condition=career.condition[car.id];
+ return `<section class="context-bar" aria-label="Важная информация"><div><span>АКТИВНАЯ МАШИНА</span><strong>${escapeHTML(car.name)}</strong></div><div><span>СОСТОЯНИЕ</span><strong class="${condition<60?'negative':''}">${Math.round(condition)}%</strong></div><div><span>МОТОР / ШИНЫ</span><strong>${Math.round(career.wear?.[car.id]?.engine??100)}% / ${Math.round(career.wear?.[car.id]?.[tireKey(career.builds[car.id])]??100)}%</strong></div><div><span>ЗА РУЛЁМ</span><strong>ТЫ</strong></div><div><span>${view==='race'?'СЕССИЯ':'ВЫБРАННЫЙ МАРШРУТ'}</span><strong>${escapeHTML(event.title)}${race?' · '+(race.finished?(race.player?.dnf?'Сход':'Финиш'):race.index+1+'/'+event.sectors.length):''}</strong></div><div><span>РЕПУТАЦИЯ</span><strong>${career.street} Street / ${career.official} Official</strong></div><div><span>ПЕРСОНАЛ ЗА СТАРТ</span><strong>¥${supportCost(career).toLocaleString('ru-RU')}</strong></div></section>`;
 }
 export function tabKey(current,keys,key){const i=keys.indexOf(current);return key==='Home'?keys[0]:key==='End'?keys.at(-1):key==='ArrowRight'?keys[(i+1)%keys.length]:key==='ArrowLeft'?keys[(i-1+keys.length)%keys.length]:current;}
 function tabs(root,view,groups){
@@ -29,7 +29,7 @@ export function mountWorkbench(root,view,career,race){
   pick('.tuning-nav').forEach(n=>n.remove());const overview=pick('.panel').find(n=>!n.matches('.setup-panel,.preset-panel,.operations-panel,.powertrain-panel,.maintenance-panel'));overview?.classList.add('page-overview');
   tabs(root,view,[{id:'engines',label:'Моторы / свапы',nodes:pick('.powertrain-panel')},{id:'maintenance',label:'Сервис узлов',nodes:pick('.maintenance-panel')},{id:'setup',label:'Настройки',nodes:pick('.setup-panel')},{id:'engineer',label:'Инженер',nodes:pick('.operations-panel')},{id:'presets',label:'Пресеты',nodes:pick('.preset-panel')},...pick('.tuning-group').map(n=>({id:n.id,label:n.querySelector('h3').textContent,nodes:[n]}))]);
  }else if(view==='team'){
-  const ops=pick('.operations-panel');tabs(root,view,[{id:'pilots',label:'Пилоты',nodes:pick('.section-title,.pilot-row')},{id:'plan',label:'План заезда',nodes:pick('.team-plan')},{id:'staff',label:'Мастерская',nodes:ops.slice(0,1)},{id:'sponsors',label:'Спонсоры',nodes:ops.slice(1)}]);
+  const ops=pick('.operations-panel');tabs(root,view,[{id:'staff',label:'Мастерская',nodes:ops.slice(0,1)},{id:'sponsors',label:'Спонсоры',nodes:ops.slice(1)}]);
   const note=pick('p.notice')[0];if(note){const details=root.ownerDocument.createElement('details');details.className='workspace-help';details.innerHTML='<summary>Как работает команда</summary>';details.append(note);root.append(details);}
  }else if(view==='seasons'){
   const attempt=career.championships.active?.attempt;if(attempt&&attempt!==lastSeasonAttempt)selectedTabs.set(view,'current');lastSeasonAttempt=attempt;

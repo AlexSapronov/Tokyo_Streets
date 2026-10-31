@@ -43,8 +43,9 @@ export function awardRace(career, race) {
   const outcome = raceOutcome(race);
   const record = raceRecord(race);
   const previous = bestFor(career, race.config, race.eventId, race.weather);
+  const completedCourse=race.history.length===getEvent(race.eventId).sectors.length;
   const improved=!previous||(race.mode==='drift'?record.drift.score>previous.drift.score||record.drift.score===previous.drift.score&&record.time<previous.time:record.time<previous.time);
-  const isBest = !race.player.dnf && !race.player.drag?.falseStart && improved;
+  const isBest = completedCourse && !race.player.dnf && !race.player.drag?.falseStart && improved;
   let next = structuredClone(career);
   const debtPaid=Math.min(next.repairDebt||0,Math.floor(outcome.reward*.5));
   next.repairDebt=(next.repairDebt||0)-debtPaid;
@@ -63,7 +64,7 @@ export function awardRace(career, race) {
     ...(race.mode==='drag'?{falseStart:race.player.drag.falseStart}:race.mode==='drift'?{score:race.player.drift.score}:{})});
   next.records = next.records.slice(0, 30);
   // Preserve the legacy all-build Haruna statistic for old saves.
-  if (!race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
+  if (completedCourse && !race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
   next=settleWear(next,race);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
   const season=settleCup(next,race);next=season.career;
