@@ -10,7 +10,7 @@ import {teamAfterRace} from './team.js';
 import {getEvent} from './data.js';
 import {raceOutcome} from './engine.js';
 
-export const MODEL_VERSION = 5;
+export const MODEL_VERSION = 6;
 export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.

@@ -59,7 +59,7 @@ export const CARDS = [
  {id:'balanced',name:'Чистый темп',en:'BALANCED PACE',icon:'↗',category:'Темп',desc:'Нейтральная линия без лишнего риска.',gain:0,focus:0,heat:0,wear:1,risk:0},
  {id:'attack',name:'Полная атака',en:'FULL ATTACK',icon:'⚡',category:'Темп',desc:'Быстрее на любом секторе. Высокая нагрузка на ресурсы.',gain:.045,focus:17,heat:14,wear:2.2,risk:.18},
  {id:'preserve',name:'Беречь шины',en:'TIRE PRESERVE',icon:'◎',category:'Ресурс',desc:'Небольшая потеря темпа, износ шин ×0.35.',gain:-.035,focus:-6,heat:-7,wear:.35,risk:-.12},
- {id:'cool',name:'Остудить тормоза',en:'COOL BRAKES',icon:'❄',category:'Ресурс',desc:'Снижает температуру тормозов на 24°C ценой времени.',gain:-.045,focus:-4,heat:-24,wear:.65,risk:-.12},
+ {id:'cool',name:'Остудить тормоза',en:'COOL BRAKES',icon:'❄',category:'Ресурс',desc:'Уменьшает нагрев тормозов ценой темпа. Итог зависит от торможений, обдува и повторов.',gain:-.045,focus:-4,heat:-24,wear:.65,risk:-.12},
  {id:'breathe',name:'Собраться',en:'RESET FOCUS',icon:'◌',category:'Ресурс',desc:'Восстанавливает 24 концентрации. Спокойный темп.',gain:-.055,focus:-24,heat:-8,wear:.7,risk:-.14},
  {id:'late',name:'Позднее торможение',en:'LATE BRAKING',icon:'↘',category:'Поворот',desc:'Поздний вход. Сильнее с Brembo, опаснее при перегреве.',gain:.045,focus:12,heat:19,wear:1.5,risk:.17,only:'corner'},
  {id:'safe',name:'Надёжный вход',en:'CONSERVATIVE ENTRY',icon:'⌁',category:'Поворот',desc:'Стабильный вход в поворот, особенно в дождь.',gain:-.015,focus:-4,heat:-8,wear:.65,risk:-.24,only:'corner'},

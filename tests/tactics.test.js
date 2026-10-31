@@ -26,7 +26,7 @@ test('third attack has a slower sector time than clean pace even with the same h
  const state={...freshState(config),recentActions:['attack','balanced','attack','balanced']};
  const repeated=simulate(config,state,sector,attack),safe=simulate(config,state,sector,balanced),fresh=simulate(config,freshState(config),sector,attack);
  assert.ok(fresh.time<safe.time);assert.ok(repeated.time>safe.time);
- assert.ok(repeated.next.tires<fresh.next.tires);assert.ok(repeated.next.heat>fresh.next.heat);
+ assert.ok(repeated.next.tires<fresh.next.tires);assert.ok(repeated.next.heat<fresh.next.heat,'longer time on a straight cools brakes instead of heating them');
  assert.ok(repeated.next.focus<fresh.next.focus);assert.ok(repeated.reasons.some(reason=>reason.includes('экспоненциально')));
 });
 test('actual concentration cost, card availability and simulation agree on repeated actions',()=>{
@@ -66,7 +66,8 @@ test('forecast exposes categories without exact durations or the simulated time'
 });
 test('qualitative forecast communicates repetition, high load, overheating, and a known false start',()=>{
  const hot={...freshState(config),focus:25,heat:160,tires:30,recentActions:['attack','balanced','attack']};
- const forecast=qualitativeForecast(config,hot,sectorAt(2,'dry'),attack,simulate(config,hot,sectorAt(2,'dry'),attack));
+ const longCorner={...sectorAt(2,'dry'),length:1200};
+ const forecast=qualitativeForecast(config,hot,longCorner,attack,simulate(config,hot,longCorner,attack));
  assert.match(forecast.habit,/3-е/);assert.equal(forecast.load,'Высокая');assert.equal(forecast.wear,'Высокий');
  const safe={...freshState(config),heat:120};
  assert.match(qualitativeForecast(config,safe,sector,balanced,simulate(config,safe,sector,balanced)).warning,/Перегрев/);
@@ -79,5 +80,5 @@ test('old road records remain replayable archives and never masquerade as a fres
  const record=raceRecord(finishRace(config,'dry')),old={...record,key:'2'+record.key.slice(record.key.indexOf('|'))};
  const career=validateSave({...newCareer(),bests:[old]});
  assert.equal(career.bests.length,1);assert.equal(career.bests[0].key,old.key);
- assert.equal(bestFor(career,config,'haruna','dry'),null);assert.ok(recordKey(config,'haruna','dry').startsWith('5|'));
+ assert.equal(bestFor(career,config,'haruna','dry'),null);assert.ok(recordKey(config,'haruna','dry').startsWith('6|'));
 });
