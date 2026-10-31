@@ -1,3 +1,4 @@
+import {playerConfiguration} from './player.js';
 import {SPECIAL_CUPS,specialRegulationReason} from './special-cups.js';
 import {installedEngineId} from './engine-data.js';
 import {seriesDefinition,organizerReason} from './organizer.js';
@@ -83,6 +84,7 @@ export function bookCupRace(career,runId){
  const reason=regulationReason(config,cup)||admissionReason(career,eventId);if(reason)throw new Error(reason);
  if(typeof runId!=='string'||!runId||runId.length>80||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
  let next={...career,eventId,weather},race;
+ if(career.control!=='manager')Object.assign(config,playerConfiguration(config,career.player));
  if(career.control==='manager'){const started=beginManagedRace(next,eventId,weather,runId,null,true);next=started.career;race=started.race;}else{const support=bookSupport(next,eventId,runId);next=support.career;race=createRace(config,weather,eventId,runId);race.supportFee=support.fee;}
  const seed=hashSeed(`${state.attempt}:${state.stage}`),opponent=previewCupOpponent(career);
  race.seed=seed;race.rewardScale=payoutScale(career,eventId);race.rival=opponent.rival;race.rivalStyle=opponent.style;race.rivalName=opponent.name;

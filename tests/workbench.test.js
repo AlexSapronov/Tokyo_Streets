@@ -144,3 +144,16 @@ test('bench preview changes only the trial build and special series can register
  q('[data-view=seasons]').click();q('[data-pane=special]').click();assert.equal(d.querySelectorAll('[data-special-enter]').length,5);q('[data-special-enter=special-na]').click();assert.equal(saved().championships.active.cupId,'special-na');
  q('#season-prepare').click();q('#start').click();q('[data-view=tuning]').click();q('[data-pane=bench]').click();assert.equal(q('#bench-event'),null);assert.match(q('.bench-panel').textContent,/после завершения/);
 });
+
+test('player growth edits preserve the career, freeze on start and remain separate from driver selection',async t=>{
+ const c=newCareer();c.player.xp=2160;const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s),saved=()=>JSON.parse(values.get(SAVE_KEY));
+ q('[data-view=world]').click();q('[data-pane=player]').click();q('[data-player-train=precision]').click();q('[data-player-train=precision]').click();q('[data-player-train=precision]').click();assert.equal(saved().player.learned.precision,3);
+ q('[data-player-train=control]').click();assert.equal(saved().player.active.length,2);assert.equal(q('[data-pilot]'),null);
+ q('[data-view=race]').click();assert.match(q('.active-skills').textContent,/Точность 3/);q('#start').click();assert.ok(q('[data-card=skill-release]'));q('[data-view=world]').click();q('[data-pane=player]').click();assert.equal(q('[data-player-train=control]').disabled,true);assert.equal(q('#player-reset').disabled,true);
+ q('[data-view=race]').click();q('#abandon').click();q('#confirm-abandon').click();q('[data-view=world]').click();q('[data-pane=player]').click();q('#player-reset').click();assert.equal(saved().player.xp,2160);assert.deepEqual(saved().player.learned,{});
+});
+test('sound settings gracefully handle a browser without Web Audio and scene feedback reflects the played card',async t=>{
+ const {document:d,frames}=await boot(t,newCareer()),q=s=>d.querySelector(s);await q('#sound-toggle').onclick();assert.match(q('#sound-toggle').textContent,/выкл/);
+ q('#sound-volume').value='.1';q('#sound-volume').oninput({target:q('#sound-volume')});q('#start').click();q('[data-card=balanced]').click();q('#execute').click();
+ const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+500);assert.match(q('#scene-tactic').textContent,/Чистый темп/);assert.equal(q('#scene-tactic').hidden,false);
+});
