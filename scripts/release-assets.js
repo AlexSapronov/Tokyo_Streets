@@ -18,6 +18,9 @@ let next=pattern.test(html)?html.replace(pattern,block):html.replace('<script ty
 next=next.replace(/href="style\.css(?:\?v=[^"]*)?"/,`href="style.css?v=${tag}"`);
 if(!next.includes(block))throw Error('Release entry marker is missing');
 if(process.argv.includes('--check')){
- if(html!==next)throw Error('Module versions are stale: run npm run release:assets');
+ if(html!==next){
+  const actual=html.match(/href="style\\.css\\?v=([^"]+)"/)?.[1]||'not pinned';
+  throw Error(`Module versions are stale: expected ${tag}, found ${actual}; run npm run release:assets`);
+ }
  console.log(`All ${files.length} modules pinned to ${tag}`);
 }else{writeFileSync(file,next);console.log(`Pinned ${files.length} modules to ${tag}`);}
