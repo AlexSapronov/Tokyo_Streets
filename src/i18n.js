@@ -13,16 +13,16 @@ const en={
  'Лично · карты':'Driver · cards','Менеджер · приказы':'Manager · orders',
  'Переменная влажность':'Patchy damp','☂ Переменная влажность':'☂ Patchy damp','☾ Сухой асфальт':'☾ Dry asphalt','☂ Дождь':'☂ Rain',
  'Сухо':'Dry','Дождь':'Rain','Сухой асфальт':'Dry asphalt',
- 'Твоя лучшая линия.':'Your best run','ЗАКРЫТЫЙ МАРШРУТ':'CLOSED COURSE','ПЕРЕД СТАРТОМ':'READY TO RACE',
+ 'Твой лучший заезд':'Your best run','ЗАКРЫТЫЙ МАРШРУТ':'CLOSED COURSE','ПЕРЕД СТАРТОМ':'READY TO RACE',
  'ФИНИШ':'FINISH','СХОД / DNF':'RETIRED / DNF','ПОВТОР РЕКОРДА':'BEST RUN REPLAY',
- 'До следующей встречи.':'See you at the next race.',
+ 'Заезд окончен.':'Race complete.',
  'Судейские клипы':'Judged clipping points','Фазы дрэга':'Drag stages','Разведка маршрута':'Course overview',
- 'Соперник свободного заезда':'Choose your rival','ЛИЧНЫЙ РЕКОРД / ЭТА СБОРКА':'PERSONAL BEST / THIS BUILD',
- 'Первый ориентир — ты.':'Set your first benchmark.','Показывать призрак':'Show ghost',
+ 'Выбор соперника':'Choose your rival','ЛИЧНЫЙ РЕКОРД / ЭТА СБОРКА':'PERSONAL BEST / THIS BUILD',
+ 'Рекорда пока нет.':'No record yet.','Показывать призрак':'Show ghost',
  '▶ Повтор рекорда':'▶ Replay best run','Завершить просмотр':'Exit replay','На старт ↗':'Start race ↗',
  'На старт этапа ↗':'Start championship round ↗','Посмотреть результат ↓':'View results ↓',
  'Покинуть заезд':'Leave race','Ⅱ Пауза':'Ⅱ Pause','Скорость':'Speed','На дорогу ↗':'Hit the road ↗',
- 'Твои решения':'Your moves','ПРОСМОТР ПЕРЕД СТАРТОМ':'PRE-RACE PREVIEW','ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'PICK A CARD → RUN SECTOR',
+ 'Выбор приёма':'Choose a move','ПРОСМОТР ПЕРЕД СТАРТОМ':'PRE-RACE PREVIEW','ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'PICK A CARD → RUN SECTOR',
  'БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ':'NO RANDOM DRAWS','КАРТЫ':'CARDS','ПОЛНЫЙ НАБОР':'FULL DECK',
  'Золото':'Gold','Серебро':'Silver','Бронза':'Bronze',
  'ХРОНОМЕТР':'TIMING','ОДИНОЧНАЯ СЕССИЯ':'SOLO RUN','ТВОЁ ВРЕМЯ':'YOUR TIME',
@@ -43,7 +43,7 @@ const en={
  'Основать команду':'Found team','Назначить пилота':'Assign driver','Назначен на текущую машину':'Assigned to current car',
  'Базовый приказ':'Default order','Сохранить план':'Save plan',
  'ПУТЬ К СВОЕЙ КОМАНДЕ':'BUILD YOUR OWN TEAM','ШТАБ ОТКРЫТ':'TEAM HQ OPEN',
- 'Командный мостик':'Team radio','Ответ пилота:':'Driver response:',
+ 'Приказы пилоту':'Team radio','Ответ пилота:':'Driver response:',
  'Передать сектор пилоту ↗':'Send driver into sector ↗',
  'Остановить после участка':'Stop after this sector','Авто до финиша':'Auto-run to finish',
  'Настройки сохранены':'Setup saved','Сбросить всё?':'Reset all progress?'
@@ -65,10 +65,9 @@ function translateText(text){
  if(exact!==undefined)return text.replace(trimmed,exact);
  // Whole-word expressions in generated status labels, not free-form replacement of save data.
  const replacements=[
-  [/\\bкг\/л\\.с\\./g,'kg/hp'],[/\\bл\\.с\\./g,'hp'],[/\\bкм\/ч\\b/g,'km/h'],
-  [/\\bкг\\b/g,'kg'],[/\\bПЕРЕД СТАРТОМ\\b/g,'READY TO RACE'],
-  [/\\bСЕКТОР\\s+(\\d+)/g,'SECTOR $1'],
-  [/\\bрейтин[г]\b/g,'rating']
+  [/кг\/л\\.с\\./g,'kg/hp'],[/л\\.с\\./g,'hp'],[/км\/ч/g,'km/h'],
+  [/кг/g,'kg'],[/ПЕРЕД СТАРТОМ/g,'READY TO RACE'],
+  [/СЕКТОР\\s+(\\d+)/g,'SECTOR $1']
  ];
  let value=text;
  for(const [pattern,replacement] of replacements)value=value.replace(pattern,replacement);
