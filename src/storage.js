@@ -65,7 +65,7 @@ function validateRecord(record) {
   if(record.lines!==undefined&&(!roadMode(event.mode)||!Array.isArray(record.lines)||record.lines.length!==count||record.lines.some((id,i)=>!RACING_LINES.some(line=>line.id===id)||(event.sectors[i].type!=='corner'&&id!=='neutral'))))return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
   const suffix=currentKey.slice(currentKey.indexOf('|'));
-  const legacyPrefixes=['2','3','4','drag-1','drift-1'];
+  const legacyPrefixes=['2','3','4','5','drag-1','drift-1'];
   const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);

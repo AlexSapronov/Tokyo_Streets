@@ -114,15 +114,27 @@ function simulateRaw(config,state,sector,card,execution=null){
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
  const time=unpenalized*repeat.timeFactor*strain.timeFactor*(1+(execution?.error||0));
- const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*repeat.wearFactor*car.wearFactor*line.wear;
- const heat=(corner?12: -10)*(mass/1100)+card.heat;
- const repetitionHeat=card.heat>=0?repeat.heatExtra:0;
- const cooled=(heat>0?heat*car.heatFactor*(car.engineHeat||1)*(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1):heat*car.cooling*(has('cooling')?car.coolerFactor:1)*repeat.recoveryFactor)+repetitionHeat;
+ // Resource use follows distance, not the number of UI decisions. Recovery
+ // cards must not destroy tires just because the same safe action is repeated.
+ const tireLoad=corner?1.4*clamp((65/sector.radius)**.25,.8,1.25):.45;
+ const tireRepetition=card.focus<=0?1:Math.min(3,repeat.wearFactor);
+ const wear=sector.length/1000*line.length*tireLoad*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*tireRepetition*car.wearFactor*line.wear;
+ // Brake temperature is separate from engine/oil heat. Airflow always removes
+ // heat, including under attack; longer and faster straights cool more.
+ const brakingLoad=corner?8*Math.min(sector.length/300,1.6)+Math.min(12,Math.max(0,state.velocity**2-cornerSpeed**2)/240):0;
+ const brakeHardware=(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1);
+ const heatInput=corner?(brakingLoad+Math.max(0,card.heat)+Math.min(12,card.heat>=0?repeat.heatExtra:0))*(mass/1100)*brakeHardware:0;
+ const recovery=Math.min(0,card.heat)*repeat.recoveryFactor;
+ const coolingRate=(.012+Math.min(80,average)*.0002)*(corner?.65:1)*car.cooling;
+ const coolingFraction=1-Math.exp(-time*coolingRate);
+ const airCooling=Math.max(0,state.heat-35)*coolingFraction;
+ const cooled=heatInput*(1-coolingFraction*.5)+recovery-airCooling;
  const actionFocus=focusCost(config,state,card);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;
  const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit*(card.id==='skill-release'?1.08:1))*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
  const reasons=[corner?`Радиус ${sector.radius} м: предел дуги ${Math.round(cornerSpeed*3.6)} км/ч`:`${car.power} л.с. / ${mass} кг: разгон до ${Math.round(exit*3.6)} км/ч`];
+ reasons.push(`Тормоза: ${Math.round(state.heat)} → ${Math.round(next.heat)}°C; охлаждение обдувом −${airCooling.toFixed(1)}°C`);
  if(control)reasons.push('Контроль машины: ниже нагрузка на сцепление');
  if(card.id==='skill-release')reasons.push('Поздний выпуск: выше скорость входа в следующий сектор');
  if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
