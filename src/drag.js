@@ -4,8 +4,8 @@ import {focusCost,repetitionEffect,rememberAction} from './tactics.js';
 import {DRAG_CARDS,ALL_DRAG_CARDS} from './drag-data.js';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export function freshDragState(config) {
-  return {time:0,tires:100,heat:55,focus:config.pilot.focus,velocity:0,cooldowns:{},study:false,
-    drag:{temperature:25,rpm:3500,pressure:1,reaction:null,sixty:null,et:0,trap:0,distance:0,
+  return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,velocity:0,cooldowns:{},study:false,
+    drag:{temperature:25,rpm:3500*(config.car.engineShiftScale||1),pressure:1,reaction:null,sixty:null,et:0,trap:0,distance:0,
       falseStart:false,shiftIndex:0,shifts:0,shiftStyle:'band'}};
 }
 export function dragReason(card,sector,state,config=null) {
@@ -27,8 +27,8 @@ function tireGrip(config,state,sector) {
   const temperature=clamp(1-Math.abs(drag.temperature-optimum)/180,.67,1);
   const pressure=1+(1-drag.pressure)*.4;
   return config.car.grip*temperature*pressure*(1-wet*(config.car.drive==='AWD'?.2:.35))
-    *tireFactor(config,wet,false)
-    *(parts.includes('suspension')?1.025:1)*(.8+.2*state.tires/100);
+    *tireFactor(config,wet,false,'drag')
+    *(parts.includes('suspension')?1+.025*config.car.partSuspensionHealth:1)*(.8+.2*state.tires/100);
 }
 // Integrate longitudinal motion at fixed 20 ms steps. No bonus
 // horsepower from cards. Gear timing changes delivered power and interruption.
@@ -37,9 +37,9 @@ function travel(config,state,sector,card,error=0) {
   const drag=state.drag,parts=config.parts,car=config.car,launch=sector.phase==='launch';
   const mass=car.mass-(parts.includes('weight')?65:0)+(parts.includes('suspension')?8:0);
   const drive=car.drive==='AWD'?1.18:car.drive==='FF'?.9:car.drive==='MR'?1.08:1;
-  const lsd=parts.includes('lsd')?1.045:1;
+  const lsd=parts.includes('lsd')?1+.045*car.partLsdHealth:1;
   const grip=tireGrip(config,state,sector)*(1-error*.4);
-  const rpmFactor=clamp(drag.rpm/4800,.7,1.15)*(car.finalRatio||1);
+  const rpmFactor=clamp(drag.rpm/(car.launchRPM||4800),.7,1.15)*(car.finalRatio||1);
   const request=launch?card.throttle*rpmFactor:1;
   const demand=(car.power/mass)*5.4*request;
   const capacity=grip*drive*lsd;
@@ -48,7 +48,7 @@ function travel(config,state,sector,card,error=0) {
   const style=sector.phase==='shifts'?card.shift:drag.shiftStyle;
   const shiftPower={short:.91,band:1,redline:.96}[style];
   const delay=({short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14)*(1+error*2)*(car.shiftFactor||1);
-  const thresholds=[13,23,34,46,59].map(speed=>speed*({short:.89,band:1,redline:1.1}[style])/(car.finalRatio||1));
+  const thresholds=[13,23,34,46,59].map(speed=>speed*({short:.89,band:1,redline:1.1}[style])*(car.engineShiftScale||1)/(car.finalRatio||1));
   const power=car.power*735.5*.78*(.9+.1*config.condition/100)*shiftPower
     *(1-error*.7)*(sector.phase==='finish'?card.power:1)*(state.velocity<15?(car.lowRpmFactor||1):1)*clamp(1-Math.max(0,state.heat-105)/260,.68,1);
   let distance=0,elapsed=0,velocity=state.velocity,shiftIndex=drag.shiftIndex,shifts=0;
@@ -59,7 +59,7 @@ function travel(config,state,sector,card,error=0) {
     }
     const force=Math.min(grip*9.81*drive*lsd*launchGrip,power/(mass*Math.max(velocity,7.5)));
     const dragForce=(car.airResistance||.43)*velocity*velocity/mass;
-    const rolling=.012*9.81*(1+(1-drag.pressure)*2);
+    const rolling=.012*9.81*(1+(1-drag.pressure)*2)*(parts.includes('dragRadial')?1.04:1);
     const acceleration=Math.max(.05,force-dragForce-rolling);
     const nextVelocity=velocity+acceleration*dt;
     const step=(velocity+nextVelocity)*.5*dt;
@@ -79,7 +79,7 @@ export function simulateDrag(config,state,sector,card,execution=null) {
   const reasons=[];
   let time=0,risk=0,slip=0;
   if(prep){
-    drag.temperature=clamp(card.temp+error*60,20,140);drag.rpm=card.rpm*(1-error*.5);drag.pressure=card.pressure*((config.setup?.pressure??2.2)/2.2);
+    drag.temperature=clamp(card.temp+error*60,20,140);drag.rpm=card.rpm*(config.car.engineShiftScale||1)*(1-error*.5);drag.pressure=card.pressure*((config.setup?.pressure??2.2)/2.2);
     if(sector.longDrag){drag.longFormat=true;drag.gearing=card.gearing||1;drag.forceTop=false;drag.splits=[];next.recentActions=rememberAction(state,card);}
     reasons.push(`Шины ${Math.round(drag.temperature)}°C · ${Math.round(drag.rpm)} об/мин · давление ${Math.round(card.pressure*100)}%`);
     reasons.push('Подготовка проходит до сигнала и не входит в зачётное время');
@@ -115,8 +115,8 @@ export function simulateDrag(config,state,sector,card,execution=null) {
     drag.temperature=clamp(drag.temperature+(launch?8:4)-sector.wet*4,20,140);
     if(sector.phase==='finish')drag.trap=result.velocity*3.6;
   }
-  const cooling=config.car.cooling*(config.parts.includes('cooling')?1.3:1);
-  const heat=card.heat>0?card.heat*(config.car.heatFactor||1)/cooling:card.heat*cooling;
+  const cooling=config.car.cooling*(config.parts.includes('cooling')?config.car.coolerFactor:1);
+  const heat=card.heat>0?card.heat*(config.car.heatFactor||1)*(config.car.engineHeat||1)/cooling:card.heat*cooling;
   if(!sector.longDrag||prep)next.heat=clamp(state.heat+heat,35,200);
   next.focus=clamp(state.focus-focusCost(config,state,card),0,config.pilot.focus);
   next.tires=clamp(state.tires-card.wear*(config.parts.includes('tires')?1.25:1)*(repeat?.wearFactor||1)*(config.car.wearFactor||1)-slip*2,0,100);
@@ -129,15 +129,15 @@ export function dragCards(long=false){return long?ALL_DRAG_CARDS:DRAG_CARDS;}
 function travelLong(config,state,sector,card,error=0){
   const drag=state.drag,car=config.car,parts=config.parts,launch=sector.phase==='launch';
   const mass=car.mass-(parts.includes('weight')?65:0)+(parts.includes('suspension')?8:0);
-  const grip=tireGrip(config,state,sector)*(1-error*.4),drive=car.drive==='AWD'?1.18:car.drive==='FF'?.9:car.drive==='MR'?1.08:1,lsd=parts.includes('lsd')?1.045:1;
-  const demand=(car.power/mass)*5.4*(launch?card.throttle*clamp(drag.rpm/4800,.7,1.15):1)*(drag.gearing||1)*(car.finalRatio||1);
+  const grip=tireGrip(config,state,sector)*(1-error*.4),drive=car.drive==='AWD'?1.18:car.drive==='FF'?.9:car.drive==='MR'?1.08:1,lsd=parts.includes('lsd')?1+.045*car.partLsdHealth:1;
+  const demand=(car.power/mass)*5.4*(launch?card.throttle*clamp(drag.rpm/(car.launchRPM||4800),.7,1.15):1)*(drag.gearing||1)*(car.finalRatio||1);
   const capacity=grip*drive*lsd,slipRatio=launch?clamp((demand-capacity)/capacity,0,.9):0;
-  const launchGrip=launch?clamp(card.throttle*clamp(drag.rpm/4800,.7,1.15),.65,1.05)*(1-slipRatio*.25)*(drag.gearing||1)*(car.finalRatio||1):1;
+  const launchGrip=launch?clamp(card.throttle*clamp(drag.rpm/(car.launchRPM||4800),.7,1.15),.65,1.05)*(1-slipRatio*.25)*(drag.gearing||1)*(car.finalRatio||1):1;
   const profile=transmissionProfile(config),ratio=drag.gearing||1;
   const style=card.shift||drag.shiftStyle,thresholds=longShiftSpeeds(config,style,ratio);
   const delay=({short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14)*(1+error*2)*(car.shiftFactor||1);
   const basePower=car.power*735.5*.78*(.9+.1*config.condition/100)*(card.power??1)*(1-error*.7);
-  const repeat=repetitionEffect(state,card),cooling=car.cooling*(parts.includes('cooling')?1.3:1);
+  const repeat=repetitionEffect(state,card),cooling=car.cooling*(parts.includes('cooling')?car.coolerFactor:1);
   let velocity=state.velocity,engineHeat=state.heat,distance=0,elapsed=0,shiftIndex=drag.shiftIndex,shifts=0,forceTop=drag.forceTop||false;
   const changeGear=target=>{if(target!==shiftIndex){shiftIndex=target;shifts++;elapsed+=delay;velocity=Math.max(.1,velocity-delay*.15);}};
   if(card.topGear){changeGear(profile.ratios.length-1);forceTop=true;}
@@ -152,7 +152,7 @@ function travelLong(config,state,sector,card,error=0){
     const band=(rpm<profile.redline*.6?(car.lowRpmFactor||1):1)*(rpm>profile.redline?.18:clamp(1-((rpm/profile.redline-.82)/.7)**2,.45,1));
     const fade=clamp(1-Math.max(0,engineHeat-105)/200,.5,1);minFade=Math.min(minFade,fade);
     const force=Math.min(grip*9.81*drive*lsd*launchGrip,basePower*band*fade/(mass*Math.max(velocity,7.5)));
-    const resistance=(car.airResistance||.43)*velocity**2/mass+.012*9.81*(1+(1-drag.pressure)*2);
+    const resistance=(car.airResistance||.43)*velocity**2/mass+.012*9.81*(1+(1-drag.pressure)*2)*(parts.includes('dragRadial')?1.04:1);
     const acceleration=force-resistance;
     const nextVelocity=Math.max(.1,velocity+acceleration*dt),step=(velocity+nextVelocity)*.5*dt;
     const fraction=Math.min(1,(sector.length-distance)/step),stepTime=dt*fraction;
@@ -163,7 +163,7 @@ function travelLong(config,state,sector,card,error=0){
         splits.push({distance:mark,et:drag.et+elapsed+dt*part,speed:(velocity+(nextVelocity-velocity)*part)*3.6});
       }
     }
-    const rate=card.heat>=0?(card.heat/reference+repeat.heatExtra*.8)*(car.heatFactor||1)*(.8+.5*clamp(rpm/profile.redline,0,1.2))/cooling:card.heat/reference*cooling*repeat.recoveryFactor;
+    const rate=card.heat>=0?(card.heat/reference+repeat.heatExtra*.8)*(car.heatFactor||1)*(car.engineHeat||1)*(.8+.5*clamp(rpm/profile.redline,0,1.2))/cooling:card.heat/reference*cooling*repeat.recoveryFactor;
     engineHeat=clamp(engineHeat+(rate-Math.max(0,engineHeat-75)*.012*cooling)*stepTime,35,200);
     peakHeat=Math.max(peakHeat,engineHeat);if(rpm>profile.redline)limiterTime+=stepTime;
     distance+=step*fraction;elapsed+=stepTime;velocity+=(nextVelocity-velocity)*fraction;

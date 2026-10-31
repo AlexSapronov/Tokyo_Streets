@@ -1,3 +1,5 @@
+import {settleWear} from './wear.js';
+import {stockEngineId} from './engine-data.js';
 import {settleSupport} from './operations.js';
 import {settleCup} from './championship.js';
 import {setupKey} from './setup.js';
@@ -10,7 +12,7 @@ export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
   return [getEvent(eventId).mode==='drift'?'drift-2':getEvent(eventId).mode==='drag'?'drag-2':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
-    ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')].join('|');
+    ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')+(config.engineId&&config.engineId!==stockEngineId(config.car.id)?';engine='+config.engineId:'')].join('|');
 }
 export function unlocked(event, career) {
   return career.street >= event.unlockStreet && career.races >= event.unlockRaces;
@@ -23,7 +25,7 @@ export function bestFor(career, config, eventId, weather) {
   return career.bests.find(best => best.key === key) || null;
 }
 export function raceRecord(race) {
-  return {key: recordKey(race.config, race.eventId, race.weather),...(setupKey(race.config.setup)?{setup:{...race.config.setup}}:{}),
+  return {key: recordKey(race.config, race.eventId, race.weather),...(race.config.engineId!==stockEngineId(race.config.car.id)?{engineId:race.config.engineId}:{}),...(Object.values(race.config.wear||{}).some(n=>n<100)?{wear:{...race.config.wear}}:{}),...(setupKey(race.config.setup)?{setup:{...race.config.setup}}:{}),
     ...(race.player.dnf?{dnf:{...race.player.dnf}}:{}),
     ...(Number.isInteger(race.seed)?{seed:race.seed,executionVersion:1}:{}),
     eventId: race.eventId, weather: race.weather, carId: race.config.car.id,
@@ -52,7 +54,7 @@ export function awardRace(career, race) {
   next.street += outcome.street;
   next.official += outcome.official;
   next.condition[race.config.car.id] = Math.max(35,
-    race.config.condition - (race.player.dnf?.damage||0) - (100 - race.player.tires) * .55
+    race.config.condition - (race.player.dnf?.damage||0) - ((race.config.tireCondition??100) - race.player.tires) * .55
     - race.history.reduce((sum, row) => sum + row.slip, 0) * .5);
   if (isBest) next.bests = [record, ...next.bests.filter(best => best.key !== record.key)].slice(0, 120);
   next.records.unshift({car: race.config.car.name, time: record.time, won: outcome.won,
@@ -61,6 +63,7 @@ export function awardRace(career, race) {
   next.records = next.records.slice(0, 30);
   // Preserve the legacy all-build Haruna statistic for old saves.
   if (!race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
+  next=settleWear(next,race);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
   const season=settleCup(next,race);next=season.career;
   const support=settleSupport(next,race);next=support.career;

@@ -1,3 +1,6 @@
+import {emptyWear,normalizeWear} from './wear.js';
+import {emptyEngines,normalizeEngines} from './powertrain.js';
+import {getEngine,installedEngineId} from './engine-data.js';
 import {normalizeOrganizer} from './organizer.js';
 import {emptyOperations,normalizeOperations} from './operations.js';
 import {emptyPresets,normalizePresets} from './presets.js';
@@ -20,7 +23,7 @@ export function newCareer() {
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    organizer:{series:[]},operations:emptyOperations(),championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    engines:emptyEngines(),wear:emptyWear(),organizer:{series:[]},operations:emptyOperations(),championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -40,10 +43,11 @@ function validateRecord(record) {
       || record.actions.some(id => ![...CARDS,...DRAG_CARDS,...DRIFT_CARDS].some(card => card.id === id))) return null;
   const total = record.sectorTimes.reduce((sum, time) => sum + time, 0);
   if (!finite(record.time) || Math.abs(total - record.time) > .001) return null;
+  if(record.engineId!==undefined&&!getEngine(record.engineId))return null;
   const parts = unique(list(record.parts).filter(validPart));
-  if(parts.some(id=>partReason(record.carId,id))||normalizeBuild(record.carId,parts).length!==parts.length)return null;
+  if(parts.some(id=>partReason(record.carId,id,record.engineId))||normalizeBuild(record.carId,parts,record.engineId).length!==parts.length)return null;
   if(record.setup!==undefined&&!validSetup(parts,record.setup))return null;
-  const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup);
+  const config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup,record.engineId,record.wear);
   const event=getEvent(record.eventId);
   const cards=availableCards(config,event.mode,event.id);
   if(record.actions.some((id,i)=>!cards.some(card=>card.id===id&&(!card.phase||card.phase==='any'||card.phase===event.sectors[i].phase))))return null;
@@ -56,7 +60,7 @@ function validateRecord(record) {
   const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key,...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {key,...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -68,7 +72,7 @@ function validLongDrag(record,event){
   if(!Array.isArray(d.splits)||d.splits.length!==marks.length)return false;
   let previous=0;
   for(const [index,split] of d.splits.entries()){
-    if(!split||!Number.isFinite(split.distance)||Math.abs(split.distance-marks[index])>1e-6||!Number.isFinite(split.et)||split.et<=previous||split.et>d.et+.001||!Number.isFinite(split.speed)||split.speed<=0||split.speed>400)return false;
+    if(!split||!Number.isFinite(split.distance)||Math.abs(split.distance-marks[index])>1e-6||!Number.isFinite(split.et)||split.et<=previous||split.et>d.et+.001||!Number.isFinite(split.speed)||split.speed<=0||split.speed>600)return false;
     previous=split.et;
   }
   return true;
@@ -102,13 +106,14 @@ export function validateSave(raw) {
   out.team=normalizeTeam(raw.team);
   out.operations=normalizeOperations(raw.operations);
   if(!out.team.founded)out.operations=emptyOperations();
+  out.engines=normalizeEngines(raw.engines);out.wear=normalizeWear(raw.wear);
   out.organizer=normalizeOrganizer(raw.organizer);
   out.championships=normalizeChampionship(raw.championships);
   if(out.championships.active&&!out.ownedCars.includes(out.championships.active.carId))out.championships.active=null;
   out.control=raw.control==='manager'&&out.team.founded&&out.team.contracts.some(contract=>contract.pilotId===out.pilot)?'manager':'personal';
   for (const car of CARS) {
-    out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(id=>validPart(id)&&!partReason(car.id,id)));
-    out.builds[car.id] = normalizeBuild(car.id,list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)));
+    out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(id=>validPart(id)&&!partReason(car.id,id,installedEngineId(out,car.id))));
+    out.builds[car.id] = normalizeBuild(car.id,list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)),installedEngineId(out,car.id));
     out.presets[car.id]=normalizePresets(car.id,raw.presets?.[car.id],out.purchased[car.id]);
     out.setups[car.id]=normalizeSetup(out.builds[car.id],raw.setups?.[car.id]);
     out.condition[car.id] = finite(raw.condition?.[car.id])

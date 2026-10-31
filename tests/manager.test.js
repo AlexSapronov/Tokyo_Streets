@@ -7,7 +7,7 @@ import {resolveSector,disabledReason,availableCards} from '../src/engine.js';
 import {newCareer,validateSave} from '../src/storage.js';
 import {awardRace,raceRecord} from '../src/progress.js';
 function careerFor(pilotId='ren'){
- let career={...newCareer(),money:1e6,races:10,street:40,official:30};
+ let career={...newCareer(),money:1e6,races:20,street:100,official:100};
  career=hirePilot(foundTeam(career),pilotId);return assignPilot(career,pilotId);
 }
 function start(pilotId='ren',eventId='haruna',order='balanced',rules={focus:false,heat:false,wet:false,chase:false}){

@@ -4,7 +4,7 @@ import {focusCost,repetitionEffect,rememberAction,strainEffect} from './tactics.
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export const DRIFT_WEIGHTS={line:.35,angle:.25,speed:.2,continuity:.2};
 export function freshDriftState(config){
-  return {time:0,tires:100,heat:55,focus:config.pilot.focus,velocity:20,cooldowns:{},recentActions:[],study:false,
+  return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,velocity:20,cooldowns:{},recentActions:[],study:false,
     drift:{score:0,active:false,angle:0,direction:0,combo:0,peakCombo:0,completedChains:0,breaks:0,spins:0,temperature:50,clips:[]}};
 }
 export function driftCards(){return DRIFT_CARDS;}
@@ -26,13 +26,13 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const condition=.86+.14*config.condition/100;
   const tempFade=clamp(1-Math.max(0,previous.temperature-95)/220,.65,1);
   const grip=car.grip*(1-wet*.32)*tireFactor(config,wet)*aeroGrip(config,state.velocity)
-    *(has('suspension')?1.05:1)*(.75+.25*state.tires/100)*tempFade*condition;
-  const precision=clamp(pilot.skill+(has('suspension')?.035:0)+(has('lsd')?.045:0)+(car.driftPrecision||0)-error,.3,1.08);
+    *(has('suspension')?1+.05*car.partSuspensionHealth:1)*(.75+.25*state.tires/100)*tempFade*condition;
+  const precision=clamp(pilot.skill+(has('suspension')?.035:0)+(has('lsd')?.045*car.partLsdHealth:0)+(car.driftPrecision||0)-error,.3,1.08);
   const yaw=(car.drive==='AWD'?.82:car.drive==='FF'?.55:car.drive==='MR'?1.1:1.04)*(car.driftYaw||1);
   let response=yaw*(.92+.08*pilot.aggression)*condition;
   if(card.method==='power')response*=clamp(car.power/mass/.16,.74,1.24)*(has('lsd')?1.04:1);
   if(card.method==='feint'||card.id==='drift-flick')response*=clamp(1150/mass,.8,1.13)*(has('suspension')?1.04:1);
-  if(card.method==='brake')response*=has('brakes')?1.04:1;
+  if(card.method==='brake')response*=(has('brakes')?1+.04*(config.wear?.brakes??100)/100:1)*(.85+.15*(config.wear?.stockBrakes??100)/100);
   const targetSpeed=sector.targetSpeed*(1-wet*.16);
   const maxCornerSpeed=Math.sqrt(grip*9.81*sector.radius)*3.6;
   const acceleration=car.power*735.5*.78/(mass*Math.max(state.velocity,12));
@@ -78,8 +78,8 @@ export function simulateDrift(config,state,sector,card,execution=null){
   if(previous.temperature>95)reasons.push('Перегретые шины теряют сцепление');
   if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: растёт нагрузка, снижается оценка исполнения`);
   const wear=card.wear*(mass/1100)*(has('tires')?1.25:1)*repeat.wearFactor*(car.wearFactor||1)+(spin?5:0);
-  const heat=card.heat>=0?(card.heat+repeat.heatExtra)*(car.heatFactor||1)/(car.cooling*(has('cooling')?1.3:1))
-    :card.heat*repeat.recoveryFactor*car.cooling*(has('cooling')?1.3:1);
+  const heat=card.heat>=0?(card.heat+repeat.heatExtra)*(car.heatFactor||1)*(car.engineHeat||1)/(car.cooling*(has('cooling')?car.coolerFactor:1))
+    :card.heat*repeat.recoveryFactor*car.cooling*(has('cooling')?car.coolerFactor:1);
   const duration=sector.length/(speed/3.6)*repeat.timeFactor+(spin?2:0);
   const next={...state,time:state.time+duration,velocity:speed/3.6,tires:clamp(state.tires-wear,0,100),
     heat:clamp(state.heat+heat,35,200),focus:clamp(state.focus-focusCost(config,state,card),0,pilot.focus),

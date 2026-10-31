@@ -14,7 +14,7 @@ const profiles={
   nsx:{ratios:[3.07,1.95,1.4,1.03,.77],final:4.06,circumference:1.97,redline:8200,idle:850}
 
 };
-export function transmissionProfile(config){const p=profiles[config.car.id]||profiles.ae86;return {...p,final:p.final*(config.car.finalRatio||1),ratios:[...p.ratios]};}
+export function transmissionProfile(config){const p=profiles[config.car.id]||profiles.ae86;return {...p,redline:config.car.engineRedline||p.redline,final:p.final*(config.car.finalRatio||1),ratios:[...p.ratios]};}
 export function longShiftSpeeds(config,style='band',gearing=1){
   const profile=transmissionProfile(config),fraction={short:.78,band:.9,redline:.99}[style]||.9;
   return profile.ratios.slice(0,-1).map(ratio=>profile.redline*fraction*profile.circumference/(60*ratio*profile.final*gearing));
@@ -44,9 +44,9 @@ export function readTelemetry(config,state,mode){
 export function attachTelemetry(config,state,sector,card,result){
   const mode=sector.mode||'duel',previous=readTelemetry(config,state,mode),next=result.next;
   const duration=Math.max(result.time,sector.phase==='prep'?2:0);
-  const cooling=config.car.cooling*(config.parts.includes('cooling')?1.3:1);
+  const cooling=config.car.cooling*(config.parts.includes('cooling')?config.car.coolerFactor:1);
   const duty=clamp(config.car.power/config.car.mass*3+(card.focus>10?.25:0),.2,1.2);
-  const oilTarget=['drag','drift'].includes(mode)?next.heat:85+duty*14+Math.max(0,next.heat-100)*.07;
+  const oilTarget=['drag','drift'].includes(mode)?next.heat:85+duty*14*(config.car.engineHeat||1)+Math.max(0,next.heat-100)*.07;
   const oil=['drag','drift'].includes(mode)?next.heat:previous.oil+(oilTarget-previous.oil)*(1-Math.exp(-duration*cooling/70));
   const waterTarget=clamp(oil-10,65,135);
   const coolant=previous.coolant+(waterTarget-previous.coolant)*(1-Math.exp(-duration*cooling/90));
@@ -75,7 +75,7 @@ export function sampleTelemetry(config,mode,record,elapsed){
 }
 export function normalizeTelemetry(raw,count){
   if(!Array.isArray(raw)||raw.length!==count)return null;
-  const ranges={speed:[0,400],rpm:[0,10000],gear:[0,6],coolant:[20,160],oil:[20,220],brakes:[20,250],tireTemp:[0,200],tires:[0,100],focus:[0,120]};
+  const ranges={speed:[0,600],rpm:[0,10000],gear:[0,6],coolant:[20,160],oil:[20,220],brakes:[20,250],tireTemp:[0,200],tires:[0,100],focus:[0,120]};
   const output=[];
   for(const row of raw){
     if(!row||Object.entries(ranges).some(([key,[min,max]])=>!Number.isFinite(row[key])||row[key]<min||row[key]>max)||!Number.isInteger(row.gear))return null;

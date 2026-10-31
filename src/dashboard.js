@@ -1,4 +1,5 @@
 import {transmission} from './telemetry.js';
+const speedLimit=config=>config.car.power>600?480:config.car.power>350?360:240;
 function dial(kind,max,label,unit,redline=null){
   const ticks=Array.from({length:kind==='rpm'?10:13},(_,index)=>{
     const value=index/(kind==='rpm'?9:12)*max,angle=(-130+value/max*260)*Math.PI/180;
@@ -10,8 +11,8 @@ function dial(kind,max,label,unit,redline=null){
   return `<div class="dash-dial" role="meter" aria-label="${label}" aria-valuemin="0" aria-valuemax="${max}" aria-valuenow="0" data-meter="${kind}"><svg viewBox="0 0 180 180" aria-hidden="true"><circle cx="90" cy="90" r="78" fill="#101819" stroke="#3b4b46" stroke-width="2"/><circle cx="90" cy="90" r="73" fill="none" stroke="#22342d"/>${ticks}<g data-needle="${kind}" style="transform:rotate(-130deg);transform-origin:90px 90px"><path d="M87 100 90 26 93 100Z" fill="#ff9865"/></g><circle cx="90" cy="90" r="7" fill="#d8dbbc"/></svg><div class="dash-digital"><strong data-value="${kind}">0</strong><span>${unit}</span></div></div>`;
 }
 export function dashboardHTML(config){
-  return `<section class="dashboard" aria-label="Приборная панель"><div class="dash-car"><strong>${config.car.name}</strong><span>${config.car.drive} / ${config.pilot.name}</span></div>
-    <div class="dash-cluster">${dial('speed',240,'Скорость, км/ч','KM/H')}${dial('rpm',9000,'Обороты двигателя','RPM ×1000',transmission(config,0).redline)}<div class="dash-gear" aria-label="Передача"><small>GEAR</small><strong data-value="gear">N</strong></div></div>
+  return `<section class="dashboard" aria-label="Приборная панель"><div class="dash-car"><strong>${config.car.name}</strong><span>${config.car.drive} / ${config.pilot.name}</span><span class="dash-engine">${config.car.engine} · ${config.car.power} л.с.</span></div>
+    <div class="dash-cluster">${dial('speed',speedLimit(config),'Скорость, км/ч','KM/H')}${dial('rpm',9000,'Обороты двигателя','RPM ×1000',transmission(config,0).redline)}<div class="dash-gear" aria-label="Передача"><small>GEAR</small><strong data-value="gear">N</strong></div></div>
     <div class="dash-sensors"><div><span>ВОДА</span><strong data-value="coolant">82°</strong><i data-temp="coolant"></i></div><div><span>МАСЛО</span><strong data-value="oil">88°</strong><i data-temp="oil"></i></div><div><span>ТОРМОЗА</span><strong data-value="brakes">55°</strong><i data-temp="brakes"></i></div><div><span>ШИНЫ °C</span><strong data-value="tireTemp">60°</strong><i data-temp="tireTemp"></i></div></div>
     <div class="dash-aux"><span>ШИНЫ <b data-value="tires">100%</b></span><span data-value="warning" role="status">● READY</span></div><div class="dash-focus"><div class="dash-focus-head"><strong>ФОКУС</strong><b data-value="focus">100</b></div><div class="focus-track" data-value="focusTrack" role="meter" aria-label="Фокус пилота" aria-valuemin="0" aria-valuemax="${config.pilot.focus}" aria-valuenow="${config.pilot.focus}"><i data-value="focusFill"></i></div><span data-value="focusStatus">Стабильное исполнение</span></div></section>`;
 }
@@ -24,7 +25,7 @@ export function bindDashboard(root,config){
   return data=>{
     for(const key of ['speed','rpm']){
       values[key].textContent=key==='rpm'?(data.rpm/1000).toFixed(1):Math.round(data.speed);
-      needles[key].style.transform=`rotate(${-130+Math.min(1,data[key]/(key==='rpm'?9000:240))*260}deg)`;
+      needles[key].style.transform=`rotate(${-130+Math.min(1,data[key]/(key==='rpm'?9000:speedLimit(config)))*260}deg)`;
       meters[key].setAttribute('aria-valuenow',Math.round(data[key]));
     }
     values.gear.textContent=data.gear||'N';

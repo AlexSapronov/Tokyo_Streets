@@ -34,13 +34,25 @@ export const PARTS = [
  {id:'gearbox',slot:'final',name:'HKS Dog Mission',type:'Регулируемая коробка',price:24000,desc:'Открывает настройку главной пары от ×0.85 до ×1.15. Вместо фиксированной короткой/длинной пары. На стоковой коробке регулировка закрыта.',effect:'adjustable'},
  {id:'angle',rearOnly:true,name:'Wisefab Angle Kit',type:'Дрифтовая геометрия',price:10000,desc:'Для FR/MR: точность дрифта +0.045, отклик угла +8%, масса +4 кг. Требует контроля целевого угла.',effect:'drift'}
 ];
+// Values below are gameplay approximations, not manufacturer specifications.
+PARTS.push(
+ {id:'streetTires',slot:'tires',name:'Michelin Pilot Sport 4S',type:'Дорожные шины',price:9000,desc:'Сухое сцепление +5%, мокрое +6%, износ ×0.85. Универсальный комплект вместо полуслика/слика.',effect:'street'},
+ {id:'dragRadial',slot:'tires',name:'Nitto NT555RII',type:'Дрэг-радиал',price:17000,desc:'Сухое сцепление в дрэге +20%, в других дисциплинах +3%. Мокрое −28%, износ ×1.1, сопротивление качению +4%.',effect:'launch'},
+ {id:'exhaust',name:'FUJITSUBO Legalis R',type:'Выпуск',price:12500,desc:'Мощность +3.5%, масса −6 кг; тепловая нагрузка +2.5%.',effect:'exhaust'},
+ {id:'radiator',name:'KOYORAD Racing Radiator',type:'Радиатор',price:13000,desc:'Теплоотвод +18%, масса +5 кг. Работает вместе с масляным радиатором.',effect:'radiator'},
+ {id:'intercooler',turboOnly:true,name:'HKS R-Type Intercooler',type:'Интеркулер',price:19000,desc:'Только турбомотор: мощность +4%, тепловая нагрузка ×0.9, масса +9 кг, сопротивление воздуху +2%.',effect:'intercooler'},
+ {id:'flywheel',name:'TODA Racing Flywheel',type:'Лёгкий маховик',price:10500,desc:'Масса −3 кг, паузы передач в дрэге −10%. Тяга на низких оборотах −4%; сочетается со сцеплением.',effect:'flywheel'},
+ {id:'pads',name:'ENDLESS MX72',type:'Тормозные колодки',price:7500,desc:'Дорожное торможение +7%, положительный нагрев тормозов ×0.9. Дополняют тормозной комплект, не охлаждают мотор.',effect:'pads'},
+ {id:'brace',name:'CUSCO Strut Tower Bar',type:'Распорка кузова',price:6500,desc:'Сцепление +1.5%, отклик угла в дрифте +2%, масса +3 кг. Более резкая реакция требует точности.',effect:'brace'},
+ {id:'splitter',name:'Voltex Front Splitter',type:'Передняя аэродинамика',price:11500,desc:'Дополнительное сцепление растёт со скоростью до +3.5%. Сопротивление воздуху +4%, масса +3 кг; сочетается с крылом.',effect:'splitter'}
+);
 export const TUNING_GROUPS = [
- {id:'tires',name:'Шины',description:'Состав под покрытие. Установлен только один комплект.',parts:['tires','wetTires','slicks']},
- {id:'engine',name:'Двигатель',description:'Мощность, рабочий диапазон и цена тепловой нагрузки.',parts:['ecu','turbo','cams']},
- {id:'cooling',name:'Охлаждение',description:'Контроль температуры и стабильность под длительной нагрузкой.',parts:['cooling']},
- {id:'transmission',name:'Трансмиссия',description:'Дифференциал, сцепление и выбор главной пары.',parts:['lsd','clutch','shortFinal','longFinal','gearbox']},
- {id:'chassis',name:'Шасси и тормоза',description:'Торможение, подвеска, облегчение и дрифтовая геометрия.',parts:['brakes','suspension','weight','angle']},
- {id:'aero',name:'Аэродинамика',description:'Сцепление на скорости в обмен на сопротивление и массу.',parts:['aero']}
+ {id:'tires',name:'Шины',description:'Состав под покрытие. Установлен только один комплект.',parts:['streetTires','tires','wetTires','slicks','dragRadial']},
+ {id:'engine',name:'Двигатель',description:'Мощность, рабочий диапазон и цена тепловой нагрузки.',parts:['ecu','turbo','cams','exhaust']},
+ {id:'cooling',name:'Охлаждение',description:'Контроль температуры и стабильность под длительной нагрузкой.',parts:['cooling','radiator','intercooler']},
+ {id:'transmission',name:'Трансмиссия',description:'Дифференциал, сцепление и выбор главной пары.',parts:['lsd','clutch','flywheel','shortFinal','longFinal','gearbox']},
+ {id:'chassis',name:'Шасси и тормоза',description:'Торможение, подвеска, облегчение и дрифтовая геометрия.',parts:['brakes','pads','suspension','brace','weight','angle']},
+ {id:'aero',name:'Аэродинамика',description:'Сцепление на скорости в обмен на сопротивление и массу.',parts:['aero','splitter']}
 ];
 export const CARDS = [
  {id:'balanced',name:'Чистый темп',en:'BALANCED PACE',icon:'↗',category:'Темп',desc:'Нейтральная линия без лишнего риска.',gain:0,focus:0,heat:0,wear:1,risk:0},
@@ -165,6 +177,33 @@ for(const spec of [
   EVENTS.push({...base,...spec,longDrag:true,description:spec.id==='yokohama-half'?'Полмили: стартовая тяга против запаса по оборотам и охлаждению.':'Стоячая миля: три окна решений на высокой скорости и борьба за ресурс мотора.',
     sectors:sectors.map(sector=>({...sector,longDrag:true,totalDistance:spec.distance}))});
 }
+// Expanded venues use authored, stylized layouts, never exact real-road replicas.
+const roadSector=(name,length,radius,slope,wet)=>({name,length,radius,slope,wet,type:radius?'corner':'straight',label:radius?(radius<35?'Шпилька':radius<70?'Техническая связка':'Быстрая дуга'):(slope>.02?'Подъём':'Прямая')});
+EVENTS.push(
+ {id:'irohazaka',name:'Irohazaka Switchbacks',title:'Ирохадзака · каскад шпилек',region:'TOCHIGI',japanese:'いろは坂',mode:'duel',theme:'forest',unlockStreet:28,unlockRaces:5,prize:30000,participation:9500,rivalCar:'rx7',rivalPilot:'ren',rivalParts:['brakes','lsd'],description:'Тесный спуск: десять секторов, короткие разгоны и каскад торможений. Масса и запас тормозов важнее пиковой мощности.',
+  sectors:[roadSector('Точка обзора',260,0,-.025,.1),roadSector('Первая петля',180,23,-.06,.2),roadSector('Левая у стены',200,27,-.055,.3),roadSector('Разгон под кедрами',290,0,-.04,.12),roadSector('Двойной радиус',240,39,-.045,.4),roadSector('Узкий мостик',200,0,-.015,.5),roadSector('Моховая шпилька',190,21,-.065,.65),roadSector('Обратная петля',210,29,-.05,.3),roadSector('Выход из леса',280,55,-.03,.15),roadSector('Финиш у станции',330,0,-.02,.08)],
+  anchors:[[0,0],[180,80],[220,190],[-180,230],[-230,340],[190,390],[240,510],[-190,560],[-240,680],[150,740],[190,860],[-120,930],[0,1050]]},
+ {id:'hakone',name:'Hakone Skyline Run',title:'Хаконе · линия горизонта',region:'KANAGAWA',japanese:'箱根',mode:'duel',theme:'ridge',unlockStreet:36,unlockRaces:7,prize:32000,participation:10000,rivalCar:'nsx',rivalPilot:'yui',rivalParts:['aero','brakes'],description:'Быстрые открытые дуги, подъём к перевалу и разгрузка на спуске. Аэродинамика помогает, пока не мешает разгону.',
+  sectors:[roadSector('Подъём к перевалу',620,0,.045,.12),roadSector('Панорамная дуга',480,125,.02,.18),roadSector('Открытый гребень',650,0,.01,.32),roadSector('Ветер с озера',430,105,-.015,.38),roadSector('Слепой правый',310,68,-.035,.25),roadSector('Спуск к развилке',570,0,-.045,.08),roadSector('Дуга у смотровой',440,96,-.025,.3),roadSector('Огни перевала',560,0,-.01,.1)],
+  anchors:[[0,0],[280,100],[440,300],[260,520],[-80,660],[-260,880],[-100,1100],[240,1240],[420,1460],[210,1640],[-50,1760]]},
+ {id:'wangan',name:'Wangan Closed Night',title:'Ванган · ночная магистраль',region:'TOKYO BAY',japanese:'湾岸',mode:'duel',theme:'highway',unlockStreet:44,unlockRaces:9,prize:35000,participation:10500,rivalCar:'supra',rivalPilot:'aki',rivalParts:['ecu','cooling','longFinal'],description:'Закрытый ночной участок у залива: затяжные разгоны, скоростные дуги, слипстрим и тепловая дисциплина. Это дуэль, не дрэг.',
+  sectors:[roadSector('Старт у терминала',760,0,0,.08),roadSector('Свет портовых кранов',950,0,.005,.12),roadSector('Северная эстакада',650,280,.01,.2),roadSector('Длинный тоннель',1100,0,-.005,0),roadSector('Поворот у залива',700,240,0,.35),roadSector('Мостовые огни',900,0,.012,.25),roadSector('Съезд к терминалу',520,150,-.02,.18),roadSector('Финишная линия',800,0,0,.08)],
+  anchors:[[0,0],[50,300],[130,700],[260,1050],[330,1450],[300,1850],[210,2250],[100,2600],[60,3000],[160,3400]]},
+ {id:'nikko',name:'Nikko Technical Session',title:'Никко · техническая сессия',region:'TOCHIGI',japanese:'日光',mode:'timeattack',theme:'circuit',unlockStreet:0,unlockRaces:4,prize:23000,participation:7500,rivalCar:'ek9',rivalPilot:'ren',rivalParts:[],description:'Короткий технический Time Attack. Медленные выходы, одна скоростная дуга и точное торможение под лёгкие машины.',
+  sectors:[roadSector('Пит-уолл',220,0,0,.05),roadSector('Первый разворот',150,29,0,.18),roadSector('Короткая связка',190,44,0,.15),roadSector('Задняя прямая',310,0,0,.08),roadSector('Скоростной правый',250,82,0,.25),roadSector('Тормозной карман',160,24,0,.2),roadSector('Обратный апекс',190,38,0,.3),roadSector('Финиш перед боксами',230,0,0,.05)],
+  anchors:[[0,0],[300,0],[380,120],[260,240],[-70,220],[-240,330],[-220,520],[80,570],[270,450],[180,340],[0,420],[-50,650],[230,750]]},
+ {id:'meihan',name:'Meihan Precision Drift',title:'Мэйхан · точность у стены',region:'NARA',japanese:'名阪',mode:'drift',theme:'driftpark',unlockStreet:32,unlockRaces:6,prize:27000,participation:8000,rivalCar:'s13',rivalPilot:'aki',rivalParts:['lsd'],description:'Две компактные дрифтовые связки: вход у стены, тесные перекладки и контроль скорости. Оценивается точность, а не максимальный угол.',medals:{gold:700,silver:610,bronze:470},
+  sectors:[['Стена первого входа','init',105,35,48,61,1,.1],['Внешняя зона','hold',140,48,52,68,1,.15],['Узкая перекладка','transition',95,32,44,58,-1,.2],['Выход к боксам','exit',120,58,20,72,-1,.08],['Второй вход у стены','init',100,33,50,60,-1,.18],['Длинный внешний клип','hold',155,52,55,72,-1,.3],['Обратная перекладка','transition',100,36,46,62,1,.2],['Чистый финиш','exit',130,62,18,76,1,.1]].map(([name,phase,length,radius,targetAngle,targetSpeed,direction,wet])=>({name,phase,length,radius,targetAngle,targetSpeed,direction,wet,type:'corner',slope:0,label:{init:'Инициация',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона'})),
+  anchors:[[0,0],[250,40],[280,220],[20,290],[-190,420],[-170,610],[90,680],[300,620],[350,830],[80,940],[-120,1090]]}
+);
+// The same street venue supports a timed touge duel and judged drift zones.
+for(const base of EVENTS.filter(e=>e.mode==='duel')){
+ base.venueId=base.id;base.streetVenue=true;
+ const total=base.sectors.reduce((n,s)=>n+s.length,0),corners=base.sectors.filter(s=>s.radius>0);
+ EVENTS.push({...base,id:base.id+'-drift',venueId:base.id,name:base.name+' · Drift',title:base.title+' · дрифт',mode:'drift',prize:Math.round(base.prize*.85),participation:Math.round(base.participation*.85),medals:{gold:700,silver:600,bronze:460},description:'Дрифт на том же уличном маршруте. Восемь судейских зон: траектория, угол, скорость и связность. '+base.description,
+ sectors:Array.from({length:8},(_,i)=>{const phase=['init','hold','transition','exit'][i%4],source=corners[i%corners.length],radius=Math.max(30,Math.min(85,source.radius)),direction=[1,1,-1,-1,-1,-1,1,1][i];return {name:'Зона '+(i+1)+' · '+source.name,type:'corner',label:{init:'Инициация',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],phase,clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона',length:total/8,radius,slope:source.slope,wet:source.wet,direction,targetAngle:phase==='exit'?20:phase==='hold'?50:42,targetSpeed:Math.round(Math.max(56,Math.min(84,Math.sqrt(radius*9.81)*3.6*.9))) };})});
+}
+export const DISCIPLINES=[{id:'duel',name:'Тогу · дуэль'},{id:'drift',name:'Дрифт'},{id:'drag',name:'Дрэг'},{id:'timeattack',name:'Time Attack'}];
 export function getEvent(id = 'haruna') {
   return EVENTS.find(event => event.id === id) || EVENTS[0];
 }

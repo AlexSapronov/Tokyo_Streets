@@ -1,3 +1,4 @@
+import {installedEngineId} from './engine-data.js';
 import {seriesDefinition,organizerReason} from './organizer.js';
 import {bookSupport} from './operations.js';
 import {CARS,getEvent,sectorAt} from './data.js';
@@ -39,7 +40,7 @@ function editable(career,active){if(active)throw new Error('Сначала за�
 export function enterCup(career,cupId,attempt,active=false){
  const next=editable(career,active),cup=getCup(cupId,next);if(!cup)throw new Error('Кубок не найден');
  if(next.championships?.active)throw new Error('Сначала заверши или покинь текущий кубок');
- const reason=cupUnlockReason(next,cup)||regulationReason(configuration(next.car,next.pilot,next.builds[next.car],100,next.setups[next.car]),cup);if(reason)throw new Error(reason);
+ const reason=cupUnlockReason(next,cup)||regulationReason(configuration(next.car,next.pilot,next.builds[next.car],100,next.setups[next.car],installedEngineId(next),next.wear?.[next.car]),cup);if(reason)throw new Error(reason);
  if(typeof attempt!=='string'||!attempt||attempt.length>80)throw new Error('Нужен идентификатор сезона');
  if(next.money<cup.fee)throw new Error('Недостаточно денег на взнос');next.money-=cup.fee;
  next.championships??=emptyChampionship();next.championships.active={...(cup.custom?{definition:structuredClone(cup)}:{}),cupId,attempt,carId:next.car,stage:0,results:[],npcs:cup.roster.map(([id])=>({id,condition:100,budget:cup.budget}))};return next;
@@ -63,7 +64,7 @@ function repairedNpc(npc){
 export function bookCupRace(career,runId){
  const state=career.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
  if(career.car!==state.carId)throw new Error('Для кубка вернись на зарегистрированную машину');
- const [eventId,weather]=cup.stages[state.stage],config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups[career.car]);
+ const [eventId,weather]=cup.stages[state.stage],config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups[career.car],installedEngineId(career),career.wear?.[career.car]);
  const reason=regulationReason(config,cup)||admissionReason(career,eventId);if(reason)throw new Error(reason);
  if(typeof runId!=='string'||!runId||runId.length>80||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
  let next={...career,eventId,weather},race;

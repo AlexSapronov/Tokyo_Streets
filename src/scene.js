@@ -100,11 +100,11 @@ export class Scene {
   renderBackground() {
     const c=this.background.getContext('2d'),w=this.w,h=this.h,s=this.scale;
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
-    const circuit=['circuit','dragstrip','driftpark'].includes(this.event.theme),ridge=this.event.theme==='ridge';
+    const circuit=['circuit','dragstrip','driftpark'].includes(this.event.theme),ridge=this.event.theme==='ridge',highway=this.event.theme==='highway';
     const bg=c.createLinearGradient(0,0,w,h);
     bg.addColorStop(0,circuit?'#263338':ridge?'#2b2939':'#152d2c');bg.addColorStop(1,'#101d23');
     c.fillStyle=bg;c.fillRect(0,0,w,h);
-    if (!circuit) {
+    if (!circuit&&!highway) {
       this.polygon(c,[[0,h*.4],[w*.1,h*.18],[w*.25,h*.3],[w*.39,h*.04],[w*.52,h*.32],[w*.65,h*.11],[w*.8,h*.3],[w,h*.15],[w,h],[0,h]],ridge?'#383647':'#213d35');
       this.polygon(c,[[0,h*.7],[w*.15,h*.44],[w*.31,h*.59],[w*.44,h*.31],[w*.58,h*.6],[w*.75,h*.38],[w,h*.7],[w,h],[0,h]],ridge?'#2c333c':'#1c3630');
     }
@@ -115,13 +115,13 @@ export class Scene {
     this.path(c,road,'#263a3e',44*s);
     this.path(c,road,'#3c5050',37*s);
     this.path(c,road,circuit?'#d4d9bd55':'#cbbf8c80',1.5*s,[9*s,12*s]);
-    if (!circuit) {
+    if (!circuit&&!highway) {
       for(let i=0;i<135;i++) {
         const x=Math.sin(i*127.1)*430,y=((i*173)%1350)-60;
         const near=this.route.some((point,k)=>k%10===0&&Math.hypot(point[0]-x,point[1]-y)<60);
         if(!near)this.tree(c,x,y,(Math.sin(i*43)+1)/2);
       }
-    } else if(this.event.theme!=='dragstrip') {
+    } else if(!highway&&this.event.theme!=='dragstrip') {
       // Paddock scenery belongs to circuit layouts, not the drag racing lanes.
       for(let i=0;i<6;i++) {
         const [x,y]=this.project(-160+i*50,500);
@@ -130,7 +130,11 @@ export class Scene {
         c.fillStyle='#f5c784';c.fillRect(x+12*s,y-19*s,17*s,8*s);
       }
     }
-    if(this.event.theme==='driftpark'){
+    if(highway){
+      // Buildings stay beside the road, never across a racing lane.
+      for(let i=0;i<12;i++){const y=i*280+60,x=(i%2?1:-1)*(130+i%3*35),near=this.route.some((p,k)=>k%10===0&&Math.hypot(p[0]-x,p[1]-y)<80);if(near)continue;const [px,py]=this.project(x,y);this.polygon(c,[[px,py],[px+35*s,py+9*s],[px+35*s,py-55*s],[px,py-64*s]],'#263b48');for(let j=0;j<4;j++){c.fillStyle='#d9c68a';c.fillRect(px+8*s,py-(12+j*11)*s,6*s,4*s);}}
+    }
+    if(this.event.mode==='drift'){
       for(let i=0;i<this.event.sectors.length;i++){
         const t=(this.checkpoints[i]+this.checkpoints[i+1])/2;
         const [x,y]=road[Math.floor(t*800)];

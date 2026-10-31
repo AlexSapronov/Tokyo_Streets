@@ -1,3 +1,5 @@
+import {engineCar,stockEngineId,getEngine} from './engine-data.js';
+import {normalizeComponentWear,wornCar,tireKey} from './wear.js';
 import {orderPolicy} from './ai-policy.js';
 import {normalizeSetup} from './setup.js';
 import {tunedCar,normalizeBuild,tireFactor,aeroGrip} from './tuning.js';
@@ -9,13 +11,13 @@ import {repetitionEffect,rememberAction,focusCost,strainAfter,strainEffect} from
 import {freshDragState,dragReason,simulateDrag,dragCards} from './drag.js';
 import {CARS,PILOTS,CARDS,sectorAt,getEvent} from './data.js';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-export function configuration(carId,pilotId,parts=[],condition=100,rawSetup={}){
+export function configuration(carId,pilotId,parts=[],condition=100,rawSetup={},engineId=null,rawWear={}){
  const car=CARS.find(c=>c.id===carId)||CARS[0],pilot=PILOTS.find(p=>p.id===pilotId)||PILOTS[0];
- const installed=normalizeBuild(car.id,Array.isArray(parts)?parts:[]);
+ const motor=getEngine(engineId)?engineId:stockEngineId(car.id),wear=normalizeComponentWear(rawWear),installed=normalizeBuild(car.id,Array.isArray(parts)?parts:[],motor);
  const setup=normalizeSetup(installed,rawSetup);
- return {car:tunedCar(car,installed,setup),setup,pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
+ return {car:tunedCar(wornCar(engineCar(car,motor),wear),installed,setup,wear),engineId:motor,wear,tireCondition:wear[tireKey(installed)],setup,pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
 }
-export function freshState(config){return {time:0,tires:100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
+export function freshState(config){return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
 export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
  if(sector.mode==='drift')return driftReason(card,sector,state,config);
@@ -43,14 +45,14 @@ function simulateRaw(config,state,sector,card,execution=null){
  // SI units: metric hp -> watts, kg, m/s. A bounded sector approximation,
  // not a wheel-level simulator. Both drivers use exactly this function.
  const mass=car.mass-(has('weight')?65:0)+(has('suspension')?8:0);
- const grip=car.grip*(1-sector.wet*(car.drive==='AWD'?.28:.4))*tireFactor(config,sector.wet)*aeroGrip(config,state.velocity)*(has('suspension')?1.05:1)*(.7+.3*state.tires/100)*(.88+.12*config.condition/100);
+ const grip=car.grip*(1-sector.wet*(car.drive==='AWD'?.28:.4))*tireFactor(config,sector.wet)*aeroGrip(config,state.velocity)*(has('suspension')?1+.05*car.partSuspensionHealth:1)*(.7+.3*state.tires/100)*(.88+.12*config.condition/100);
  const brakeFade=clamp(1-Math.max(0,state.heat-105)/280,.65,1);
- const brake=car.brakes*(has('brakes')?1.18:1)*brakeFade;
+ const brake=car.brakes*(has('brakes')?car.partBrakeFactor:1)*brakeFade;
  const rpm=transmission(config,state.velocity*3.6);
- const band=parts.some(id=>['shortFinal','longFinal','cams'].includes(id))?clamp(1-((rpm.rpm/rpm.redline-.8)/.8)**2,.75,1)*(rpm.rpm/rpm.redline<.6?car.lowRpmFactor:1):1;
+ const band=parts.some(id=>['shortFinal','longFinal','cams','flywheel'].includes(id))?clamp(1-((rpm.rpm/rpm.redline-.8)/.8)**2,.75,1)*(rpm.rpm/rpm.redline<.6?car.lowRpmFactor:1):1;
  const power=car.power*735.5*.78*(.9+.1*config.condition/100)*band;
  const terminal=Math.cbrt(power/car.airResistance);
- const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1.05:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);
+ const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1+.05*car.partLsdHealth:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);
  const cornerSpeed=corner?Math.sqrt(grip*9.81*sector.radius):terminal;
  const accel=Math.min(grip*9.81*traction,power/(mass*Math.max(state.velocity,18)))-9.81*sector.slope-(car.rollingFactor-1)*.12;
  const exit=corner?Math.min(terminal,cornerSpeed+accel*1.5):Math.min(terminal,Math.sqrt(state.velocity**2+2*accel*sector.length));
@@ -72,7 +74,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  const wear=(corner?2.1:1.05)*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*repeat.wearFactor*car.wearFactor;
  const heat=(corner?12: -10)*(mass/1100)+card.heat;
  const repetitionHeat=card.heat>=0?repeat.heatExtra:0;
- const cooled=(heat>0?heat*car.heatFactor*(has('brakes')?.7:1):heat*car.cooling*(has('cooling')?1.3:1)*repeat.recoveryFactor)+repetitionHeat;
+ const cooled=(heat>0?heat*car.heatFactor*(car.engineHeat||1)*(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1):heat*car.cooling*(has('cooling')?car.coolerFactor:1)*repeat.recoveryFactor)+repetitionHeat;
  const actionFocus=focusCost(config,state,card);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;

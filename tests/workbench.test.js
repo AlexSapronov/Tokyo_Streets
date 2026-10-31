@@ -51,6 +51,10 @@ test('actual app boots and all page navigation, garage preview and tuning tabs r
  go('team');q('[data-pane=staff]').click();q('[data-staff-hire=mechanic]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).operations.staff.mechanic,1);assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'staff');
  go('seasons');q('[data-pane=organizer]').click();q('#series-name').value='DOM Series';q('#series-save').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).organizer.series[0].name,'DOM Series');assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'organizer');
  q('[data-series-enter]').click();assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'current');assert.ok(q('#season-prepare'));
+ go('team');q('[data-pane=staff]').click();q('[data-staff-hire=engineer]').click();q('[data-staff-hire=engineer]').click();go('tuning');q('[data-pane=engines]').click();q('#engine-catalog-select').value='w16';q('#engine-catalog-select').onchange();assert.equal(q('[data-engine-buy=w16]').closest('.engine-row').hidden,false);q('#engine-catalog-select').value='1uz';q('#engine-catalog-select').onchange();q('[data-engine-buy=1uz]').click();q('[data-engine-install]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).engines.installed.supra.engineId,'1uz');assert.match(q('.page-overview').textContent,/1UZ/);
+ go('race');q('#discipline-select').value='drift';q('#discipline-select').onchange({target:q('#discipline-select')});assert.ok([...q('#event-select').querySelectorAll('option')].every(o=>o.value==='ebisu'||o.value==='meihan'||o.value.endsWith('-drift')));
+ go('world');q('#world-discipline').value='drag';q('#world-discipline').onchange({target:q('#world-discipline')});assert.equal(q('.event-grid').querySelectorAll('[data-event]').length,3);
+ go('seasons');q('[data-pane=organizer]').click();q('[data-series-discipline]').value='drift';q('[data-series-discipline]').onchange();assert.ok([...q('[data-series-event]').querySelectorAll('option')].every(o=>o.value==='ebisu'||o.value==='meihan'||o.value.endsWith('-drift')));
 });
 
 test('pane height accounts for the real header offset without hiding overflowing content',()=>{
