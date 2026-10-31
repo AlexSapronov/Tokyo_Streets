@@ -1,3 +1,4 @@
+import {sectionCamera,sceneryClear} from './scene-camera.js';
 import {sceneLayout} from './scene-layout.js';
 import {presentationRecord,presentationFrame} from './presentation.js';
 import {CARS, getEvent} from './data.js';
@@ -31,7 +32,7 @@ function routePoints(anchors) {
 }
 export class Scene {
   constructor(canvas, race, ghost = null, showGhost = true, sound = null) {
-    this.canvas = canvas;this.sound=sound;this.follow=false;
+    this.canvas = canvas;this.sound=sound;this.follow=true;this.cameraState=null;
     this.ctx = canvas.getContext('2d');
     this.event = getEvent(race.eventId);
     this.route = routePoints(this.event.anchors);
@@ -73,6 +74,7 @@ export class Scene {
     this.background.height = this.canvas.height;
     this.layout=sceneLayout(this.route,this.w,this.h);
     this.bounds=this.layout.bounds;this.scale=this.layout.scale;
+    this.cameraState=null;
     this.renderBackground();
   }
   project(x,y,z=0) {
@@ -110,21 +112,28 @@ export class Scene {
     }
     const road=this.route.map(point=>this.project(...point));
     if (!circuit) this.path(c,road.map(([x,y])=>[x,y+18*s]),'#081419',62*s);
+    if(circuit)this.path(c,road,'#45604e',88*s);
     this.path(c,road,circuit?'#ddd7be':'#71887b',54*s);
     this.path(c,road,circuit?'#90494a':'#a0a38d',49*s,circuit?[9*s,9*s]:[]);
     this.path(c,road,'#263a3e',44*s);
     this.path(c,road,'#3c5050',37*s);
     this.path(c,road,circuit?'#d4d9bd55':'#cbbf8c80',1.5*s,[9*s,12*s]);
+    if(this.event.crossing){
+      const target=this.project(...this.event.crossing);let index=450,distance=Infinity;
+      for(let i=450;i<road.length-10;i++){const d=Math.hypot(road[i][0]-target[0],road[i][1]-target[1]);if(d<distance){index=i;distance=d;}}
+      const bridge=road.slice(index-12,index+13);this.path(c,bridge,'#101b1c',70*s);this.path(c,bridge,'#afbaa7',54*s);this.path(c,bridge,'#3c5050',44*s);this.path(c,bridge,'#d4d9bd55',1.5*s,[9*s,12*s]);
+    }
     if (!circuit&&!highway) {
       for(let i=0;i<80;i++) {
         const x=Math.sin(i*127.1)*430,y=((i*173)%1350)-60;
-        const near=this.route.some((point,k)=>k%10===0&&Math.hypot(point[0]-x,point[1]-y)<60);
+        const point=this.project(x,y),near=!sceneryClear(road,point[0],point[1]-10*s,65*s);
         if(!near)this.tree(c,x,y,(Math.sin(i*43)+1)/2);
       }
     } else if(!highway&&this.event.theme!=='dragstrip') {
       // Paddock scenery belongs to circuit layouts, not the drag racing lanes.
-      for(let i=0;i<6;i++) {
-        const [x,y]=this.project(-160+i*50,500);
+      for(let i=0,placed=0;i<36&&placed<6;i++) {
+        const [x,y]=this.project(-400+(i%9)*110,150+Math.floor(i/9)*230);
+        if(!sceneryClear(road,x+24*s,y-20*s,90*s))continue;placed++;
         this.polygon(c,[[x,y],[x+45*s,y+11*s],[x+45*s,y-30*s],[x,y-41*s]],'#64716c');
         this.polygon(c,[[x-7*s,y-43*s],[x+38*s,y-32*s],[x+58*s,y-45*s],[x+12*s,y-56*s]],'#8a9a8b');
         c.fillStyle='#f5c784';c.fillRect(x+12*s,y-19*s,17*s,8*s);
@@ -132,7 +141,7 @@ export class Scene {
     }
     if(highway){
       // Buildings stay beside the road, never across a racing lane.
-      for(let i=0;i<12;i++){const y=i*280+60,x=(i%2?1:-1)*(130+i%3*35),near=this.route.some((p,k)=>k%10===0&&Math.hypot(p[0]-x,p[1]-y)<80);if(near)continue;const [px,py]=this.project(x,y);this.polygon(c,[[px,py],[px+35*s,py+9*s],[px+35*s,py-55*s],[px,py-64*s]],'#263b48');for(let j=0;j<4;j++){c.fillStyle='#d9c68a';c.fillRect(px+8*s,py-(12+j*11)*s,6*s,4*s);}}
+      for(let i=0;i<12;i++){const y=i*280+60,x=(i%2?1:-1)*(130+i%3*35),near=this.route.some((p,k)=>k%10===0&&Math.hypot(p[0]-x,p[1]-y)<80);if(near)continue;const [px,py]=this.project(x,y);if(!sceneryClear(road,px+18*s,py-28*s,95*s))continue;this.polygon(c,[[px,py],[px+35*s,py+9*s],[px+35*s,py-55*s],[px,py-64*s]],'#263b48');for(let j=0;j<4;j++){c.fillStyle='#d9c68a';c.fillRect(px+8*s,py-(12+j*11)*s,6*s,4*s);}}
     }
     if(this.event.mode==='drift'){
       for(let i=0;i<this.event.sectors.length;i++){
@@ -209,9 +218,13 @@ export class Scene {
   draw() {
     const c=this.ctx,w=this.w,h=this.h;
     const cameraRecord=this.replayRecord||presentationRecord(this.race),cameraProgress=progressAtTime(cameraRecord.sectorTimes,this.elapsed,this.event.id);
-    const zoom=this.follow?2.4:1,center=this.project(...this.route[Math.min(800,Math.floor(cameraProgress*800))]);
-    const tx=Math.max(w*(1-zoom),Math.min(0,w*.6-center[0]*zoom)),ty=Math.max(h*(1-zoom),Math.min(0,h*.52-center[1]*zoom));
-    c.setTransform(this.dpr,0,0,this.dpr,0,0);c.drawImage(this.background,tx,ty,w*zoom,h*zoom);c.setTransform(this.dpr*zoom,0,0,this.dpr*zoom,this.dpr*tx,this.dpr*ty);
+    const points=this.route.map(p=>this.project(...p));
+    const index=this.replayRecord?presentationFrame(this.replayRecord,this.elapsed,this.event.id).index:Math.min(this.event.sectors.length-1,Math.max(0,this.race.index-(this.motion?1:0)));
+    const target=this.follow?sectionCamera(points,this.checkpoints,index||0,w,h,this.scale):{zoom:1,x:0,y:0};
+    if(!this.cameraState)this.cameraState={...target};
+    if(!this.paused)for(const key of ['zoom','x','y'])this.cameraState[key]+=(target[key]-this.cameraState[key])*.12;
+    const {zoom,x:tx,y:ty}=this.cameraState;
+    c.setTransform(this.dpr,0,0,this.dpr,0,0);c.drawImage(this.background,0,0,w,h);c.drawImage(this.background,tx,ty,w*zoom,h*zoom);c.setTransform(this.dpr*zoom,0,0,this.dpr*zoom,this.dpr*tx,this.dpr*ty);
     const visualRecord=this.replayRecord||presentationRecord(this.race),frame=presentationFrame(visualRecord,this.elapsed,this.event.id);
     const moving=!!this.motion&&!this.paused&&!this.race.player.dnf;
     this.sound?.update(frame,moving&&document.visibilityState!=='hidden');
@@ -243,12 +256,32 @@ export class Scene {
       this.drawCar(progress,this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:frame.yaw*(this.event.mode==='drift'?1:direction(progress)),this.race.player.dnf?0:frame.lineOffset*direction(progress)+frame.position,frame);
     }
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
+    this.drawMinimap(cameraProgress);
     if(this.race.weather!=='dry'){
       c.strokeStyle='#c0d9dc24';c.lineWidth=.8;
       for(let i=0;i<(this.race.weather==='rain'?100:35);i++){
         const x=(i*79+this.time*.09)%w,y=(i*97+this.time*.22)%h;c.beginPath();c.moveTo(x,y);c.lineTo(x-5,y+13);c.stroke();
       }
     }
+  }
+  drawMinimap(progress){
+    const c=this.ctx,w=Math.min(190,this.w*.22),h=105,x=this.w-w-12,y=12,b=this.bounds;
+    const scale=Math.min((w-24)/(b[1]-b[0]||1),(h-28)/(b[3]-b[2]||1));
+    const points=this.route.map(([a,d])=>{const [px,py]=this.layout.transform(a,d);return [x+w/2+(px-(b[0]+b[1])/2)*scale,y+h/2+7+(py-(b[2]+b[3])/2)*scale];});
+    c.save();c.fillStyle='#101b1cee';c.beginPath();c.rect(x,y,w,h);c.fill();c.font='10px monospace';c.fillStyle='#b7c9bc';c.fillText('MAP',x+10,y+15);
+    this.path(c,points,'#6e8b81',2);
+    const index=Math.min(this.event.sectors.length-1,this.replayRecord?presentationFrame(this.replayRecord,this.elapsed,this.event.id).index:Math.max(0,this.race.index-(this.motion?1:0))),start=Math.floor(this.checkpoints[index]*800),end=Math.ceil(this.checkpoints[index+1]*800);
+    this.path(c,points.slice(start,end+1),'#ffab78',3);
+    const dot=(fraction,color)=>{const p=points[Math.max(0,Math.min(800,Math.floor(fraction*800)))];c.fillStyle=color;c.beginPath();c.arc(p[0],p[1],3,0,7);c.fill();};
+    dot(1,'#9dc6ac');dot(progress,'#ffab78');
+    if(!this.replayRecord&&['duel','drag'].includes(this.race.mode))dot(progressAtTime(this.race.history.map(r=>r.aiTime).filter(t=>t!==null),this.elapsed,this.event.id),'#b9a1df');
+    if(this.cameraState){
+      const camera=this.cameraState,convert=(px,py)=>[x+w/2+(px-this.layout.center[0])/this.scale*scale,y+h/2+7+(py-this.layout.center[1])/this.scale*scale];
+      const a=convert(-camera.x/camera.zoom,-camera.y/camera.zoom),b=convert((this.w-camera.x)/camera.zoom,(this.h-camera.y)/camera.zoom);
+      const left=Math.max(x+4,Math.min(x+w-4,a[0])),top=Math.max(y+20,Math.min(y+h-4,a[1])),right=Math.max(left,Math.min(x+w-4,b[0])),bottom=Math.max(top,Math.min(y+h-4,b[1]));
+      c.strokeStyle='#f2d2a788';c.lineWidth=1;c.strokeRect(left,top,right-left,bottom-top);
+    }
+    c.restore();
   }
   loop(now) {
     if(this.disposed)return;
