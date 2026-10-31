@@ -29,7 +29,6 @@ import {CARS, PARTS, TUNING_GROUPS, DISCIPLINES, EVENTS, CARDS, getEvent, sector
 import {configuration, freeRivalOptions,performanceProfile,nominalConfiguration,availableCards, disabledReason, simulate, createRace, resolveSector, medalTargets, raceOutcome} from './engine.js';
 import {loadCareer, storeCareer, newCareer} from './storage.js';
 import {awardRace, bestFor, unlocked, unlockText, cumulativeTimes, raceRecord} from './progress.js';
-import {vehicleSVG} from './vehicles.js';
 import {garageArtworkHTML,garageCarsByPrice} from './garage-art.js';
 import {Scene} from './scene.js';
 
