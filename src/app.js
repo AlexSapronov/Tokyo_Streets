@@ -473,33 +473,21 @@ function teamAction(action){
 }
 function renderTeam(){
   const locked=!!race&&!race.finished,team=career.team;
-  app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">TEAM HQ / 仲間</div><h1 id="team-title"></h1></div><span class="badge">${team.founded?'ШТАБ ОТКРЫТ':'ПУТЬ К СВОЕЙ КОМАНДЕ'}</span></div>
-    ${locked?'<div class="notice">Заезд активен. Контракты, назначение и план можно менять после финиша или выхода.</div>':''}
-    ${!team.founded?`<section class="panel"><h2>Собери свою команду</h2><p>Команда открывает управление через приказы: ты отвечаешь за пилота и машину, а пилот сам выбирает карты. Первый этап — одна машина на трассе.</p>
-    <div class="team-requirements"><span>Финиши: ${career.races} / 4</span><span>Street Cred: ${career.street} / 24 <b>или</b> Official Rep: ${career.official} / 12</span><span>Основание: ${money(TEAM_PRICE)}</span></div>
-    <button id="found-team" class="primary" ${locked||!canFoundTeam(career)||career.money<TEAM_PRICE?'disabled':''}>Основать команду · ${money(TEAM_PRICE)}</button></section>`:
-    `<div class="panel team-settings"><label>Название команды <input id="team-name" maxlength="40" ${locked?'disabled':''}></label><button id="rename-team" class="secondary" ${locked?'disabled':''}>Сохранить название</button><span class="micro">АКТИВНАЯ МАШИНА: ${car().name} / ${pilot().name}</span></div>`}
-    <div class="section-title"><div><div class="eyebrow">THE PEOPLE</div><h2>У каждого пилота свой характер</h2></div></div>
-    <div class="pilot-row">${PILOTS.map(p=>{const crew=CREW[p.id],contract=contractFor(career,p.id);return `<article class="pilot ${career.pilot===p.id?'selected':''}"><div class="pilot-symbol" style="color:${p.color}">${p.trait}</div><h3>${p.name}</h3><p>${p.description}</p>
-      <div class="micro">ДИСЦИПЛИНА ${Math.round(crew.discipline*100)}% · КОНТРАКТ ${money(crew.fee)}<br>ОПЛАТА ЗА КАЖДЫЙ СТАРТ ${money(crew.salary)}<br>${contract?'ДОВЕРИЕ '+contract.trust+' / 100 · ЗАЕЗДОВ В КОМАНДЕ '+contract.experience+' · УРОВЕНЬ '+Math.floor(Math.min(30,contract.experience)/5):'БЕЗ КОНТРАКТА'}</div>
-      <button class="${contract?'secondary':'primary'} wide" ${locked||!team.founded||!contract&&career.money<crew.fee||contract&&career.pilot===p.id?'disabled':''} ${contract?'data-assign':'data-hire'}="${p.id}">${contract?career.pilot===p.id?'Назначен на текущую машину':'Назначить пилота':'Заключить контракт · '+money(crew.fee)}</button></article>`;}).join('')}</div>
-    ${team.founded?`<section class="panel team-plan"><div class="eyebrow">RACE PLAN</div><h2>Приказ и условия переключения</h2><p>Условия проверяются сверху вниз. Первое сработавшее меняет приказ на текущем участке; характер и состояние определяют ответ пилота.</p>
-      <label>Базовый приказ <select id="plan-order" ${locked?'disabled':''}>${ORDERS.map(order=>`<option value="${order.id}">${order.name}</option>`).join('')}</select></label>
-      <div class="plan-rules">${PLAN_RULES.map(rule=>`<label><input type="checkbox" data-rule="${rule.id}" ${team.plan.rules[rule.id]?'checked':''} ${locked?'disabled':''}> ${rule.name}</label>`).join('')}</div>
-      <button id="save-plan" class="primary" ${locked?'disabled':''}>Сохранить план</button><span id="plan-saved" class="micro"></span></section>`:''}
-    ${staffHTML(career,locked)}${sponsorsHTML(career,locked)}
-    <p class="notice" style="margin-top:20px">Физика, карты, ограничения и наказание за повтор приёма одинаковы в личном и менеджерском режиме. Доверие влияет на трактовку приказа, а не даёт бонус к мощности. В гараже можно лично выступать любым пилотом; контракт нужен для командного управления.</p>`;
-  $('#team-title').textContent=team.founded?team.name:'От гонщика к руководителю команды';
+  app.innerHTML='<div class="page-heading"><div><div class="eyebrow">TEAM HQ / 仲間</div><h1 id="team-title"></h1></div><span class="badge">'+(team.founded?'КОМАНДА ПОДДЕРЖКИ':'МАСТЕРСКАЯ И ПАРТНЁРЫ')+'</span></div>'
+    +(locked?'<div class="notice">Идёт заезд. Управление персоналом и партнёрами откроется после финиша.</div>':'')
+    +(!team.founded?'<section class="panel"><h2>Собери команду поддержки</h2><p>За рулём всегда ты. Команда поможет с ремонтом, настройкой машины и спонсорскими контрактами. Наём других пилотов и управление их заездами временно отключены.</p>'
+      +'<div class="team-requirements"><span>Финиши: '+career.races+' / 4</span><span>Street Cred: '+career.street+' / 24 <b>или</b> Official Rep: '+career.official+' / 12</span><span>Основание: '+money(TEAM_PRICE)+'</span></div>'
+      +'<button id="found-team" class="primary" '+(locked||!canFoundTeam(career)||career.money<TEAM_PRICE?'disabled':'')+'>Основать команду · '+money(TEAM_PRICE)+'</button></section>'
+      :'<section class="panel team-settings"><label>Название команды <input id="team-name" maxlength="40" '+(locked?'disabled':'')+'></label><button id="rename-team" class="secondary" '+(locked?'disabled':'')+'>Сохранить название</button><span class="micro">ЗА РУЛЁМ: ТЫ · '+escapeHTML(car().name)+'</span></section>')
+    +staffHTML(career,locked)+sponsorsHTML(career,locked);
+  $('#team-title').textContent=team.founded?team.name:'Команда поддержки';
   if($('#found-team'))$('#found-team').onclick=()=>teamAction(()=>foundTeam(career,locked));
   if(team.founded){
-    $('#team-name').value=team.name;$('#plan-order').value=team.plan.order;
+    $('#team-name').value=team.name;
     $('#rename-team').onclick=()=>teamAction(()=>renameTeam(career,$('#team-name').value,locked));
-    $('#save-plan').onclick=()=>{const rules=Object.fromEntries([...document.querySelectorAll('[data-rule]')].map(input=>[input.dataset.rule,input.checked]));if(teamAction(()=>setTeamPlan(career,{order:$('#plan-order').value,rules},locked)))toast('План сохранён для следующих заездов.');};
   }
-  document.querySelectorAll('[data-hire]').forEach(button=>button.onclick=()=>teamAction(()=>hirePilot(career,button.dataset.hire,locked)));
   document.querySelectorAll('[data-staff-hire]').forEach(button=>button.onclick=()=>teamAction(()=>hireStaff(career,button.dataset.staffHire,locked)));
   document.querySelectorAll('[data-staff-dismiss]').forEach(button=>button.onclick=()=>teamAction(()=>dismissStaff(career,button.dataset.staffDismiss,locked)));
   document.querySelectorAll('[data-sponsor-accept]').forEach(button=>button.onclick=()=>teamAction(()=>acceptSponsor(career,button.dataset.sponsorAccept,globalThis.crypto?.randomUUID?.()||Date.now().toString(36),locked)));
   if($('[data-sponsor-cancel]'))$('[data-sponsor-cancel]').onclick=()=>teamAction(()=>cancelSponsor(career,locked));
-  document.querySelectorAll('[data-assign]').forEach(button=>button.onclick=()=>teamAction(()=>assignPilot(career,button.dataset.assign,locked)));
 }
