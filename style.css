@@ -50,3 +50,11 @@
 
 /* Language menu */
 .language-control{display:flex;align-items:center;gap:6px;color:var(--muted);letter-spacing:.5px;font:10px var(--mono)}.language-control select{padding:6px 9px;min-width:57px;font:11px var(--mono);cursor:pointer}.account{flex-shrink:0}.topbar nav{gap:clamp(9px,1.5vw,30px)}
+
+/* Finish summary: fast to scan before the detailed telemetry. */
+.race-recap{margin:12px 0 14px;padding:13px 16px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:5px;background:var(--panel)}
+.race-recap-heading{font-size:14px;font-weight:700;line-height:1.35;margin:0 0 5px}
+.race-recap p{margin:0 0 7px;font-size:12px;line-height:1.55}
+.race-recap ul{display:flex;flex-wrap:wrap;column-gap:24px;row-gap:4px;margin:0;padding-left:16px}
+.race-recap li{flex:1 1 290px;font-size:11px;line-height:1.45;color:var(--muted)}
+@media(min-width:1250px){#app[data-race-panel=report] .race-recap{margin:8px 0;padding:10px 14px}}
