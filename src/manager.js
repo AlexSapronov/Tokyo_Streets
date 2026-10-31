@@ -1,3 +1,4 @@
+import {bookSupport} from './operations.js';
 import {orderPolicy} from './ai-policy.js';
 export {orderPolicy} from './ai-policy.js';
 import {admissionReason,payoutScale} from './balance.js';
@@ -13,11 +14,12 @@ export function beginManagedRace(career,eventId,weather,runId){
   const reason=admissionReason(career,eventId);if(reason)throw new Error(reason);
   const fee=CREW[career.pilot].salary;
   if(career.money<fee)throw new Error('Недостаточно денег на оплату пилота');
-  const next=structuredClone(career);next.money-=fee;
+  const support=bookSupport(career,eventId,runId),next=support.career;
+  if(next.money<fee)throw new Error('Недостаточно денег на пилота и персонал');next.money-=fee;
   const config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car]);
   const experience=Math.min(30,contract.experience),level=Math.floor(experience/5);
   config.pilot={...config.pilot,skill:Math.min(.995,config.pilot.skill+level*.0025),focus:config.pilot.focus+level};
-  const race=createRace(config,weather,eventId,runId);race.rewardScale=payoutScale(career,eventId);
+  const race=createRace(config,weather,eventId,runId);race.rewardScale=payoutScale(career,eventId);race.supportFee=support.fee;
   race.manager={pilotId:career.pilot,trust:contract.trust,fee,order:career.team.plan.order,
     level,experience:contract.experience,plan:normalizePlan(career.team.plan),log:[]};
   return {career:next,race};

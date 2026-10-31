@@ -84,7 +84,8 @@ test('recorded telemetry survives all event formats, migrates old replays and re
 });
 test('thermal calculation respects physical sensor sources and cooling equipment',()=>{
  const config=configuration('ae86','ren'),hks=configuration('ae86','ren',['cooling']);
- let base=createRace(config,'dry','yokohama'),cooled=createRace(hks,'dry','yokohama');
+ // Compare cooling on the same reproducible execution rolls, without a random runoff.
+ let base=createRace(config,'dry','yokohama',null,42),cooled=createRace(hks,'dry','yokohama',null,42);
  for(const id of ['drag-burnout','drag-hard','drag-redline','drag-push']){base=resolveSector(base,id);cooled=resolveSector(cooled,id);}
  assert.ok(readTelemetry(hks,cooled.player,'drag').oil<readTelemetry(config,base.player,'drag').oil);
  const drift=finishRace(cfg,'mixed','ebisu');assert.equal(readTelemetry(cfg,drift.player,'drift').tireTemp,drift.player.drift.temperature);

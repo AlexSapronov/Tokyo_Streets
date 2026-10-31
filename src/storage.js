@@ -1,3 +1,4 @@
+import {emptyOperations,normalizeOperations} from './operations.js';
 import {emptyPresets,normalizePresets} from './presets.js';
 import {emptyChampionship,normalizeChampionship} from './championship.js';
 import {normalizeSetup,defaultSetup,validSetup,setupKey} from './setup.js';
@@ -18,7 +19,7 @@ export function newCareer() {
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    operations:emptyOperations(),championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -98,6 +99,8 @@ export function validateSave(raw) {
   out.car = out.ownedCars.includes(raw.car) ? raw.car : 'ae86';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
   out.team=normalizeTeam(raw.team);
+  out.operations=normalizeOperations(raw.operations);
+  if(!out.team.founded)out.operations=emptyOperations();
   out.championships=normalizeChampionship(raw.championships);
   if(out.championships.active&&!out.ownedCars.includes(out.championships.active.carId))out.championships.active=null;
   out.control=raw.control==='manager'&&out.team.founded&&out.team.contracts.some(contract=>contract.pilotId===out.pilot)?'manager':'personal';

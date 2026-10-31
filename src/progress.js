@@ -1,3 +1,4 @@
+import {settleSupport} from './operations.js';
 import {settleCup} from './championship.js';
 import {setupKey} from './setup.js';
 import {teamAfterRace} from './team.js';
@@ -62,7 +63,8 @@ export function awardRace(career, race) {
   if (!race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
   const season=settleCup(next,race);next=season.career;
-  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
+  const support=settleSupport(next,race);next=support.career;
+  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,...(support.report?{sponsorReport:support.report}:{}),...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }
 export function checkpointFractions(eventId) {
   const sectors = getEvent(eventId).sectors;

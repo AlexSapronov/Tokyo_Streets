@@ -1,3 +1,4 @@
+import {bookSupport} from './operations.js';
 import {CARS,getEvent,sectorAt} from './data.js';
 import {configuration,createRace,chooseAI,simulate} from './engine.js';
 import {freshDragState} from './drag.js';
@@ -63,7 +64,7 @@ export function bookCupRace(career,runId){
  const reason=regulationReason(config,cup)||admissionReason(career,eventId);if(reason)throw new Error(reason);
  if(typeof runId!=='string'||!runId||runId.length>80||career.awardedRuns.includes(runId))throw new Error('Нужен новый идентификатор заезда');
  let next={...career,eventId,weather},race;
- if(career.control==='manager'){const started=beginManagedRace(next,eventId,weather,runId);next=started.career;race=started.race;}else race=createRace(config,weather,eventId,runId);
+ if(career.control==='manager'){const started=beginManagedRace(next,eventId,weather,runId);next=started.career;race=started.race;}else{const support=bookSupport(next,eventId,runId);next=support.career;race=createRace(config,weather,eventId,runId);race.supportFee=support.fee;}
  const seed=hashSeed(`${state.attempt}:${state.stage}`),featured=standings(state).find(e=>e.id!=='player');
  const npc=repairedNpc(state.npcs.find(n=>n.id===featured.id));
  race.seed=seed;race.rewardScale=payoutScale(career,eventId);race.rival=configuration(featured.carId,featured.pilotId,featured.parts,npc.condition);race.rivalStyle=featured.style;race.rivalName=featured.name;
