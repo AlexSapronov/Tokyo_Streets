@@ -1,3 +1,4 @@
+import {teamAfterRace} from './team.js';
 import {getEvent} from './data.js';
 import {raceOutcome} from './engine.js';
 
@@ -25,6 +26,8 @@ export function raceRecord(race) {
     condition: race.config.condition, time: race.player.time,
     sectorTimes: race.history.map(row => row.playerTime),
     actions: race.history.map(row => row.cardId),
+    ...(race.history.every(row=>row.telemetry)?{telemetry:race.history.map(row=>({...row.telemetry}))}:{}),
+    ...(race.manager?{manager:{pilotId:race.config.pilot.id,trust:race.manager.trust,fee:race.manager.fee,log:structuredClone(race.manager.log)}}:{}),
     ...(race.mode==='drag'?{drag:structuredClone(race.player.drag)}:race.mode==='drift'?{drift:structuredClone(race.player.drift)}:{})};
 }
 export function awardRace(career, race) {
@@ -51,7 +54,8 @@ export function awardRace(career, race) {
   next.records = next.records.slice(0, 30);
   // Preserve the legacy all-build Haruna statistic for old saves.
   if (race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
-  return {career: next, race: {...race, awarded: true, outcome, isBest}, isBest};
+  const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
+  return {career: next, race: {...race, awarded: true, outcome, isBest,...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }
 export function checkpointFractions(eventId) {
   const sectors = getEvent(eventId).sectors;

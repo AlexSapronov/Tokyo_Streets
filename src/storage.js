@@ -1,3 +1,5 @@
+import {normalizeTelemetry} from './telemetry.js';
+import {emptyTeam,normalizeTeam,normalizeCommandRecord} from './team.js';
 import {DRIFT_CARDS} from './drift-data.js';
 import {DRAG_CARDS} from './drag-data.js';
 import {CARS, PILOTS, PARTS, CARDS, EVENTS, getEvent} from './data.js';
@@ -11,7 +13,7 @@ export function newCareer() {
     builds: {ae86: [], chaser: [], evo: []}, purchased: {ae86: [], chaser: [], evo: []},
     condition: {ae86: 100, chaser: 100, evo: 100}, races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -41,7 +43,9 @@ function validateRecord(record) {
   const currentKey=recordKey(config,record.eventId,record.weather);
   const legacyKey='2'+currentKey.slice(currentKey.indexOf('|'));
   const key=['duel','timeattack'].includes(event.mode)&&record.key===legacyKey?legacyKey:currentKey;
-  return {key, eventId: record.eventId,
+  const telemetry=normalizeTelemetry(record.telemetry,count);
+  const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
+  return {key, ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -71,6 +75,8 @@ export function validateSave(raw) {
   out.ownedCars = unique(['ae86', ...list(raw.ownedCars).filter(validCar)]);
   out.car = out.ownedCars.includes(raw.car) ? raw.car : 'ae86';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
+  out.team=normalizeTeam(raw.team);
+  out.control=raw.control==='manager'&&out.team.founded&&out.team.contracts.some(contract=>contract.pilotId===out.pilot)?'manager':'personal';
   for (const car of CARS) {
     out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(validPart));
     out.builds[car.id] = unique(list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)));

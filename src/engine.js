@@ -1,3 +1,4 @@
+import {attachTelemetry,readTelemetry} from './telemetry.js';
 import {freshDriftState,driftReason,simulateDrift,driftCards} from './drift.js';
 import {repetitionEffect,rememberAction,focusCost} from './tactics.js';
 import {freshDragState,dragReason,simulateDrag,dragCards} from './drag.js';
@@ -26,7 +27,7 @@ export function disabledReason(card,sector,state,config,gap=0){
  if(card.id==='late'&&state.heat>155)return 'Тормоза перегреты (>155°C)';
  return '';
 }
-export function simulate(config,state,sector,card){
+function simulateRaw(config,state,sector,card){
  if(sector.mode==='drift')return simulateDrift(config,state,sector,card);
  if(sector.mode==='drag')return simulateDrag(config,state,sector,card);
  const repeat=repetitionEffect(state,card);
@@ -75,23 +76,27 @@ export function simulate(config,state,sector,card){
  if(has('lsd')&&card.id==='power')reasons.push('CUSCO LSD: лучше реализация тяги');
  return {time,next,risk,slip,speed:exit*3.6,gain:baseTime-time,reasons};
 }
+export function simulate(config,state,sector,card){
+  return attachTelemetry(config,state,sector,card,simulateRaw(config,state,sector,card));
+}
 // Three-sector beam search: resource decisions can pay off in the next two sectors.
 // Future positions are unknown, so future branches omit positional duel actions.
-export function chooseAI(config, state, sector, gap = 0, upcoming = []) {
+export function chooseAI(config, state, sector, gap = 0, upcoming = [], policy = null) {
   const cards = availableCards(config,sector.mode);
   const candidates = cards.filter(card => !disabledReason(card, sector, state, config, gap));
-  const resourcePrice = state => (state.drag?.falseStart ? 1000 : 0) + Math.max(0, 60 - state.focus) * .012
+  const resourcePrice = state => policy? (state.drag?.falseStart?1000:0)+policy.resourcePrice(state) : (state.drag?.falseStart ? 1000 : 0) + Math.max(0, 60 - state.focus) * .012
     + Math.max(0, state.heat - 115) * .009 + (100 - state.tires) * .008;
+  const stepCost=(action,result,current)=>policy?policy.stepCost(action,result,current):current.mode==='drift'?-result.clip.points/12:result.time;
   const scored = candidates.map(card => {
     const result = simulate(config, state, sector, card);
-    let beam = [{state: result.next, cost: sector.mode==='drift'?-result.clip.points/12:result.time, plan: [card.name]}];
+    let beam = [{state: result.next, cost: stepCost(card,result,sector), plan: [card.name]}];
     for (const nextSector of upcoming.slice(0, 2)) {
       const expanded = [];
       for (const node of beam) {
         for (const action of cards) {
           if (action.gap || disabledReason(action, nextSector, node.state, config)) continue;
           const step = simulate(config, node.state, nextSector, action);
-          expanded.push({state: step.next, cost: node.cost + (sector.mode==='drift'?-step.clip.points/12:step.time), plan: [...node.plan, action.name]});
+          expanded.push({state: step.next, cost: node.cost + stepCost(action,step,nextSector), plan: [...node.plan, action.name]});
         }
       }
       beam = expanded.sort((a,b) => a.cost + resourcePrice(a.state) - b.cost - resourcePrice(b.state)).slice(0, 5);
@@ -133,7 +138,7 @@ export function resolveSector(race, cardId) {
     playerTime: player.time, aiTime: ai?.result.time ?? null,
     gap: ai ? player.next.time - ai.result.next.time : null,
     risk: player.risk, speed: player.speed, slip: player.slip, reasons: player.reasons,
-    tires: player.next.tires, heat: player.next.heat, focus: player.next.focus,
+    tires: player.next.tires, heat: player.next.heat, focus: player.next.focus,telemetry:readTelemetry(race.config,player.next,race.mode),
     ...(player.clip?{drift:player.clip}:{})};
   return {...race, index: race.index + 1, player: player.next,
     opponent: ai?.result.next || race.opponent, history: [...race.history, row],

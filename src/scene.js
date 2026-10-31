@@ -155,7 +155,7 @@ export class Scene {
     c.fillStyle=fog;c.fillRect(0,0,w,h);
   }
   animateSector(race,ghost,duration) {
-    this.race=race;this.ghost=ghost;
+    this.fromState=this.race.player;this.race=race;this.ghost=ghost;
     this.motion={from:this.elapsed,to:race.player.time,started:performance.now(),duration};
     this.paused=false;
   }
@@ -225,7 +225,7 @@ export class Scene {
     if(this.motion&&!this.paused){
       const t=Math.min(1,(now-this.motion.started)/this.motion.duration);
       this.elapsed=this.motion.from+(this.motion.to-this.motion.from)*t;
-      this.onTick?.(this.elapsed);
+      this.onTick?.(this.elapsed,{fraction:t,from:this.fromState,to:this.race.player});
       if(t===1){this.motion=null;this.onComplete?.();}
     }
     if(this.disposed)return;
