@@ -1,7 +1,44 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#111919"><title>Tokyo Streets — тактический touge</title><link rel="stylesheet" href="style.css"></head>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#111919"><title>Tokyo Streets — тактический touge</title><link rel="stylesheet" href="style.css?v=0.9.1-2b0aa8e11dff"></head>
 <body>
 <header class="topbar"><a class="logo" href="#" aria-label="Tokyo Streets"><span class="logo-mark">東</span><span>TOKYO<span class="logo-light">STREETS</span><small>TACTICAL RACING CLUB</small></span></a><nav aria-label="Основная навигация"><button data-view="race" class="nav active">01 <span>Заезд</span></button><button data-view="garage" class="nav">02 <span>Гараж</span></button><button data-view="world" class="nav">03 <span>Карьера</span></button><button data-view="team" class="nav">04 <span>Команда</span></button></nav><div class="account"><span class="live-dot"></span><span>НОЧНАЯ СМЕНА</span><strong id="wallet"></strong><button id="help" class="icon-button" aria-label="Как играть">?</button></div></header>
-<main id="app"></main>
+<main id="app"><p role="status">Загрузка Tokyo Streets…</p><noscript>Для игры требуется JavaScript. Включите его для этой страницы.</noscript></main>
 <dialog id="modal"><div id="modal-content"></div></dialog><div id="toast" role="status"></div>
-<script type="module" src="src/app.js"></script></body></html>
+<!-- release-assets:start -->
+<script type="importmap">
+{
+  "imports": {
+    "./src/app.js": "./src/app.js?v=0.9.1-2b0aa8e11dff",
+    "./src/balance.js": "./src/balance.js?v=0.9.1-2b0aa8e11dff",
+    "./src/dashboard.js": "./src/dashboard.js?v=0.9.1-2b0aa8e11dff",
+    "./src/data.js": "./src/data.js?v=0.9.1-2b0aa8e11dff",
+    "./src/drag-data.js": "./src/drag-data.js?v=0.9.1-2b0aa8e11dff",
+    "./src/drag.js": "./src/drag.js?v=0.9.1-2b0aa8e11dff",
+    "./src/drift-data.js": "./src/drift-data.js?v=0.9.1-2b0aa8e11dff",
+    "./src/drift.js": "./src/drift.js?v=0.9.1-2b0aa8e11dff",
+    "./src/engine.js": "./src/engine.js?v=0.9.1-2b0aa8e11dff",
+    "./src/execution.js": "./src/execution.js?v=0.9.1-2b0aa8e11dff",
+    "./src/garage.js": "./src/garage.js?v=0.9.1-2b0aa8e11dff",
+    "./src/manager.js": "./src/manager.js?v=0.9.1-2b0aa8e11dff",
+    "./src/progress.js": "./src/progress.js?v=0.9.1-2b0aa8e11dff",
+    "./src/replay.js": "./src/replay.js?v=0.9.1-2b0aa8e11dff",
+    "./src/scene.js": "./src/scene.js?v=0.9.1-2b0aa8e11dff",
+    "./src/storage.js": "./src/storage.js?v=0.9.1-2b0aa8e11dff",
+    "./src/tactics.js": "./src/tactics.js?v=0.9.1-2b0aa8e11dff",
+    "./src/team.js": "./src/team.js?v=0.9.1-2b0aa8e11dff",
+    "./src/telemetry.js": "./src/telemetry.js?v=0.9.1-2b0aa8e11dff",
+    "./src/tuning.js": "./src/tuning.js?v=0.9.1-2b0aa8e11dff",
+    "./src/vehicles.js": "./src/vehicles.js?v=0.9.1-2b0aa8e11dff"
+  }
+}
+</script>
+<script type="module">
+import('./src/app.js?v=0.9.1-2b0aa8e11dff').catch(error => {
+  console.error('Tokyo Streets startup failed:', error);
+  const app=document.querySelector('#app');
+  app.innerHTML='<section class="panel" role="alert"><h1>Не удалось запустить игру</h1><p>Обновите файлы игры через git pull и перезагрузите страницу. Сохранение не удалено.</p><p>Если ошибка повторится, скопируйте текст ниже:</p><pre id="startup-error"></pre><button id="startup-retry" class="primary">Перезагрузить страницу</button></section>';
+  app.querySelector('#startup-error').textContent=String(error.message||error);
+  app.querySelector('#startup-retry').onclick=()=>location.reload();
+});
+</script>
+<!-- release-assets:end --></body></html>
