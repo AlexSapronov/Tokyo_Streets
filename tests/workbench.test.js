@@ -108,12 +108,16 @@ test('garage interface shows sorted prices and raster previews with SVG fallback
  const {document:d}=await boot(t),q=s=>d.querySelector(s);
  q('[data-view=garage]').click();
  assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),
-  ['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','nsx']);
+  ['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','r34','nsx']);
  assert.match(q('.garage-price-sort').textContent,/ЦЕНА/);
  assert.ok(q('.garage-car-detail .garage-render-ae86'));
  q('[data-garage-preview=rx7]').click();assert.ok(q('.garage-car-detail .garage-render-rx7'));
  q('[data-garage-preview=r32]').click();assert.ok(q('.garage-car-detail .vehicle-art svg'));
- assert.equal(q('.garage-car-detail .garage-render-r34'),null);
+ q('[data-garage-preview=r34]').click();assert.ok(q('.garage-car-detail .garage-render-r34'));
+ q('[data-garage-preview=chaser]').click();assert.ok(q('.garage-car-detail .garage-render-chaser'));
+ q('[data-garage-preview=supra]').click();assert.ok(q('.garage-car-detail .garage-render-supra'));
+ q('[data-garage-preview=ek9]').click();assert.ok(q('.garage-car-detail .garage-render-ek9'));
+ q('[data-garage-preview=nsx]').click();assert.ok(q('.garage-car-detail .garage-render-nsx'));
  q('#garage-drive').value='AWD';q('#garage-drive').onchange({target:q('#garage-drive')});
- assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),['evo','r32']);
+ assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),['evo','r32','r34']);
 });
