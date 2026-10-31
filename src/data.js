@@ -33,6 +33,14 @@ export const PARTS = [
  {id:'clutch',name:'EXEDY Hyper Single',type:'Сцепление',price:14000,desc:'Паузы переключений в дрэге −28%. Нагрев +8%, износ +6%: более резкая передача момента.',effect:'shift'},
  {id:'angle',rearOnly:true,name:'Wisefab Angle Kit',type:'Дрифтовая геометрия',price:10000,desc:'Для FR/MR: точность дрифта +0.045, отклик угла +8%, масса +4 кг. Требует контроля целевого угла.',effect:'drift'}
 ];
+export const TUNING_GROUPS = [
+ {id:'tires',name:'Шины',description:'Состав под покрытие. Установлен только один комплект.',parts:['tires','wetTires','slicks']},
+ {id:'engine',name:'Двигатель',description:'Мощность, рабочий диапазон и цена тепловой нагрузки.',parts:['ecu','turbo','cams']},
+ {id:'cooling',name:'Охлаждение',description:'Контроль температуры и стабильность под длительной нагрузкой.',parts:['cooling']},
+ {id:'transmission',name:'Трансмиссия',description:'Дифференциал, сцепление и выбор главной пары.',parts:['lsd','clutch','shortFinal','longFinal']},
+ {id:'chassis',name:'Шасси и тормоза',description:'Торможение, подвеска, облегчение и дрифтовая геометрия.',parts:['brakes','suspension','weight','angle']},
+ {id:'aero',name:'Аэродинамика',description:'Сцепление на скорости в обмен на сопротивление и массу.',parts:['aero']}
+];
 export const CARDS = [
  {id:'balanced',name:'Чистый темп',en:'BALANCED PACE',icon:'↗',category:'Темп',desc:'Нейтральная линия без лишнего риска.',gain:0,focus:0,heat:0,wear:1,risk:0},
  {id:'attack',name:'Полная атака',en:'FULL ATTACK',icon:'⚡',category:'Темп',desc:'Быстрее на любом секторе. Высокая нагрузка на ресурсы.',gain:.045,focus:17,heat:14,wear:2.2,risk:.18},
