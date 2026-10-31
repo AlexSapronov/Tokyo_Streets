@@ -8,12 +8,9 @@ export function sceneLayout(route,width,height){
  const rotate=(p,a)=>[p[0]*Math.cos(a)-p[1]*Math.sin(a),p[0]*Math.sin(a)+p[1]*Math.cos(a)];
  const first=rotate(points[0],angle),last=rotate(points.at(-1),angle);
  if(last[0]<first[0])angle+=Math.PI;
- const raw=points.map(p=>rotate(p,angle));
- const spanX=Math.max(...raw.map(p=>p[0]))-Math.min(...raw.map(p=>p[0])),spanY=Math.max(...raw.map(p=>p[1]))-Math.min(...raw.map(p=>p[1]));
- const vertical=Math.min(1,Math.max(.12,((spanX+84)/(spanY+84))/(Math.max(1,width-48)/Math.max(1,height-136))));
- const rotated=raw.map(([x,y])=>[x,y*vertical]);
+ const rotated=points.map(p=>rotate(p,angle));
  const bounds=[Math.min(...rotated.map(p=>p[0])),Math.max(...rotated.map(p=>p[0])),Math.min(...rotated.map(p=>p[1])),Math.max(...rotated.map(p=>p[1]))];
  const margin=42,top=66,bottom=70;
- const scale=Math.max(.0001,Math.min(Math.max(1,width-48)/(bounds[1]-bounds[0]+margin*2),Math.max(1,height-top-bottom)/(bounds[3]-bounds[2]+margin*2*vertical)));
- return {bounds,scale,angle,center:[width/2,top+Math.max(1,height-top-bottom)/2],transform(x,y){const p=rotate(iso([x,y]),angle);return [p[0],p[1]*vertical];}};
+ const scale=Math.max(.0001,Math.min(Math.max(1,width-48)/(bounds[1]-bounds[0]+margin*2),Math.max(1,height-top-bottom)/(bounds[3]-bounds[2]+margin*2)));
+ return {bounds,scale,angle,center:[width/2,top+Math.max(1,height-top-bottom)/2],transform(x,y){return rotate(iso([x,y]),angle);}};
 }

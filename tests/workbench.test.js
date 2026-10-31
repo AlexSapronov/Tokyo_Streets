@@ -161,3 +161,7 @@ test('sound settings gracefully handle a browser without Web Audio and scene fee
 test('top-level Player navigation opens the actual specialization controls directly',async t=>{
  const {document:d}=await boot(t),q=s=>d.querySelector(s);q('[data-view=player]').click();assert.equal(q('#pane-world-player').hidden,false);assert.ok(q('[data-player-train=precision]'));assert.equal(q('[data-view=player]').classList.contains('active'),true);q('[data-view=race]').click();assert.ok(q('#scene'));assert.ok(q('#start'));
 });
+
+test('race tools sit outside the road canvas and the overview toggle preserves the current run',async t=>{
+ const {document:d,values}=await boot(t),q=s=>d.querySelector(s);assert.equal(q('.scene-tools').closest('.scene-wrap'),null);assert.match(q('#camera-toggle').textContent,/всю трассу/);const before=values.get(SAVE_KEY);q('#camera-toggle').click();assert.match(q('#camera-toggle').textContent,/текущей связке/);assert.equal(values.get(SAVE_KEY),before);
+});

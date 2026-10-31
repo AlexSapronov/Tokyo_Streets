@@ -151,3 +151,10 @@
  .topbar nav{gap:16px}
 }
 @media(max-width:1249px){#app[data-page=race] .scene-wrap{height:420px}.topbar nav{gap:8px}}
+/* Natural proportions; road camera and interface occupy separate spaces. */
+#app[data-page=race] .scene-top{display:none}
+#app[data-page=race] .scene-tools{position:static;display:flex;max-width:none;justify-content:flex-end;padding:8px 0;gap:7px;flex-wrap:wrap}
+#app[data-page=race] .scene-tools button{padding:8px 11px;border:1px solid var(--line);background:var(--panel);font-size:11px}
+#app[data-page=race] .scene-tactic{top:14px;max-width:calc(100% - 230px)}
+#app[data-page=race] .scene-caption{max-width:45%;bottom:12px}
+@media(min-width:1250px){#app[data-page=race]{max-width:2500px}#app[data-page=race] .scene-wrap{height:clamp(360px,37vh,560px)}}

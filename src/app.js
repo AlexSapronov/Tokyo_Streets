@@ -57,7 +57,7 @@ let challengeIntent=null,selectedLine='neutral';
 let motorSelection={},garagePreview=null,garageDrive='all',seasonIntent=false,seriesDraft=defaultSeries(),seriesEditingId=null;
 let view = 'race', race = null, selected = 'balanced', filter = 'Все';
 let dashboardUpdate=null;
-let closeCamera=false;
+let closeCamera=true,lastCamera=null,lastCameraEvent=null;
 let busy = false, scene = null, fast = false, paused = false, replayRecord = null;
 let toastTimer;
 const money = value => '¥ ' + Math.round(value).toLocaleString(getLanguage()==='en'?'en-US':'ru-RU');
@@ -91,6 +91,7 @@ function toast(message) {
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),3500);
 }
 function render() {
+  if(scene){lastCamera=scene.cameraState;lastCameraEvent=scene.event.id;}
   scene?.destroy();scene=null;dashboardUpdate=null;
   document.querySelectorAll('[data-view]').forEach(button=>{
     button.classList.toggle('active',button.dataset.view===view);button.disabled=busy;
@@ -139,7 +140,7 @@ function renderRace() {
       <div class="scene-caption"><div class="stamp" id="scene-status">${isReplay?'ПОВТОР РЕКОРДА':isDrag&&!race?count+(count===4?' ФАЗЫ':' ФАЗ')+' / ET + РЕАКЦИЯ':r.finished?(r.player.dnf?'СХОД / DNF':r.opponent.dnf?'ПОБЕДА · СОХОД СОПЕРНИКА':'ФИНИШ'):race?'СЕКТОР '+String(r.index+1).padStart(2,'0'):'ПЕРЕД СТАРТОМ'}</div>
       <h3 id="scene-sector">${r.finished?'Заезд окончен.':s.name}</h3>
       <p id="scene-description">${isReplay?'Сохранённые решения и время. Повтор не приносит наград.':race?sectorDescription(s):event.description}</p></div>
-      <div id="scene-tactic" class="scene-tactic" aria-live="off"></div><div class="scene-tools"><button id="camera-toggle">${closeCamera?'Камера: ближе':'Камера: трасса'}</button><button id="sound-toggle" aria-pressed="${sound.enabled}">${sound.enabled?'♫ Звук: вкл':'♫ Звук: выкл'}</button><label class="sound-volume">Громкость<input id="sound-volume" type="range" min="0" max="0.6" step="0.05" value="${sound.volume}" aria-label="Громкость звука"></label><button id="pause" ${!isReplay?'disabled':''}>Ⅱ Пауза</button><button id="speed">${fast?'2×':'1×'} Скорость</button></div></div>
+      <div id="scene-tactic" class="scene-tactic" aria-live="off"></div><div class="scene-tools"><button id="camera-toggle">${closeCamera?'Показать всю трассу':'К текущей связке'}</button><button id="sound-toggle" aria-pressed="${sound.enabled}">${sound.enabled?'♫ Звук: вкл':'♫ Звук: выкл'}</button><label class="sound-volume">Громкость<input id="sound-volume" type="range" min="0" max="0.6" step="0.05" value="${sound.volume}" aria-label="Громкость звука"></label><button id="pause" ${!isReplay?'disabled':''}>Ⅱ Пауза</button><button id="speed">${fast?'2×':'1×'} Скорость</button></div></div>
       <div class="sector-strip">${event.sectors.map((sector,i)=>`<div class="sector-node ${i<r.index?'done':i===r.index?'current':''}" title="${sector.name} · ${sector.length} м">${String(i+1).padStart(2,'0')} ${sector.type==='corner'?'⌁':'—'}</div>`).join('')}</div>
       <details class="route-brief"><summary>${isDrift?'Судейские клипы':isDrag?'Фазы дрэга':'Информация о трассе'} · ${count}</summary><div class="route-list">${event.sectors.map((_,i)=>{const sector=sectorAt(i,r.weather,event.id);return `<div class="${i===r.index?'current':''}"><span class="micro">${String(i+1).padStart(2,'0')}</span><strong>${sector.name}</strong><span>${sectorDescription(sector)}</span></div>`;}).join('')}</div></details></section>
       <aside class="sidebar">${challengeIntent&&!race&&!isReplay?'<div class="notice">Вызов: '+getChallenge(challengeIntent).name+'<br>'+getChallenge(challengeIntent).tell+'<button id="challenge-cancel" class="secondary">К свободным заездам</button></div>':''}${seasonIntent&&career.championships.active?'<div class="notice">Этап кубка: '+escapeHTML(activeCup(career.championships.active).name)+'<button id="season-practice" class="secondary">Перейти к свободному заезду</button></div>':''}${offers}${activeSkillsHTML(r.config)}${dashboardHTML(r.config)}<div class="notice">Класс сборки: <strong>${raceClass(r.config).name}</strong><br>${!seasonIntent&&!unlocked(event,career)?'Доступ: '+unlockText(event):admissionReason(career,r.eventId)||'Машина допущена к старту'}<br>${routeMasteryHTML(career,event)}Выплаты за повторение: ${Math.round(payoutScale(career,r.eventId)*100)}%<br>Персонал за старт: ${money(supportCost(career))}<br>Нагрузка атак: ${(r.player.strain||0).toFixed(1)} / 6</div>
@@ -154,14 +155,16 @@ function renderRace() {
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
     ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>2. Приём и траектория <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PLAYER & PRESENTATION 0.19</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / NATURAL CIRCUITS 0.20</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   document.querySelectorAll('[data-rival-level]').forEach(button=>button.onclick=()=>{if(race||replayRecord||seasonIntent)return;career.rivalLevel=button.dataset.rivalLevel;save();render();});
   $('#discipline-select').value=r.mode;$('#discipline-select').onchange=e=>{const routes=EVENTS.filter(item=>item.mode===e.target.value);const next=routes.find(item=>unlocked(item,career))||routes[0];career.eventId=next.id;race=null;save();render();};
   $('#weather').value=r.weather;$('#event-select').value=event.id;
   $('#weather').onchange=e=>{career.weather=e.target.value;save();render();};
   $('#event-select').onchange=e=>{if(!unlocked(getEvent(e.target.value),career))return;career.eventId=e.target.value;save();render();};
   scene=new Scene($('#scene'),r,ghost,career.ghostEnabled,sound);scene.speed=fast?2:1;scene.follow=closeCamera;
-  $('#camera-toggle').onclick=()=>{closeCamera=!closeCamera;scene.follow=closeCamera;$('#camera-toggle').textContent=closeCamera?'Камера: ближе':'Камера: трасса';};
+  if(lastCameraEvent===event.id)scene.cameraState=lastCamera?{...lastCamera}:null;
+  const tools=$('.scene-tools');$('#scene').closest('.scene-wrap').after(tools);
+  $('#camera-toggle').onclick=()=>{closeCamera=!closeCamera;scene.follow=closeCamera;$('#camera-toggle').textContent=closeCamera?'Показать всю трассу':'К текущей связке';};
   scene.onPresentation=(frame,moving)=>{const node=$('#scene-tactic');if(node){node.hidden=!moving;node.textContent=[frame.actionName,frame.lineName,frame.cue].filter(Boolean).join(' · ');}};
   $('#sound-toggle').onclick=async()=>{await sound.setEnabled(!sound.enabled);const button=$('#sound-toggle');if(button){button.textContent=sound.enabled?'♫ Звук: вкл':'♫ Звук: выкл';button.setAttribute('aria-pressed',String(sound.enabled));}if(!sound.available)toast('Звук недоступен в этом браузере. Игра продолжается.');};
   $('#sound-volume').oninput=event=>sound.setVolume(Number(event.target.value));
@@ -451,7 +454,7 @@ function openModal(html,setup) {
   setup?.();$('#modal').showModal();
 }
 function help() {
-  openModal(`<div class="eyebrow">TOKYO STREETS / PLAYER & PRESENTATION 0.19</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии на подготовку машины, собери команду поддержки и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь команды».</p><ol>
+  openModal(`<div class="eyebrow">TOKYO STREETS / NATURAL CIRCUITS 0.20</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии на подготовку машины, собери команду поддержки и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь команды».</p><ol>
     <li><strong>Гараж.</strong> Выбери машину и проведи сервис. За рулём всегда ты. Во вкладке «Тюнинг» покупай детали и сохраняй давление, главную пару, пружины, тормозной баланс и прижим. Регулировки коробки, подвески и антикрыла требуют соответствующих деталей; настройки у каждой машины свои.</li>
     <li><strong>Событие.</strong> Харуна доступна сразу. Для Акаги нужно 12 Street Cred. После двух завершённых сессий открывается клубный Time Attack в Цукубе.</li>
     <li><strong>Тактика.</strong> Все карты открыты. Повтор активного приёма в последних шести решениях экспоненциально увеличивает нагрузку, износ и потерю темпа. Один промежуточный ход не сбрасывает штраф. Разнообразные действия постепенно выводят его из памяти. Базовый «Чистый темп» всегда остаётся без штрафа. Серые объясняют ограничения. Читай разведку маршрута, прогноз, шины, тормоза и концентрацию.</li>
