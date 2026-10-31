@@ -1,3 +1,4 @@
+import {seriesDefinition,organizerReason} from './organizer.js';
 import {bookSupport} from './operations.js';
 import {CARS,getEvent,sectorAt} from './data.js';
 import {configuration,createRace,chooseAI,simulate} from './engine.js';
@@ -20,8 +21,10 @@ export const CUPS=[
 ];
 export const POINTS=[10,6,4,2];
 export function emptyChampionship(){return {active:null,completed:[],history:[]};}
-export function getCup(id){return CUPS.find(c=>c.id===id);}
+export function getCup(id,career){const definition=career?.championships?.active?.definition;return CUPS.find(c=>c.id===id)||career?.organizer?.series?.find(c=>c.id===id)||(definition&&definition.id===id?definition:undefined);}
+export function activeCup(state){return state?.definition||getCup(state?.cupId);}
 export function cupUnlockReason(career,cup){
+ if(cup.custom)return organizerReason(career,cup);
  if(cup.previous&&!career.championships?.completed?.includes(cup.previous))return 'Нужен подиум в предыдущем кубке';
  if(career.races<cup.races||career.street<cup.street)return `Нужно ${cup.races} финишей и ${cup.street} Street Cred`;
  return '';
@@ -34,21 +37,21 @@ export function regulationReason(config,cup){
 }
 function editable(career,active){if(active)throw new Error('Сначала заверши текущий заезд');return structuredClone(career);}
 export function enterCup(career,cupId,attempt,active=false){
- const next=editable(career,active),cup=getCup(cupId);if(!cup)throw new Error('Кубок не найден');
+ const next=editable(career,active),cup=getCup(cupId,next);if(!cup)throw new Error('Кубок не найден');
  if(next.championships?.active)throw new Error('Сначала заверши или покинь текущий кубок');
  const reason=cupUnlockReason(next,cup)||regulationReason(configuration(next.car,next.pilot,next.builds[next.car],100,next.setups[next.car]),cup);if(reason)throw new Error(reason);
  if(typeof attempt!=='string'||!attempt||attempt.length>80)throw new Error('Нужен идентификатор сезона');
  if(next.money<cup.fee)throw new Error('Недостаточно денег на взнос');next.money-=cup.fee;
- next.championships??=emptyChampionship();next.championships.active={cupId,attempt,carId:next.car,stage:0,results:[],npcs:cup.roster.map(([id])=>({id,condition:100,budget:cup.budget}))};return next;
+ next.championships??=emptyChampionship();next.championships.active={...(cup.custom?{definition:structuredClone(cup)}:{}),cupId,attempt,carId:next.car,stage:0,results:[],npcs:cup.roster.map(([id])=>({id,condition:100,budget:cup.budget}))};return next;
 }
 export function withdrawCup(career,active=false){const next=editable(career,active);if(!next.championships?.active)throw new Error('Нет активного кубка');next.championships.active=null;return next;}
 export function prepareStage(career,active=false){
- const next=editable(career,active),state=next.championships?.active,cup=getCup(state?.cupId);if(!cup)throw new Error('Нет активного кубка');
+ const next=editable(career,active),state=next.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
  const [eventId,weather]=cup.stages[state.stage];next.car=state.carId;next.eventId=eventId;next.weather=weather;return next;
 }
 function entrants(cup){return [{id:'player',name:'Твоя команда'},...cup.roster.map(([id,name,carId,pilotId,style,parts])=>({id,name,carId,pilotId,style,parts}))];}
 export function standings(state){
- const cup=getCup(state.cupId);
+ const cup=activeCup(state);
  return entrants(cup).map((e,index)=>({...e,points:state.results.reduce((n,r)=>n+r.rows.find(row=>row.id===e.id).points,0),wins:state.results.filter(r=>r.rows.find(row=>row.id===e.id).points===10).length,
   places:state.results.map(r=>r.rows.find(row=>row.id===e.id).position).reverse(),index})).sort((a,b)=>b.points-a.points||b.wins-a.wins||a.places.reduce((n,p,i)=>n||p-b.places[i],0)||a.index-b.index);
 }
@@ -58,7 +61,7 @@ function repairedNpc(npc){
  return {...npc,condition:npc.condition+spend/SERVICE_RATE,budget:npc.budget-spend};
 }
 export function bookCupRace(career,runId){
- const state=career.championships?.active,cup=getCup(state?.cupId);if(!cup)throw new Error('Нет активного кубка');
+ const state=career.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
  if(career.car!==state.carId)throw new Error('Для кубка вернись на зарегистрированную машину');
  const [eventId,weather]=cup.stages[state.stage],config=configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups[career.car]);
  const reason=regulationReason(config,cup)||admissionReason(career,eventId);if(reason)throw new Error(reason);
@@ -85,7 +88,7 @@ function finishNpc(config,state,eventId,weather,seed,side,index,style){
 }
 export function settleCup(career,race){
  if(!race.season)return {career,report:null};
- const state=career.championships?.active,cup=getCup(state?.cupId),tag=race.season;
+ const state=career.championships?.active,cup=activeCup(state),tag=race.season;
  if(!state||!cup||tag.cupId!==cup.id||tag.attempt!==state.attempt||tag.stage!==state.stage||race.eventId!==cup.stages[state.stage][0]||race.weather!==cup.stages[state.stage][1]||race.config.car.id!==state.carId)throw new Error('Заезд не соответствует текущему этапу');
  if(!race.finished)throw new Error('Этап ещё не завершён');
  if(!cup.roster.some(r=>r[0]===tag.featuredId)||typeof race.runId!=='string'||!race.runId||race.runId.length>80)throw new Error('Неверная запись этапа');
@@ -104,24 +107,28 @@ export function settleCup(career,race){
  rows.forEach((row,i)=>{row.position=i+1;row.points=row.dnf||row.falseStart?0:POINTS[i];});
  season.results.push({eventId:race.eventId,runId:race.runId,rows});season.stage++;
  const table=standings(season),position=rows.find(r=>r.id==='player').position;
- const report={cupId:cup.id,stage:tag.stage,position,rows:structuredClone(rows),standings:table.map(({id,name,points})=>({id,name,points})),finished:season.stage===cup.stages.length};
+ const report={...(cup.custom?{name:cup.name,custom:true}:{}),cupId:cup.id,stage:tag.stage,position,rows:structuredClone(rows),standings:table.map(({id,name,points})=>({id,name,points})),finished:season.stage===cup.stages.length};
  if(report.finished){
   const rank=table.findIndex(e=>e.id==='player')+1,points=table.find(e=>e.id==='player').points;
   const validFinishes=season.results.filter(r=>r.rows.find(e=>e.id==='player').points>0).length;
-  const bonus=validFinishes?Math.round(cup.prizes[rank-1]*(next.championships.completed.includes(cup.id)?.4:1)):0,debtPaid=Math.min(next.repairDebt||0,Math.floor(bonus*.5));
+  const bonus=validFinishes?Math.round(cup.prizes[rank-1]*(!cup.custom&&next.championships.completed.includes(cup.id)?.4:1)):0,debtPaid=Math.min(next.repairDebt||0,Math.floor(bonus*.5));
   next.money+=bonus-debtPaid;next.repairDebt=(next.repairDebt||0)-debtPaid;
   const qualified=rank<=3&&validFinishes>0;
-  if(qualified&&!next.championships.completed.includes(cup.id))next.championships.completed.push(cup.id);
-  next.championships.history.unshift({cupId:cup.id,rank,points,bonus,attempt:season.attempt});next.championships.history=next.championships.history.slice(0,20);next.championships.active=null;
+  if(!cup.custom&&qualified&&!next.championships.completed.includes(cup.id))next.championships.completed.push(cup.id);
+  next.championships.history.unshift({...(cup.custom?{definition:structuredClone(cup)}:{}),cupId:cup.id,rank,points,bonus,attempt:season.attempt});next.championships.history=next.championships.history.slice(0,20);next.championships.active=null;
   Object.assign(report,{rank,points,bonus,debtPaid,qualified,validFinishes});
  }
  return {career:next,report};
 }
+function historyCup(value){
+ const stock=getCup(value?.cupId);if(stock)return stock;
+ try{if(value?.definition?.id===value?.cupId)return seriesDefinition(value.definition);}catch{}return null;
+}
 export function normalizeChampionship(raw){
  const out=emptyChampionship();if(!raw||typeof raw!=='object')return out;
  out.completed=[...new Set((Array.isArray(raw.completed)?raw.completed:[]).filter(id=>getCup(id)))];
- out.history=(Array.isArray(raw.history)?raw.history:[]).filter(h=>h&&getCup(h.cupId)&&Number.isInteger(h.rank)&&h.rank>=1&&h.rank<=4&&Number.isFinite(h.points)&&h.points>=0&&h.points<=40&&Number.isFinite(h.bonus)&&h.bonus>=0&&h.bonus<=55000&&typeof h.attempt==='string'&&h.attempt.length<=80).slice(0,20).map(h=>({cupId:h.cupId,rank:h.rank,points:h.points,bonus:h.bonus,attempt:h.attempt}));
- const a=raw.active,cup=getCup(a?.cupId);if(!cup)return out;
+ out.history=(Array.isArray(raw.history)?raw.history:[]).filter(h=>h&&historyCup(h)&&Number.isInteger(h.rank)&&h.rank>=1&&h.rank<=4&&Number.isFinite(h.points)&&h.points>=0&&h.points<=historyCup(h).stages.length*10&&Number.isFinite(h.bonus)&&h.bonus>=0&&h.bonus<=55000&&typeof h.attempt==='string'&&h.attempt.length<=80).slice(0,20).map(h=>({... (historyCup(h).custom?{definition:historyCup(h)}:{}),cupId:h.cupId,rank:h.rank,points:h.points,bonus:h.bonus,attempt:h.attempt}));
+ const a=raw.active,cup=historyCup(a);if(!cup)return out;
  if(typeof a.attempt!=='string'||!a.attempt||a.attempt.length>80||!CARS.some(c=>c.id===a.carId)||!Number.isInteger(a.stage)||a.stage<0||a.stage>=cup.stages.length||!Array.isArray(a.results)||a.results.length!==a.stage||!Array.isArray(a.npcs)||a.npcs.length!==3)return out;
  const ids=['player',...cup.roster.map(r=>r[0])],runs=new Set();
  for(const [i,r] of a.results.entries()){
@@ -130,5 +137,5 @@ export function normalizeChampionship(raw){
   for(const row of r.rows)if(!row||!ids.includes(row.id)||!Number.isInteger(row.position)||row.position<1||row.position>4||row.points!==(row.dnf||row.falseStart?0:POINTS[row.position-1])||typeof row.dnf!=='boolean'||typeof row.falseStart!=='boolean'||!Number.isFinite(row.time)||row.time<0||row.time>10000||!Number.isFinite(row.score)||row.score<0||row.score>800)return out;
  }
  if(new Set(a.npcs.map(n=>n?.id)).size!==3||a.npcs.some(n=>!n||!ids.slice(1).includes(n.id)||!Number.isFinite(n.condition)||n.condition<35||n.condition>100||!Number.isFinite(n.budget)||n.budget<0||n.budget>cup.budget))return out;
- out.active={cupId:a.cupId,attempt:a.attempt,carId:a.carId,stage:a.stage,results:a.results.map(r=>({eventId:r.eventId,runId:r.runId,rows:r.rows.map(e=>({id:e.id,time:e.time,score:e.score,dnf:e.dnf,falseStart:e.falseStart,position:e.position,points:e.points}))})),npcs:a.npcs.map(n=>({id:n.id,condition:n.condition,budget:n.budget}))};return out;
+ out.active={...(cup.custom?{definition:cup}:{}),cupId:a.cupId,attempt:a.attempt,carId:a.carId,stage:a.stage,results:a.results.map(r=>({eventId:r.eventId,runId:r.runId,rows:r.rows.map(e=>({id:e.id,time:e.time,score:e.score,dnf:e.dnf,falseStart:e.falseStart,position:e.position,points:e.points}))})),npcs:a.npcs.map(n=>({id:n.id,condition:n.condition,budget:n.budget}))};return out;
 }
