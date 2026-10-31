@@ -12,8 +12,8 @@ import {transmissionProfile,transmission,longShiftSpeeds} from '../src/telemetry
 import {raceRecord,awardRace} from '../src/progress.js';
 import {generator,assertState} from './helpers.js';
 const cfg=configuration('ae86','ren'),card=id=>CARDS.find(c=>c.id===id),dragCard=id=>ALL_DRAG_CARDS.find(c=>c.id===id);
-test('expanded fleet has ten distinct identities, all four layouts and independent transmission profiles',()=>{
- assert.equal(CARS.length,10);assert.equal(PARTS.length,26);assert.equal(new Set(CARS.map(c=>c.id)).size,10);assert.deepEqual(new Set(CARS.map(c=>c.drive)),new Set(['FR','AWD','FF','MR']));
+test('expanded fleet has eleven distinct identities, all four layouts and independent transmission profiles',()=>{
+ assert.equal(CARS.length,11);assert.equal(PARTS.length,26);assert.equal(new Set(CARS.map(c=>c.id)).size,11);assert.deepEqual(new Set(CARS.map(c=>c.drive)),new Set(['FR','AWD','FF','MR']));
  for(const car of CARS){const profile=transmissionProfile(configuration(car.id,'ren'));assert.ok(profile.ratios.length>=5);assert.ok(profile.redline>6500);profile.ratios[0]=999;assert.notEqual(transmissionProfile(configuration(car.id,'ren')).ratios[0],999);}
  assert.equal(transmissionProfile(configuration('supra','ren')).ratios.length,6);assert.equal(transmission(configuration('supra','ren'),350).gear,6);
 });
