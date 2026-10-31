@@ -135,7 +135,7 @@ export function futureSectors(race) {
 export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null) {
   const event = getEvent(eventId);
   const category=raceClass(config);
-  const rival = configuration(['duel','drag'].includes(event.mode)?category.car:event.rivalCar, event.rivalPilot, category.id==='expert'?event.rivalParts:[], 100);
+  const rival = configuration(event.rivalCar,event.rivalPilot,event.rivalParts,100);
   return {config, rival, category,rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
@@ -199,7 +199,7 @@ function baseOutcome(race) {
   if (race.mode === 'duel' || race.mode === 'drag') {
     const won = !race.player.drag?.falseStart && (!!race.opponent.dnf || race.opponent.drag?.falseStart || race.player.time < race.opponent.time);
     return {won, medal: null, label: race.player.drag?.falseStart ? 'Фальстарт' : won ? race.opponent.dnf?'Победа · сход соперника':'Победа' : 'Без победы',
-      reward: won ? event.prize : event.participation, street: race.mode==='drag'?0:won?12:4, official: race.mode==='drag'?(won?10:race.player.drag.falseStart?0:3):0};
+      reward: race.player.drag?.falseStart ? 0 : won ? event.prize : event.participation, street: race.mode==='drag'?0:won?12:4, official: race.mode==='drag'?(won?10:race.player.drag.falseStart?0:3):0};
   }
   if(race.mode==='drift'){
     const medal=['gold','silver','bronze'].find(level=>race.player.drift.score>=event.medals[level])||null;

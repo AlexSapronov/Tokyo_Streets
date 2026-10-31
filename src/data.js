@@ -102,7 +102,7 @@ export const EVENTS = [
     region: 'GUNMA', japanese: '榛名山', mode: 'duel', theme: 'forest',
     description: 'Первый ночной вызов. Узкие связки и мокрая шпилька.',
     unlockStreet: 0, unlockRaces: 0, prize: 18000, participation: 7000,
-    rivalCar: 'chaser', rivalPilot: 'aki', rivalParts: [],
+    rivalCar: 'ae86', rivalPilot: 'aki', rivalParts: [],
     sectors: SECTORS,
     anchors: [[0,0],[160,0],[260,110],[170,210],[-60,230],[-230,330],[-110,420],[130,430],[310,540],[180,650],[-70,670],[-260,790],[-160,900],[80,950],[250,1070],[100,1190]]
   },

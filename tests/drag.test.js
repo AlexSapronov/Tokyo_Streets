@@ -50,12 +50,12 @@ test('a false start loses even with faster ET; opponent false start loses to a c
  clean.opponent.drag.falseStart=true;clean.opponent.time=.1;assert.equal(raceOutcome(clean).won,true);
  clean.player.drag.falseStart=true;assert.equal(raceOutcome(clean).won,false);
 });
-test('foul runs earn participation but no official reputation or leaderboard trace',()=>{
+test('foul runs earn no money, progression or leaderboard trace',()=>{
  const race=finishRace(configuration('evo','aki'),'dry','yokohama',['drag-warm','drag-edge','drag-band','drag-clean']);
  const career=newCareer(),awarded=awardRace(career,race);
  assert.equal(awarded.isBest,false);assert.deepEqual(awarded.career.bests,[]);
  assert.equal(awarded.career.official,0);assert.equal(awarded.career.records[0].falseStart,true);
- assert.equal(awarded.career.money,career.money+Math.round(getEvent('yokohama').participation*.55*1.2*.45));
+ assert.equal(awarded.career.money,career.money);assert.equal(awarded.career.races,0);assert.deepEqual(awarded.career.eventCompletions,{});assert.deepEqual(awarded.career.journey,career.journey);
  assert.equal(validateSave(awarded.career).records[0].falseStart,true);
 });
 test('AWD realizes a faster sixty-foot launch than the equal-power FR sedan',()=>{

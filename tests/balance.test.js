@@ -21,7 +21,7 @@ test('classes use actual build power/weight and handling parts, without downgrad
  assert.equal(raceClass(configuration('chaser','ren',['weight','tires','lsd','suspension'])).id,'expert');
  assert.deepEqual(raceClass(configuration('evo','ren',[],35)),raceClass(configuration('evo','ren',[],100)));
  for(const car of CARS)for(const event of EVENTS.filter(e=>['duel','drag'].includes(e.mode))){
-  const config=configuration(car.id,'ren'),race=createRace(config,'dry',event.id);assert.equal(race.rival.car.id,race.category.car);assert.equal(race.category.id,raceClass(config).id);
+  const config=configuration(car.id,'ren'),race=createRace(config,'dry',event.id);assert.equal(race.rival.car.id,event.rivalCar);assert.equal(race.category.id,raceClass(config).id);
  }
 });
 test('repeated event payout shrinks to a floor and is isolated by event',()=>{
@@ -40,8 +40,8 @@ test('all modes stop admission below their condition threshold and recovery neve
 test('repair debt repays at most half the prize, survives saves, and cannot be charged twice',()=>{
  let race=finishRace(cfg,'dry','haruna',null,'debt-run');assert.ok(!race.player.dnf);
  const career={...newCareer(),repairDebt:50000},outcome=raceOutcome(race),award=awardRace(career,race);
- assert.equal(award.race.debtPaid,Math.floor(outcome.reward*.5));assert.equal(award.career.money,career.money+outcome.reward-award.race.debtPaid);
- assert.equal(award.career.repairDebt,career.repairDebt-award.race.debtPaid);assert.equal(award.career.eventCompletions.haruna,1);
+ assert.equal(award.race.debtPaid,Math.floor(outcome.reward*.5));assert.equal(award.career.money,career.money+outcome.reward-award.race.debtPaid+award.race.journeyReport.bonus-award.race.journeyReport.debtPaid);
+ assert.equal(award.career.repairDebt,career.repairDebt-award.race.debtPaid-award.race.journeyReport.debtPaid);assert.equal(award.career.eventCompletions.haruna,1);
  assert.deepEqual(validateSave(award.career),award.career);assert.throws(()=>awardRace(award.career,race),/повторно/);
  const raw={...newCareer(),repairDebt:Infinity,eventCompletions:{haruna:-1,akagi:3.8,unknown:9}};const loaded=validateSave(raw);assert.equal(loaded.repairDebt,0);assert.deepEqual(loaded.eventCompletions,{akagi:3});
 });
@@ -95,7 +95,7 @@ test('campaign payouts actually use the snapshotted repetition factor and full-c
  const career=newCareer();career.eventCompletions.haruna=8;
  const race=finishRace(cfg,'dry','haruna',null,'repeat-scale');race.rewardScale=payoutScale(career,'haruna');
  const first=raceOutcome({...race,rewardScale:1}),repeat=raceOutcome(race);assert.equal(repeat.reward,Math.round(first.reward*race.rewardScale));
- const award=awardRace(career,race);assert.equal(award.career.money,career.money+repeat.reward);assert.equal(award.career.eventCompletions.haruna,9);assert.ok(award.career.condition.ae86<100);
+ const award=awardRace(career,race);assert.equal(award.career.money,career.money+repeat.reward+award.race.journeyReport.bonus);assert.equal(award.career.eventCompletions.haruna,9);assert.ok(award.career.condition.ae86<100);
 });
 
 test('drift and shared execution agree on maneuver risk without double-counting accumulated strain',()=>{

@@ -1,3 +1,4 @@
+import {emptyJourney,normalizeJourney} from './journey.js';
 import {emptyWear,normalizeWear} from './wear.js';
 import {emptyEngines,normalizeEngines} from './powertrain.js';
 import {getEngine,installedEngineId} from './engine-data.js';
@@ -19,7 +20,7 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {version: 2, money: START_MONEY, car: 'ae86', pilot: 'ren', ownedCars: ['ae86'],
+  return {journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', pilot: 'ren', ownedCars: ['ae86'],
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
@@ -144,6 +145,7 @@ export function validateSave(raw) {
     if (!bestByKey.has(record.key) || (record.drift?record.drift.score>bestByKey.get(record.key).drift.score||record.drift.score===bestByKey.get(record.key).drift.score&&record.time<bestByKey.get(record.key).time:bestByKey.get(record.key).time > record.time)) bestByKey.set(record.key, record);
   }
   out.bests = [...bestByKey.values()];
+  out.journey=normalizeJourney(raw.journey,out);
   return out;
 }
 export function loadCareer(storage) {

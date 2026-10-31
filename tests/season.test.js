@@ -26,7 +26,7 @@ test('routes have different distances, elevation and duel opposition',()=>{
   assert.equal(eventLength(getEvent('haruna')),2770);
   assert.equal(eventLength(getEvent('tsukuba')),2045);
   assert.ok(getEvent('akagi').sectors.some(sector=>sector.slope>0));
-  assert.equal(createRace(configuration('ae86','ren'),'dry','akagi').rival.car.id,'ae86');
+  assert.equal(createRace(configuration('ae86','ren'),'dry','akagi').rival.car.id,'evo');
 });
 test('three-sector planner is deterministic, legal and can choose a different action from myopic AI',()=>{
   let observed=false;
@@ -66,7 +66,7 @@ test('time attack has no AI or positional actions and keeps target times ordered
 test('unlocking and rewards progress independently, and completed runs cannot be awarded twice',()=>{
   let career=newCareer();assert.ok(unlocked(getEvent('haruna'),career));assert.ok(!unlocked(getEvent('akagi'),career));assert.ok(!unlocked(getEvent('tsukuba'),career));
   const race=complete(),before=structuredClone(career),award=awardRace(career,race);
-  assert.deepEqual(career,before);assert.equal(award.career.money,career.money+raceOutcome(race).reward);
+  assert.deepEqual(career,before);assert.equal(award.career.money,career.money+raceOutcome(race).reward+award.race.journeyReport.bonus);
   assert.equal(award.career.races,1);assert.equal(award.career.official,0);
   assert.throws(()=>awardRace(award.career,award.race),/повторно/);
   assert.throws(()=>awardRace(career,createRace(configuration('ae86','ren'))),/повторно/);

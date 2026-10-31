@@ -32,13 +32,13 @@ test('car assets have distinct model details, finite coordinates and supported s
  const details=new Set();for(const car of CARS){const s=vehicleSVG(car),svg=parseHTML(s).document.querySelector('svg');details.add(svg.getAttribute('data-body-detail'));assert.equal(svg.getAttribute('data-model'),car.id);assert.ok(!/NaN|Infinity|undefined/.test(s));assert.ok(svg.querySelectorAll('path').length>8);assert.equal(parseHTML(topVehicleSVG(car)).document.querySelector('svg').getAttribute('data-model'),car.id);}
  assert.equal(details.size,10);assert.match(vehicleSVG({id:'unknown',name:'Unknown'}),/panda-popups/);
 });
-async function boot(t){
+async function boot(t,initial){
  const {document,HTMLElement,HTMLCanvasElement,HTMLSelectElement,HTMLInputElement}=parseHTML(readFileSync(new URL('../index.html',import.meta.url),'utf8'));
  // Supply browser-only facilities and the form properties linkedom doesn't model.
  Object.defineProperty(HTMLSelectElement.prototype,'value',{configurable:true,get(){return [...this.querySelectorAll('option')].find(n=>n.hasAttribute('selected'))?.getAttribute('value')||this.querySelector('option')?.getAttribute('value')||'';},set(v){for(const o of this.querySelectorAll('option'))o.toggleAttribute('selected',o.getAttribute('value')===String(v));}});
  Object.defineProperty(HTMLInputElement.prototype,'checked',{configurable:true,get(){return this.hasAttribute('checked');},set(v){this.toggleAttribute('checked',!!v);}});
  HTMLCanvasElement.prototype.getContext=()=>new Proxy({createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{})});HTMLElement.prototype.getBoundingClientRect=()=>({width:1600,height:430});HTMLElement.prototype.focus=function(){document.testFocus=this;};HTMLElement.prototype.scrollIntoView=()=>{};HTMLElement.prototype.showModal=function(){this.setAttribute('open','');};HTMLElement.prototype.close=function(){this.removeAttribute('open');};
- const c=unlockEverything(newCareer());c.helpSeen=true;const values=new Map([[SAVE_KEY,JSON.stringify(c)]]),frames=new Map();let seq=0;
+ const c=initial||unlockEverything(newCareer());c.helpSeen=true;const values=new Map([[SAVE_KEY,JSON.stringify(c)]]),frames=new Map();let seq=0;
  const stubs={document,window:{devicePixelRatio:1,addEventListener(){},localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)}},Image:class{complete=true;naturalWidth=130;},ResizeObserver:class{observe(){}disconnect(){}},requestAnimationFrame:cb=>{frames.set(++seq,cb);return seq;},cancelAnimationFrame:id=>frames.delete(id),setTimeout:()=>0,clearTimeout:()=>{}};
  for(const [key,value] of Object.entries(stubs)){const old=Object.getOwnPropertyDescriptor(globalThis,key);Object.defineProperty(globalThis,key,{value,writable:true,configurable:true});t.after(()=>{if(old)Object.defineProperty(globalThis,key,old);else delete globalThis[key];});}
  await import('../src/app.js?dom='+Math.random());return {document,values,frames};
@@ -64,4 +64,17 @@ test('actual race actions finish into an accessible report and can retry without
  const {document:d,frames}=await boot(t),q=s=>d.querySelector(s);q('#start').click();assert.ok(q('#execute'));let turns=0;
  while(q('#execute')&&turns++<12){const balanced=q('[data-card=balanced]');if(balanced&&!balanced.disabled)balanced.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const callback of callbacks)callback(performance.now()+20000);}
  assert.ok(turns<=12);assert.ok(q('.report'));assert.equal(q('#app').dataset.racePanel,'report');q('.race-report-toggle').click();assert.equal(q('#app').dataset.racePanel,'track');q('#show-report').click();assert.equal(q('#app').dataset.racePanel,'report');q('#retry').click();assert.ok(q('#execute'));assert.equal(q('#app').dataset.racePanel,undefined);
+});
+
+test('new career goals navigate to real routes, lock during racing and report paid progress',async t=>{
+ const {document:d,values,frames}=await boot(t,newCareer()),q=s=>d.querySelector(s);
+ assert.match(q('.journey-focus').textContent,/Первая ночь/);
+ q('[data-journey-view]').click();assert.equal(q('#app').dataset.page,'race');
+ q('[data-view=world]').click();q('[data-pane=journey]').click();assert.equal(q('#pane-world-journey').hidden,false);
+ q('[data-journey-event]').click();assert.equal(q('#app').dataset.page,'race');assert.equal(JSON.parse(values.get(SAVE_KEY)).eventId,'haruna');
+ q('#start').click();assert.ok(q('[data-journey-view]').disabled);assert.ok(q('[data-journey-event]').disabled);
+ let turns=0;while(q('#execute')&&turns++<12){const balanced=q('[data-card=balanced]');if(balanced&&!balanced.disabled)balanced.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const callback of callbacks)callback(performance.now()+20000);}
+ assert.ok(q('.journey-report'));const saved=JSON.parse(values.get(SAVE_KEY));assert.ok(saved.journey.routes.haruna>=1);assert.ok(saved.journey.claimed.includes('debut'));assert.match(q('.journey-report').textContent,/премии/);
+ assert.ok(!q('[data-journey-view]').disabled);
+ q('[data-journey-view]').click();assert.equal(q('#app').dataset.page,q('[data-journey-view]').dataset.journeyView);
 });
