@@ -115,7 +115,7 @@ for(const car of CARS)for(const pilot of PILOTS)for(const weather of ['dry','rai
   assert.ok(Number.isFinite(progressAtTime(loaded.bests[0].sectorTimes,0,'yokohama')));
  });
 }
-test('all 2430 car/weather/action recipes stay finite, immutable and within bounds',()=>{
+test('all 2673 car/weather/action recipes stay finite, immutable and within bounds',()=>{
  let count=0;
  for(const car of CARS)for(const weather of ['dry','rain','mixed']){
   const config=configuration(car.id,'ren');
@@ -131,7 +131,7 @@ test('all 2430 car/weather/action recipes stay finite, immutable and within boun
    assert.equal(state.drag.distance,402.336);count++;
   }
  }
- assert.equal(count,2430);
+ assert.equal(count,2673);
 });
 test('all 64 equipment combinations preserve valid drag results',()=>{
  for(let mask=0;mask<64;mask++){
