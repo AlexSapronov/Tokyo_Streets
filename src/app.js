@@ -1,3 +1,4 @@
+import {mountWorkbench,fitWorkspace} from './workbench.js';
 import {defaultSeries,saveSeries,deleteSeries,exportSeries,importSeries} from './organizer.js';
 import {organizerHTML,seriesQuoteHTML} from './organizer-view.js';
 import {bookSupport,supportCost,repairMultiplier,hireStaff,dismissStaff,acceptSponsor,cancelSponsor,engineerAdvice} from './operations.js';
@@ -32,7 +33,7 @@ try { storage = window.localStorage; }
 catch { storage = {getItem: () => null, setItem: () => {throw Error('Нет хранилища');}}; }
 let career = loadCareer(storage);
 if (!unlocked(getEvent(career.eventId),career)) career.eventId = 'haruna';
-let garageDrive='all',seasonIntent=false,seriesDraft=defaultSeries(),seriesEditingId=null;
+let garagePreview=null,garageDrive='all',seasonIntent=false,seriesDraft=defaultSeries(),seriesEditingId=null;
 let view = 'race', race = null, selected = 'balanced', filter = 'Все';
 let dashboardUpdate=null,autoRun=false,autoTimer;
 let busy = false, scene = null, fast = false, paused = false, replayRecord = null;
@@ -70,12 +71,13 @@ function render() {
     button.classList.toggle('active',button.dataset.view===view);button.disabled=busy;
   });
   if(view==='garage')renderGarage();else if(view==='tuning')renderTuning();else if(view==='seasons')renderSeasons();else if(view==='world')renderWorld();else if(view==='team')renderTeam();else renderRace();
-  app.insertAdjacentHTML('beforeend',`<aside class="debug-tools"><strong>DEBUG</strong><button id="debug-unlock" class="secondary" ${busy?'disabled':''}>Открыть всё</button><button id="debug-reset" class="secondary" ${busy?'disabled':''}>Сбросить всё</button><span>Локальная карьера в этом браузере</span></aside>`);
+  mountWorkbench(app,view,career,race);
+  app.insertAdjacentHTML('beforeend',`<details class="debug-drawer"><summary>Отладка</summary><aside class="debug-tools"><strong>DEBUG</strong><button id="debug-unlock" class="secondary" ${busy?'disabled':''}>Открыть всё</button><button id="debug-reset" class="secondary" ${busy?'disabled':''}>Сбросить всё</button><span>Локальная карьера в этом браузере</span></aside></details>`);
   $('#debug-unlock').onclick=()=>{stopDebugRun();career=unlockEverything(career);save();render();toast('Открыты все события, машины, детали и пилоты. На счету ¥1 000 000.');};
   $('#debug-reset').onclick=()=>openModal('<h2>Сбросить всё?</h2><p>Будут удалены деньги, покупки, команда, история и повторы. Начнётся новая карьера с ¥18 000.</p><div class="inline-actions"><button class="primary" id="debug-reset-confirm">Сбросить всё</button><button class="secondary" data-close>Отмена</button></div>',()=>{$('#debug-reset-confirm').onclick=()=>{stopDebugRun();career=newCareer();save();$('#modal').close();render();};});
   updateWallet();
 }
-function stopDebugRun(){autoRun=false;clearTimeout(autoTimer);scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';seasonIntent=false;}
+function stopDebugRun(){autoRun=false;clearTimeout(autoTimer);scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';garagePreview=null;seriesDraft=defaultSeries();seriesEditingId=null;seasonIntent=false;}
 function sectorDescription(s) {
   return `${s.label}${s.mode==='drift'?' · '+s.clip+' · угол '+s.targetAngle+'° · '+s.targetSpeed+' км/ч':''} · ${s.length} м${s.radius?' · радиус '+s.radius+' м':''} · уклон ${Math.round(s.slope*100)}% · влажность ${Math.round(s.wet*100)}%`;
 }
@@ -114,7 +116,7 @@ function renderRace() {
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
     ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>Твои решения <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / SERIES ORGANIZER 0.13</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / WORKSPACE 0.14</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   $('#control').value=r.manager?'manager':career.control;
   $('#control').onchange=event=>{career.control=event.target.value;save();render();};
   $('#weather').value=r.weather;$('#event-select').value=event.id;
@@ -158,6 +160,7 @@ function renderCards() {
   $('#filters').innerHTML=categories.map(category=>`<button class="filter ${filter===category?'active':''}" data-filter="${category}">${category}</button>`).join('');
   $('#filters').querySelectorAll('button').forEach(button=>button.onclick=()=>{if(busy)return;filter=button.dataset.filter;renderCards();});
   if(!cards.some(card=>card.id===selected&&!disabledReason(card,sector,r.player,r.config,gap)))selected=cards.find(card=>!disabledReason(card,sector,r.player,r.config,gap))?.id;
+  const cardScroll=$('#cards').scrollTop;
   $('#cards').innerHTML=cards.filter(card=>filter==='Все'||filter===card.category).map(card=>{
     const reason=disabledReason(card,sector,r.player,r.config,gap);
     const cost=focusCost(r.config,r.player,card);
@@ -165,6 +168,7 @@ function renderCards() {
       <div class="card-top"><span class="card-icon">${card.icon}</span><span class="card-type">${card.category}</span></div><strong>${card.name}</strong><span class="en">${card.en}</span><p>${card.desc}</p>
       <div class="card-cost"><span>${cost>0?'−'+Math.ceil(cost):'+'+Math.floor(Math.abs(cost))} ФОКУС</span><span>${card.heat>0?'+':''}${card.heat}°C</span></div>${reason?`<span class="reason">${reason}</span>`:''}</button>`;
   }).join('');
+  $('#cards').scrollTop=cardScroll;
   $('#cards').querySelectorAll('button').forEach(button=>button.onclick=()=>{if(busy)return;selected=button.dataset.card;renderCards();});
   const card=cards.find(card=>card.id===selected),prediction=simulate(r.config,r.player,sector,card);
   const forecast=qualitativeForecast(r.config,r.player,sector,card,prediction);
@@ -276,15 +280,18 @@ function serviceHTML(locked){
  return `<section class="panel garage-service"><h2>${car().name} · состояние ${Math.round(career.condition[career.car])}%</h2><p>Базовый сервис: ¥450 за 1 п.п. состояния${repairMultiplier(career)<1?' · скидка механика '+Math.round((1-repairMultiplier(career))*100)+'%':''}. Долг за аварийный ремонт: ${money(career.repairDebt||0)}; погашается из половины призовых.</p><div class="inline-actions"><button id="repair" class="secondary" ${locked||career.condition[career.car]>=100||career.money<repairCost()?'disabled':''}>Полный сервис · ${money(repairCost())}</button><button id="recovery-service" class="secondary" ${locked||career.condition[career.car]>=60?'disabled':''}>Аварийный ремонт до 60%</button><button id="open-tuning" class="primary">Тюнинг выбранной машины ↗</button></div></section>`;
 }
 function renderGarage(){
- const locked=!!race&&!race.finished;
- app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">THE GARAGE / 自分の車</div><h1>Сначала пойми машину.</h1></div><span class="micro">ДЕТАЛИ И СБОРКИ СОХРАНЯЮТСЯ ОТДЕЛЬНО ДЛЯ КАЖДОЙ МАШИНЫ</span></div><label class="micro">АВТОПАРК <select id="garage-drive"><option value="all">Все приводы</option>${['FR','AWD','FF','MR'].map(d=>'<option value="'+d+'">'+d+'</option>').join('')}</select></label>${locked?'<div class="notice">Идёт заезд. Сменить машину, пилота и детали можно после финиша или выхода из гонки.</div>':''}<div class="section-grid">${CARS.filter(c=>garageDrive==='all'||c.drive===garageDrive).map(c=>`<article class="choice ${career.car===c.id?'selected':''}"><div class="eyebrow">${c.brand} / ${c.year}</div><div class="vehicle-art">${vehicleSVG(c)}</div><h2>${c.name}</h2><span class="badge">${c.tag}</span><div class="specs"><div>${c.power}<small>Л.С.</small></div><div>${c.mass}<small>КГ</small></div><div>${c.drive}<small>ПРИВОД</small></div></div><span class="micro">${c.engine}</span><p>${c.description}</p><button class="${career.car===c.id?'secondary':'primary'} wide" data-car="${c.id}" ${locked||career.car===c.id||(!career.ownedCars.includes(c.id)&&career.money<c.price)?'disabled':''}>${career.car===c.id?'Твоя машина':career.ownedCars.includes(c.id)?'Выбрать машину':'Купить · '+money(c.price)}</button></article>`).join('')}</div>${serviceHTML(locked)}
- <div class="section-title"><div><div class="eyebrow">THE DRIVER</div><h2>За рулём всегда человек.</h2></div></div><div class="pilot-row">${PILOTS.map((p,i)=>`<button class="pilot ${career.pilot===p.id?'selected':''}" data-pilot="${p.id}" ${locked?'disabled':''}><div class="pilot-symbol" style="color:${p.color}">0${i+1} / ${p.trait}</div><h3>${p.name}</h3><span class="micro">${p.title.toUpperCase()} · ФОКУС ${p.focus}</span><p>${p.description}</p></button>`).join('')}</div>`;
- $('#garage-drive').value=garageDrive;$('#garage-drive').onchange=event=>{garageDrive=event.target.value;render();};
+ const locked=!!race&&!race.finished,shown=CARS.filter(c=>garageDrive==='all'||c.drive===garageDrive);
+ const preview=shown.find(c=>c.id===garagePreview)||shown.find(c=>c.id===career.car)||shown[0];garagePreview=preview.id;
+ app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">GARAGE / 車庫</div><h1>Автопарк и обслуживание</h1></div><label>Показать <select id="garage-drive"><option value="all">Все приводы</option>${['FR','AWD','FF','MR'].map(d=>'<option value="'+d+'">'+d+'</option>').join('')}</select></label></div>
+ ${locked?'<div class="notice">Заезд активен. Просмотр доступен; смена машины и сервис — после финиша или выхода.</div>':''}
+ <div class="garage-workspace"><aside class="garage-catalog" aria-label="Список автомобилей">${shown.map(c=>`<button class="garage-car-row ${preview.id===c.id?'selected':''}" data-garage-preview="${c.id}" aria-pressed="${preview.id===c.id}"><span class="mini-car">${vehicleSVG(c)}</span><span><strong>${c.name}</strong><small>${c.drive} · ${c.power} л.с. · ${career.car===c.id?'АКТИВНАЯ':career.ownedCars.includes(c.id)?'В ГАРАЖЕ':money(c.price)}</small></span></button>`).join('')}</aside>
+ <section class="garage-detail"><div class="garage-car-detail panel"><div class="eyebrow">${preview.brand} / ${preview.year} · ${preview.engine}</div><div class="vehicle-art">${vehicleSVG(preview)}</div><div class="section-title"><div><h2>${preview.name}</h2><span class="badge">${preview.tag}</span></div><button class="primary" data-car="${preview.id}" ${locked||career.car===preview.id||!career.ownedCars.includes(preview.id)&&career.money<preview.price?'disabled':''}>${career.car===preview.id?'✓ Активная машина':career.ownedCars.includes(preview.id)?'Выбрать машину':'Купить · '+money(preview.price)}</button></div><div class="specs"><div>${preview.power}<small>Л.С.</small></div><div>${preview.mass}<small>КГ</small></div><div>${preview.drive}<small>ПРИВОД</small></div><div>${Math.round(career.condition[preview.id])}%<small>СОСТОЯНИЕ</small></div></div><p>${preview.description}</p></div>
+ <section class="garage-pilots"><h2>Пилот активной машины</h2><div class="pilot-row">${PILOTS.map(p=>`<button class="pilot ${career.pilot===p.id?'selected':''}" data-pilot="${p.id}" ${locked?'disabled':''}><h3>${p.name}</h3><span class="micro">${p.trait} · ФОКУС ${p.focus}</span><p>${p.description}</p></button>`).join('')}</div></section></section><aside class="garage-tools">${serviceHTML(locked)}<div class="panel"><h3>Просмотр и выбор</h3><p>Список слева открывает характеристики. Активная машина меняется только кнопкой выбора или покупки. Сервис относится к активной машине, указанной сверху.</p><p>Купленные детали и настройки хранятся отдельно для каждой машины.</p></div></aside></div>`;
+ $('#garage-drive').value=garageDrive;$('#garage-drive').onchange=e=>{garageDrive=e.target.value;render();};
+ document.querySelectorAll('[data-garage-preview]').forEach(button=>button.onclick=()=>{garagePreview=button.dataset.garagePreview;render();});
  document.querySelectorAll('[data-car]').forEach(button=>button.onclick=()=>garageAction(()=>selectCar(career,button.dataset.car,locked)));
  document.querySelectorAll('[data-pilot]').forEach(button=>button.onclick=()=>garageAction(()=>selectPilot(career,button.dataset.pilot,locked)));
- $('#repair').onclick=()=>garageAction(()=>serviceCar(career,locked));
- $('#recovery-service').onclick=()=>garageAction(()=>recoveryService(career,locked));
- $('#open-tuning').onclick=()=>{view='tuning';render();};
+ $('#repair').onclick=()=>garageAction(()=>serviceCar(career,locked));$('#recovery-service').onclick=()=>garageAction(()=>recoveryService(career,locked));$('#open-tuning').onclick=()=>{view='tuning';render();};
 }
 function renderTuning(){
  const locked=!!race&&!race.finished,build=config();
@@ -366,13 +373,13 @@ function readSeriesDraft(){
 function bindOrganizer(locked){
  const id=()=> 'custom-'+globalThis.crypto.randomUUID();
  document.querySelectorAll('.organizer-panel input,.organizer-panel select').forEach(input=>input.oninput=()=>{seriesDraft=readSeriesDraft();$('#series-quote').innerHTML=seriesQuoteHTML(career,seriesDraft);});
- $('#series-new').onclick=()=>{seriesDraft=defaultSeries();seriesEditingId=null;renderSeasons();};
- $('#series-add-stage').onclick=()=>{seriesDraft=readSeriesDraft();if(seriesDraft.stages.length<6)seriesDraft.stages.push(['haruna','dry']);renderSeasons();};
- document.querySelectorAll('[data-series-remove]').forEach(button=>button.onclick=()=>{seriesDraft=readSeriesDraft();if(seriesDraft.stages.length>2)seriesDraft.stages.splice(Number(button.dataset.seriesRemove),1);renderSeasons();});
- document.querySelectorAll('[data-series-up]').forEach(button=>button.onclick=()=>{seriesDraft=readSeriesDraft();const i=Number(button.dataset.seriesUp);if(i>0)[seriesDraft.stages[i-1],seriesDraft.stages[i]]=[seriesDraft.stages[i],seriesDraft.stages[i-1]];renderSeasons();});
- $('#series-save').onclick=()=>{seriesDraft=readSeriesDraft();const key=seriesEditingId||id();if(teamAction(()=>saveSeries(career,seriesDraft,key,locked))){seriesEditingId=key;renderSeasons();toast('Проект сохранён. Взнос списывается только при запуске.');}};
- document.querySelectorAll('[data-series-edit]').forEach(button=>button.onclick=()=>{seriesEditingId=button.dataset.seriesEdit;seriesDraft=structuredClone(career.organizer.series.find(s=>s.id===seriesEditingId));renderSeasons();$('.organizer-panel').scrollIntoView({behavior:'smooth'});});
- document.querySelectorAll('[data-series-delete]').forEach(button=>button.onclick=()=>{if(teamAction(()=>deleteSeries(career,button.dataset.seriesDelete,locked))&&seriesEditingId===button.dataset.seriesDelete){seriesDraft=defaultSeries();seriesEditingId=null;renderSeasons();}});
+ $('#series-new').onclick=()=>{seriesDraft=defaultSeries();seriesEditingId=null;render();};
+ $('#series-add-stage').onclick=()=>{seriesDraft=readSeriesDraft();if(seriesDraft.stages.length<6)seriesDraft.stages.push(['haruna','dry']);render();};
+ document.querySelectorAll('[data-series-remove]').forEach(button=>button.onclick=()=>{seriesDraft=readSeriesDraft();if(seriesDraft.stages.length>2)seriesDraft.stages.splice(Number(button.dataset.seriesRemove),1);render();});
+ document.querySelectorAll('[data-series-up]').forEach(button=>button.onclick=()=>{seriesDraft=readSeriesDraft();const i=Number(button.dataset.seriesUp);if(i>0)[seriesDraft.stages[i-1],seriesDraft.stages[i]]=[seriesDraft.stages[i],seriesDraft.stages[i-1]];render();});
+ $('#series-save').onclick=()=>{seriesDraft=readSeriesDraft();const key=seriesEditingId||id();if(teamAction(()=>saveSeries(career,seriesDraft,key,locked))){seriesEditingId=key;render();toast('Проект сохранён. Взнос списывается только при запуске.');}};
+ document.querySelectorAll('[data-series-edit]').forEach(button=>button.onclick=()=>{seriesEditingId=button.dataset.seriesEdit;seriesDraft=structuredClone(career.organizer.series.find(s=>s.id===seriesEditingId));render();$('.organizer-panel').scrollIntoView({behavior:'smooth'});});
+ document.querySelectorAll('[data-series-delete]').forEach(button=>button.onclick=()=>{if(teamAction(()=>deleteSeries(career,button.dataset.seriesDelete,locked))&&seriesEditingId===button.dataset.seriesDelete){seriesDraft=defaultSeries();seriesEditingId=null;render();}});
  document.querySelectorAll('[data-series-enter]').forEach(button=>button.onclick=()=>garageAction(()=>enterCup(career,button.dataset.seriesEnter,globalThis.crypto.randomUUID(),locked)));
  document.querySelectorAll('[data-series-export]').forEach(button=>button.onclick=()=>{const json=exportSeries(career.organizer.series.find(s=>s.id===button.dataset.seriesExport));openModal('<h2>JSON серии</h2><p>Скопируй текст и передай другому игроку. Передаются правила и календарь.</p><textarea id="series-json" readonly aria-label="JSON серии"></textarea><button class="secondary" data-close>Закрыть</button>',()=>{$('#series-json').value=json;$('#series-json').select();});});
  $('#series-import').onclick=()=>openModal('<h2>Импорт серии</h2><p>Вставь JSON проекта Tokyo Streets. Чужой прогресс и деньги не импортируются.</p><textarea id="series-json" maxlength="16000" aria-label="JSON серии"></textarea><p id="series-import-error" role="alert"></p><button id="series-import-confirm" class="primary">Импортировать проект</button><button class="secondary" data-close>Отмена</button>',()=>{$('#series-import-confirm').onclick=()=>{try{const next=importSeries(career,$('#series-json').value,id(),locked);career=next;save();$('#modal').close();render();toast('Проект импортирован.');}catch(error){$('#series-import-error').textContent=error.message;}};});
@@ -383,7 +390,7 @@ function openModal(html,setup) {
   setup?.();$('#modal').showModal();
 }
 function help() {
-  openModal(`<div class="eyebrow">TOKYO STREETS / SERIES ORGANIZER 0.13</div><h2>Найди свою линию.</h2><ol>
+  openModal(`<div class="eyebrow">TOKYO STREETS / WORKSPACE 0.14</div><h2>Найди свою линию.</h2><ol>
     <li><strong>Гараж.</strong> Выбери машину и пилота, проведи сервис. Во вкладке «Тюнинг» покупай детали и сохраняй давление, главную пару, пружины, тормозной баланс и прижим. Регулировки коробки, подвески и антикрыла требуют соответствующих деталей; настройки у каждой машины свои.</li>
     <li><strong>Событие.</strong> Харуна доступна сразу. Для Акаги нужно 12 Street Cred. После двух завершённых сессий открывается клубный Time Attack в Цукубе.</li>
     <li><strong>Тактика.</strong> Все карты открыты. Повтор активного приёма в последних шести решениях экспоненциально увеличивает нагрузку, износ и потерю темпа. Один промежуточный ход не сбрасывает штраф. Разнообразные действия постепенно выводят его из памяти. Базовый «Чистый темп» всегда остаётся без штрафа. Серые объясняют ограничения. Читай разведку маршрута, прогноз, шины, тормоза и концентрацию.</li>
@@ -395,10 +402,11 @@ function help() {
   career.helpSeen=true;save();
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{
-  if(busy)return;view=button.dataset.view;render();
+  if(busy)return;view=button.dataset.view;render();window.scrollTo?.(0,0);
 });
 $('#help').onclick=help;
 $('.logo').onclick=event=>{event.preventDefault();if(!busy){view='race';render();}};
+window.addEventListener('resize',()=>fitWorkspace(app));
 window.addEventListener('beforeunload',event=>{if(race&&!race.finished){event.preventDefault();event.returnValue='';}});
 document.addEventListener('keydown',event=>{
   if(event.code==='Space'&&busy&&!$('#modal').open&&!['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)){
