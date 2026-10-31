@@ -15,30 +15,34 @@ test('garage sorts cars by actual price, including filtered drive types',()=>{
  assert.ok(ordered.every((car,i)=>i===0||ordered[i-1].price<=car.price));
 });
 
-test('studio render mappings cover all available portraits but retain R32-specific SVG',()=>{
- assert.deepEqual([...GARAGE_ART_IDS],['ae86','mx5','s13','rx7','evo','chaser','supra','ek9','nsx','r34']);
- for (const car of CARS){
+test('all garage vehicles get their own correct high-definition artwork',()=>{
+ assert.deepEqual([...GARAGE_ART_IDS],["ae86","mx5","s13","rx7","evo","chaser","r32","r34","supra","ek9","nsx"]);
+ assert.equal(new Set(GARAGE_ART_IDS).size,CARS.length);
+ for(const car of CARS){
    const html=garageArtworkHTML(car);
-   if(GARAGE_ART_IDS.includes(car.id)){
-     assert.match(html,new RegExp('garage-render-'+car.id));
-     assert.match(html,/role="img"/);
-     assert.match(html,/aria-label="/);
-   }else{
-     assert.match(html,/<svg/);
-   }
+   assert.match(html,new RegExp('garage-render-'+car.id));
+   assert.match(html,/role="img"/);
+   assert.match(html,/aria-label="/);
+   assert.ok(!html.includes('<svg'),car.id+' should not use the old SVG');
  }
  assert.ok(!garageArtworkHTML(CARS.find(car=>car.id==='r32')).includes('garage-render-r34'));
  const escaped=garageArtworkHTML({...CARS[0],name:'<unsafe>'});
  assert.match(escaped,/&lt;unsafe&gt;/);assert.ok(!escaped.includes('<unsafe>'));
 });
 
-test('single local WebP atlas is a valid, compact browser asset',()=>{
- for (const name of ['garage-cars-v1.webp','garage-cars-v2.webp']){
-  const webp=readFileSync(new URL('../assets/'+name,import.meta.url));
-  assert.ok(webp.length>1000&&webp.length<100000,name);
-  assert.equal(webp.toString('ascii',0,4),'RIFF');
-  assert.equal(webp.toString('ascii',8,12),'WEBP');
+test('every car portrait is a separate 960×720 WebP with enough resolution for 2× previews',()=>{
+ for (const id of GARAGE_ART_IDS){
+  const asset=readFileSync(new URL('../assets/garage-hd/'+id+'.webp',import.meta.url));
+  assert.ok(asset.length>30000&&asset.length<250000,id+' size');
+  assert.equal(asset.toString('ascii',0,4),'RIFF',id);
+  assert.equal(asset.toString('ascii',8,12),'WEBP',id);
+  assert.equal(asset.toString('ascii',12,16),'VP8X',id);
+  assert.equal(asset.readUIntLE(24,3)+1,960,id+' image width');
+  assert.equal(asset.readUIntLE(27,3)+1,720,id+' image height');
  }
+ const css=readFileSync(new URL('../style.css',import.meta.url),'utf8');
+ for(const id of GARAGE_ART_IDS)assert.ok(css.includes('assets/garage-hd/'+id+'.webp'),id+' CSS');
+ assert.ok(!css.includes('background-image:url("assets/garage-cars-v1.webp")'));
 });
 
 test('R34 is a separate playable car with its own stock engine and save data',()=>{
@@ -62,9 +66,8 @@ test('R34 is a separate playable car with its own stock engine and save data',()
  assert.ok(normalized.ownedCars.includes('r34'));
 });
 
-test('every car has matching artwork or a vehicle-specific SVG',()=>{
+test('every model has a unique high-resolution image instead of a vector fallback',()=>{
  const htmls=CARS.map(car=>garageArtworkHTML(car));
- assert.ok(htmls.every(html=>html.includes('garage-render')||html.includes('<svg')));
- assert.equal(htmls.filter(html=>html.includes('garage-render')).length,10);
- assert.match(garageArtworkHTML(CARS.find(car=>car.id==='r32')),/<svg/);
+ assert.ok(htmls.every(html=>html.includes('garage-render')&&!html.includes('<svg')));
+ assert.equal(htmls.length,11);
 });
