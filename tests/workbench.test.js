@@ -81,7 +81,7 @@ test('new career goals navigate to real routes, lock during racing and report pa
 test('free-race opponent choice persists and is frozen after start; championships expose five cups',async t=>{
  const c=newCareer();c.money=100000;const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s);
  assert.equal(d.querySelectorAll('[data-rival-level]').length,3);q('[data-rival-level=hard]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).rivalLevel,'hard');assert.equal(q('[data-rival-level=hard]').getAttribute('aria-pressed'),'true');
- q('#start').click();for(const button of d.querySelectorAll('[data-rival-level]'))assert.ok(button.disabled);
+ q('#start').click();assert.equal(d.querySelectorAll('[data-rival-level]').length,0);assert.ok(q('.event-controls').classList.contains('session-active'));assert.equal(q('#control'),null);assert.equal(q('[data-pilot]'),null);
  q('[data-view=garage]').click();q('[data-garage-preview=mx5]').click();assert.ok(q('#trade-in').disabled);
  q('[data-view=race]').click();q('#abandon').click();q('#confirm-abandon').click();
  q('[data-view=seasons]').click();assert.equal(d.querySelectorAll('[data-cup-enter]').length,5);assert.match(q('#app').textContent,/Japan All Stars/);assert.match(q('#app').textContent,/Tokyo Legends/);
@@ -92,4 +92,14 @@ test('garage trade-in shows the quote before confirmation and replaces inventory
  assert.ok(q('.trade-in-quote'));q('#trade-in').click();assert.match(q('#modal').textContent,/Подтвердить трейд-ин/);assert.equal(values.get(SAVE_KEY),before);
  q('#trade-in-confirm').click();const sold=JSON.parse(values.get(SAVE_KEY));assert.equal(sold.car,'mx5');assert.deepEqual(sold.ownedCars,['mx5']);assert.deepEqual(sold.purchased.ae86,[]);assert.ok(!q('#modal').hasAttribute('open'));
  q('[data-garage-preview=ae86]').click();assert.match(q('[data-car=ae86]').textContent,/Купить/);assert.ok(sold.money<50000);
+});
+
+test('player-only interface hides driver recruitment and JSON export while preserving crew support',async t=>{
+ const {document:d,frames}=await boot(t),q=s=>d.querySelector(s),go=view=>q('[data-view='+view+']').click();
+ go('garage');assert.equal(q('[data-pilot]'),null);assert.match(q('.garage-player-note').textContent,/За рулём: ты/);
+ go('team');assert.equal(q('[data-hire]'),null);assert.equal(q('[data-assign]'),null);assert.equal(q('#plan-order'),null);assert.ok(q('[data-pane=staff]'));
+ go('race');assert.equal(q('#control'),null);
+ q('#start').click();let turns=0;
+ while(q('#execute')&&turns++<12){const card=q('[data-card=balanced]');if(card&&!card.disabled)card.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);}
+ assert.ok(q('.report'));assert.equal(q('#export'),null);assert.ok(q('.race-recap'));
 });

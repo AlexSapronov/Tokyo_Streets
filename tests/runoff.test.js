@@ -41,13 +41,14 @@ for(const event of EVENTS)test(`player run-off stops and damages without reward 
  if(event.mode==='drift'){assert.equal(next.history.at(-1).drift.points,0);assert.equal(next.player.drift.active,false);}
  const damaged={...next,config:{...next.config,condition:40}};assert.equal(awardRace(career,damaged).career.condition.ae86,35);
 });
-test('opponent run-off stops their actions and allows the player to finish for a win',()=>{
+test('opponent run-off finishes a duel immediately and gives a win without an incomplete ghost',()=>{
  let race=createRace(cfg,'dry','haruna','rival-dnf',worstSeed(0,'opponent'));race.opponent.focus=0;
- race=resolveSector(race,'balanced');assert.ok(race.opponent.dnf);assert.ok(!race.player.dnf);assert.equal(race.finished,false);
- const stopped=structuredClone(race.opponent);race=resolveSector(race,'balanced');assert.deepEqual(race.opponent,stopped);assert.equal(race.history.at(-1).aiTime,null);assert.equal(race.history.at(-1).gap,null);
- while(!race.finished)race=resolveSector(race,'balanced');
- assert.ok(!race.player.dnf);assert.equal(raceOutcome(race).won,true);assert.match(raceOutcome(race).label,/сход соперника/);
- assert.ok(awardRace(newCareer(),race).isBest);
+ race=resolveSector(race,'balanced');assert.ok(race.opponent.dnf);assert.ok(!race.player.dnf);assert.equal(race.finished,true);
+ assert.equal(race.history.length,1);assert.throws(()=>resolveSector(race,'balanced'),/завершён/);
+ assert.equal(raceOutcome(race).won,true);assert.match(raceOutcome(race).label,/сход соперника/);
+ const award=awardRace(newCareer(),race);assert.equal(award.isBest,false);
+ assert.equal(award.career.races,1);assert.equal(award.career.wins,1);assert.equal(award.career.bests.length,0);
+ assert.equal(validateSave(award.career).bests.length,0);
 });
 test('simultaneous run-offs never award a win and damage is applied once across save reload',()=>{
  let race=createRace(cfg,'rain','haruna','both-dnf',42);race.player.focus=0;race.opponent.focus=0;
