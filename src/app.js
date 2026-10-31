@@ -269,7 +269,7 @@ function renderReport() {
   $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РЕЗУЛЬТАТ'}</div>
     <h2>${outcome.label} · ${time(race.player.time)}</h2>${damageHTML(race)}<span class="micro">${weatherName(race.weather)} · ${race.config.car.name} · За рулём: ты</span>
     <p>+${money(outcome.reward)} · ${outcome.street?'Street Cred +'+outcome.street:'Official Rep +'+outcome.official} · Состояние машины ${Math.round(career.condition[race.config.car.id])}%${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''}
-    ${ghost&&!race.player.dnf?'<br>К предыдущему рекорду: '+signed(race.player.time-ghost.time)+' с · состояние на старте '+race.config.condition.toFixed(0)+'% / в рекорде '+ghost.condition.toFixed(0)+'%':''}</p></div>
+    ${ghost&&race.history.length===event.sectors.length&&!race.player.dnf?'<br>К предыдущему рекорду: '+signed(race.player.time-ghost.time)+' с · состояние на старте '+race.config.condition.toFixed(0)+'% / в рекорде '+ghost.condition.toFixed(0)+'%':''}</p></div>
     ${race.mode==='drag'?'<div class="drag-result"><h3>Твоя дорожка</h3>'+dragMetrics(race.player.drag)+'<h3>Соперник</h3>'+dragMetrics(race.opponent.drag)+'</div>':''}<div class="report-actions"><button id="retry" class="primary">Ещё один заезд ↗</button><button id="report-garage" class="secondary">В гараж</button><button id="replay-run" class="secondary">▶ Повтор заезда</button></div></div>
     ${raceSummaryHTML(summarizeRace(race,outcome,event,getLanguage()),escapeHTML)}
     <div class="table-wrap"><table><thead><tr><th>Сектор / причина</th><th>Твоё решение</th><th>${race.mode!=='timeattack'?'Решение AI / план':'Медаль'}</th><th>Ты</th><th>Разрыв</th><th>К призраку</th><th>Ресурсы</th></tr></thead><tbody>
@@ -286,8 +286,9 @@ function bindReportActions(){
   $('#retry').onclick=()=>{race=null;render();};
   $('#report-maintenance').onclick=()=>{race=null;selectWorkspaceTab('tuning','maintenance');view='tuning';render();};
   $('#report-garage').onclick=()=>{race=null;view='garage';render();};
-  $('#replay-run').disabled=!!race.player.dnf;
-  if(race.player.dnf)$('#replay-run').textContent='Повтор схода недоступен';
+  const shortRun=race.history.length<getEvent(race.eventId).sectors.length;
+  $('#replay-run').disabled=!!race.player.dnf||shortRun;
+  if(race.player.dnf||shortRun)$('#replay-run').textContent=shortRun?'Повтор досрочного финиша недоступен':'Повтор схода недоступен';
   $('#replay-run').onclick=()=>playReplay(raceRecord(race));
 }
 function serviceHTML(locked){
@@ -459,7 +460,7 @@ function renderDriftReport(){
   const event=getEvent(race.eventId),d= race.player.drift,outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
   $('#report').innerHTML=`<section class="report">${seasonReportHTML(race.seasonReport)}${supportReportHTML(race)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ РЕКОРД ПО БАЛЛАМ':'СУДЕЙСКИЙ ПРОТОКОЛ'}</div>
     <h2>${outcome.label} · ${score(d.score)} / 800</h2><p>+${money(outcome.reward)} · Official Rep +${outcome.official}${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''} · ${weatherName(race.weather)}
-    ${ghost&&!race.player.dnf?'<br>К прошлому рекорду: '+signed(d.score-ghost.drift.score)+' баллов':''}</p>${damageHTML(race)}<span class="micro">ЛИНИЯ 35% · УГОЛ 25% · СКОРОСТЬ 20% · СВЯЗНОСТЬ 20%<br>ВРЕМЯ ${time(race.player.time)} — ДЛЯ ПОВТОРА; ОЦЕНКА ОПРЕДЕЛЯЕТ РЕЗУЛЬТАТ</span></div>
+    ${ghost&&race.history.length===event.sectors.length&&!race.player.dnf?'<br>К прошлому рекорду: '+signed(d.score-ghost.drift.score)+' баллов':''}</p>${damageHTML(race)}<span class="micro">ЛИНИЯ 35% · УГОЛ 25% · СКОРОСТЬ 20% · СВЯЗНОСТЬ 20%<br>ВРЕМЯ ${time(race.player.time)} — ДЛЯ ПОВТОРА; ОЦЕНКА ОПРЕДЕЛЯЕТ РЕЗУЛЬТАТ</span></div>
     <div class="drag-result">${driftMetrics(d)}</div><div class="report-actions"><button id="retry" class="primary">Ещё один заезд ↗</button><button id="report-garage" class="secondary">В гараж</button><button id="replay-run" class="secondary">▶ Повтор заезда</button></div></div>
     ${raceSummaryHTML(summarizeRace(race,outcome,event,getLanguage()),escapeHTML)}
     <div class="table-wrap"><table><thead><tr><th>Клип / разбор</th><th>Приём</th><th>Линия</th><th>Угол</th><th>Скорость</th><th>Связность</th><th>Штраф</th><th>Баллы / к рекорду</th></tr></thead><tbody>
