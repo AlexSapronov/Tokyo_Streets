@@ -1,3 +1,4 @@
+import {unlockedSkillCards,trainedExecution} from './player.js';
 import {lineGeometry,lineReason,lineCard,lineName,RACING_LINES,roadMode} from './racing-lines.js';
 import {engineCar,stockEngineId,getEngine} from './engine-data.js';
 import {normalizeComponentWear,wornCar,tireKey} from './wear.js';
@@ -56,12 +57,13 @@ export function freeRivalOptions(config,eventId,weather='dry'){
  if(rivalsCache.size>=128)rivalsCache.clear();rivalsCache.set(key,options);return structuredClone(options);
 }
 export function freshState(config){return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
-export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return CARDS.filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
+export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return [...CARDS,...unlockedSkillCards(config)].filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
  if(sector.mode==='drift')return driftReason(card,sector,state,config);
  if(sector.mode==='drag')return dragReason(card,sector,state,config);
  if(card.phase)return 'Карта только для дрэга';
  if(sector.mode==='timeattack'&&(card.category==='Дуэль'||card.gap))return 'В одиночной сессии нет соперника';
+ if(card.cornerOnly&&sector.type!=='corner')return 'Нужен поворот';
  if(card.only==='corner'&&sector.type!=='corner')return 'Нужен поворот';
  if(card.only==='straight'&&sector.type!=='straight')return 'Нужна прямая';
  if(card.only==='wet'&&sector.wet<.35)return 'Нужно мокрое покрытие';
@@ -105,7 +107,9 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(card.id==='apexEarly')gain*=sector.radius<50?1.25:-.5;
  if(card.id==='power')gain*=traction*(sector.wet>.35&&['FR','MR'].includes(car.drive)&&!has('lsd')?.45:1);
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
- const risk=clamp(card.risk+line.risk+strain.risk+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
+ if(card.id==='draft')gain+=(config.training?.racecraft||0)*.004;
+ const control=corner&&(sector.wet>.35||card.risk>.1)?(config.training?.control||0)*.018:0;
+ const risk=clamp(card.risk+line.risk-control+strain.risk+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
  // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
@@ -117,8 +121,10 @@ function simulateRaw(config,state,sector,card,execution=null){
  const actionFocus=focusCost(config,state,card);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;
- const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit)*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
+ const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit*(card.id==='skill-release'?1.08:1))*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
  const reasons=[corner?`Радиус ${sector.radius} м: предел дуги ${Math.round(cornerSpeed*3.6)} км/ч`:`${car.power} л.с. / ${mass} кг: разгон до ${Math.round(exit*3.6)} км/ч`];
+ if(control)reasons.push('Контроль машины: ниже нагрузка на сцепление');
+ if(card.id==='skill-release')reasons.push('Поздний выпуск: выше скорость входа в следующий сектор');
  if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
  if(strain.strain>2)reasons.push('Накопленная нагрузка от атак: смена приёма не снимает напряжение');
  if(['late','apexEarly','power','defend'].includes(card.id))reasons.push('Траектория изменила скорость входа в следующий сектор');
@@ -133,6 +139,7 @@ function simulateRaw(config,state,sector,card,execution=null){
 }
 export function simulate(config,state,sector,card,execution=null){
   const blocked=lineReason(card.lineId||'neutral',sector);if(blocked)throw new Error(blocked);
+  execution=trainedExecution(config,sector,execution);
   const result=simulateRaw(config,state,sector,card,execution);
   result.next.strain=strainAfter(state,card);
   result.risk=clamp(result.risk+(sector.mode==='drag'?strainEffect(state,card).risk:0),0,1);
@@ -218,7 +225,7 @@ export function resolveSector(race, cardId, lineId='neutral') {
   }
   const row = {index: race.index, sector: sector.name, cardId, card: card.name,
     ...(roadMode(race.mode)?{lineId,aiLineId:ai?.card.lineId||'neutral'}:{}),
-    aiSlip:ai?.result.slip||0,aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
+    aiSlip:ai?.result.slip||0,aiCardId:ai?.card.id||null,aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
     playerTime: player.time, aiTime: ai?.result.time ?? null,
     gap: ai&&!player.next.dnf&&!ai.result.next.dnf ? player.next.time - ai.result.next.time : null,
     execution:player.execution,aiExecution:ai?.result.execution||null,aiReasons:ai?.result.reasons||[],

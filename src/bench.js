@@ -1,3 +1,4 @@
+import {playerConfiguration} from './player.js';
 import {EVENTS,CARDS,PARTS,sectorAt,getEvent} from './data.js';
 import {ENGINES,installedEngineId} from './engine-data.js';
 import {configuration,freshState,chooseAI,simulate,performanceProfile} from './engine.js';
@@ -29,8 +30,8 @@ export function benchmark(config,eventId,weather){
 }
 export function compareBench(career,raw){
  const draft=normalizeBenchDraft(career,raw);
- const baseline=configuration(career.car,'ren',career.builds[career.car],100,career.setups[career.car],installedEngineId(career));
- const trial=configuration(career.car,'ren',draft.parts,100,draft.setup,draft.engineId);
+ const baseline=playerConfiguration(configuration(career.car,'ren',career.builds[career.car],100,career.setups[career.car],installedEngineId(career)),career.player);
+ const trial=playerConfiguration(configuration(career.car,'ren',draft.parts,100,draft.setup,draft.engineId),career.player);
  const before=benchmark(baseline,draft.eventId,draft.weather),after=benchmark(trial,draft.eventId,draft.weather),notes=[];
  if(after.profile.power!==before.profile.power)notes.push(after.profile.power>before.profile.power?'Мощность выросла: больше потенциал разгона, но проверь сцепление и температуру.':'Мощность снизилась: меньше потенциал разгона.');
  if(after.profile.mass!==before.profile.mass)notes.push(after.profile.mass<before.profile.mass?'Меньше масса: легче разгон и смена направления.':'Масса выросла: разгон и торможение требуют больше ресурса.');

@@ -116,3 +116,17 @@ test('all drag formats keep paddock buildings off the racing strip while circuit
   scene.destroy();
  }
 });
+
+test('recorded braking, slip and attack cues render lights and trails; sound stops on pause and teardown',t=>{
+ t.mock.method(performance,'now',()=>0);let initial=race();initial=resolveSector(initial,'balanced');
+ const next=resolveSector(initial,'late','late-apex');next.history.at(-1).slip=.8;
+ const sound={updates:[],stops:0,update(frame,active){this.updates.push({frame,active});},stop(){this.stops++;}};
+ const scene=new Scene(canvas(),initial,null,false,sound);scene.animateSector(next,null,1000);calls=[];scene.loop(150);
+ assert.ok(calls.some(call=>call[0]==='fillRect'));assert.ok(calls.some(call=>call[0]==='ellipse'));assert.equal(sound.updates.at(-1).active,true);assert.ok(sound.updates.at(-1).frame.smoke>0);
+ scene.setPaused(true);assert.ok(sound.stops>0);scene.loop(300);assert.equal(sound.updates.at(-1).active,false);scene.destroy();assert.ok(sound.stops>1);
+});
+
+test('close camera follows recorded progress without touching simulation or rebuilding scenery',()=>{
+ const initial=race(),next=resolveSector(initial,'balanced'),scene=new Scene(canvas(),next),before=structuredClone(next);
+ scene.follow=true;calls=[];scene.draw();assert.ok(calls.some(call=>call[0]==='setTransform'&&call[1]===2.4));assert.ok(!calls.some(call=>call[0]==='fillRect'));assert.deepEqual(next,before);scene.destroy();
+});

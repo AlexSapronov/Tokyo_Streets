@@ -1,3 +1,4 @@
+import {playerConfiguration} from './player.js';
 import {getEvent,sectorAt} from './data.js';
 import {configuration,createRace,chooseAI,simulate,freshState} from './engine.js';
 import {freshDriftState} from './drift.js';
@@ -61,7 +62,7 @@ export function bookChallenge(career,id,runId){
  const c=getChallenge(id),blocked=admissionReason(career,c.eventId);if(blocked)throw new Error(blocked);
  if(typeof runId!=='string'||!runId||runId.length>80||career.awardedRuns.includes(runId))throw new Error('Нужен идентификатор заезда');
  const config=configuration(career.car,'ren',career.builds[career.car],career.condition[career.car],career.setups[career.car],career.engines?.installed?.[career.car]?.engineId,career.wear[career.car]);
- const race=previewChallenge(config,id),support=bookSupport(career,c.eventId,runId);
+ const race=previewChallenge(playerConfiguration(config,career.player),id),support=bookSupport(career,c.eventId,runId);
  race.runId=runId;race.seed=hashSeed(runId);race.supportFee=support.fee;
  return {career:{...support.career,eventId:c.eventId,weather:c.weather},race};
 }
