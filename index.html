@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#111919"><title>Tokyo Streets — тактический touge</title><link rel="stylesheet" href="style.css?v=0.17.0-eb53afca17ad"></head>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#111919"><title>Tokyo Streets — Тактические гонки</title><link rel="stylesheet" href="style.css?v=0.17.0-eb53afca17ad"></head>
 <body>
-<header class="topbar"><a class="logo" href="#" aria-label="Tokyo Streets"><span class="logo-mark">東</span><span>TOKYO<span class="logo-light">STREETS</span><small>TACTICAL RACING CLUB</small></span></a><nav aria-label="Основная навигация"><button data-view="race" class="nav active">01 <span>Заезд</span></button><button data-view="garage" class="nav">02 <span>Гараж</span></button><button data-view="tuning" class="nav">03 <span>Тюнинг</span></button><button data-view="world" class="nav">04 <span>Карьера</span></button><button data-view="seasons" class="nav">05 <span>Чемпионаты</span></button><button data-view="team" class="nav">06 <span>Команда</span></button></nav><div class="account"><span class="live-dot"></span><span>НОЧНАЯ СМЕНА</span><strong id="wallet"></strong><button id="help" class="icon-button" aria-label="Как играть">?</button></div></header>
+<header class="topbar"><a class="logo" href="#" aria-label="Tokyo Streets"><span class="logo-mark">東</span><span>TOKYO<span class="logo-light">STREETS</span><small>TACTICAL RACING CLUB</small></span></a><nav aria-label="Основная навигация"><button data-view="race" class="nav active">01 <span>Заезд</span></button><button data-view="garage" class="nav">02 <span>Гараж</span></button><button data-view="tuning" class="nav">03 <span>Тюнинг</span></button><button data-view="world" class="nav">04 <span>Карьера</span></button><button data-view="seasons" class="nav">05 <span>Чемпионаты</span></button><button data-view="team" class="nav">06 <span>Команда</span></button></nav><div class="account"><span class="live-dot"></span><span>НОЧНАЯ СМЕНА</span><strong id="wallet"></strong><label class="language-control" for="language-select"><span>LANG</span><select id="language-select" aria-label="Язык / Language"><option value="ru">RU</option><option value="en">EN</option></select></label><button id="help" class="icon-button" aria-label="Как играть">?</button></div></header>
 <main id="app"><p role="status">Загрузка Tokyo Streets…</p><noscript>Для игры требуется JavaScript. Включите его для этой страницы.</noscript></main>
 <dialog id="modal"><div id="modal-content"></div></dialog><div id="toast" role="status"></div>
 <!-- release-assets:start -->
@@ -9,6 +9,7 @@
 {
   "imports": {
     "./src/ai-policy.js": "./src/ai-policy.js?v=0.17.0-eb53afca17ad",
+    "./src/i18n.js": "./src/i18n.js?v=0.17.0-eb53afca17ad",
     "./src/app.js": "./src/app.js?v=0.17.0-eb53afca17ad",
     "./src/balance.js": "./src/balance.js?v=0.17.0-eb53afca17ad",
     "./src/career-view.js": "./src/career-view.js?v=0.17.0-eb53afca17ad",
