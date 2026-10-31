@@ -79,5 +79,5 @@ test('old road records remain replayable archives and never masquerade as a fres
  const record=raceRecord(finishRace(config,'dry')),old={...record,key:'2'+record.key.slice(record.key.indexOf('|'))};
  const career=validateSave({...newCareer(),bests:[old]});
  assert.equal(career.bests.length,1);assert.equal(career.bests[0].key,old.key);
- assert.equal(bestFor(career,config,'haruna','dry'),null);assert.ok(recordKey(config,'haruna','dry').startsWith('4|'));
+ assert.equal(bestFor(career,config,'haruna','dry'),null);assert.ok(recordKey(config,'haruna','dry').startsWith('5|'));
 });

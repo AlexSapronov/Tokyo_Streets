@@ -122,3 +122,25 @@ test('garage interface sorts by price and displays HD previews for every model',
  q('#garage-drive').value='AWD';q('#garage-drive').onchange({target:q('#garage-drive')});
  assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),['evo','r32','r34']);
 });
+
+test('local crew selection locks the advertised opponent and race lines update the real forecast',async t=>{
+ const {document:d,frames,values}=await boot(t),q=s=>d.querySelector(s);
+ q('[data-view=world]').click();q('[data-pane=rivals]').click();assert.equal(q('#pane-world-rivals').hidden,false);assert.equal(d.querySelectorAll('[data-challenge]').length,9);
+ q('[data-challenge=cedar-1]').click();assert.match(q('.sidebar').textContent,/Хару Кондо/);assert.equal(q('[data-rival-level]'),null);assert.equal(q('#weather').disabled,true);
+ q('#start').click();assert.equal(q('#challenge-cancel'),null);q('[data-card=balanced]').click();q('#execute').click();
+ let callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
+ assert.equal(q('[data-line=late-apex]').disabled,false);q('[data-line=late-apex]').click();assert.equal(q('[data-line=late-apex]').getAttribute('aria-pressed'),'true');
+ assert.equal(d.querySelectorAll('.upcoming-sectors>div').length,3);
+ q('#execute').click();assert.equal(q('[data-line=inside]').disabled,true);callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
+ assert.match(q('.last-sector').textContent,/Поздний апекс/);assert.ok(JSON.parse(values.get(SAVE_KEY)).rivals);
+});
+
+test('bench preview changes only the trial build and special series can register through their tab',async t=>{
+ const c=unlockEverything(newCareer());const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s),saved=()=>JSON.parse(values.get(SAVE_KEY));
+ q('[data-view=tuning]').click();q('[data-pane=bench]').click();assert.equal(q('#pane-tuning-bench').hidden,false);const before=saved();
+ const ecu=q('[data-bench-part=ecu]');ecu.checked=!ecu.checked;ecu.onchange();assert.match(q('#bench-result').textContent,/Пробная/);assert.deepEqual(saved(),before);
+ q('#bench-engine').value='ls3';q('#bench-engine').onchange({target:q('#bench-engine')});assert.deepEqual(saved(),before);
+ q('#bench-reset').click();assert.equal(q('#bench-engine').value,'4age');assert.deepEqual(saved(),before);
+ q('[data-view=seasons]').click();q('[data-pane=special]').click();assert.equal(d.querySelectorAll('[data-special-enter]').length,5);q('[data-special-enter=special-na]').click();assert.equal(saved().championships.active.cupId,'special-na');
+ q('#season-prepare').click();q('#start').click();q('[data-view=tuning]').click();q('[data-pane=bench]').click();assert.equal(q('#bench-event'),null);assert.match(q('.bench-panel').textContent,/после завершения/);
+});

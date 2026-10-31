@@ -1,8 +1,9 @@
+import {SPECIAL_CUPS,specialRegulationReason} from './special-cups.js';
 import {installedEngineId} from './engine-data.js';
 import {seriesDefinition,organizerReason} from './organizer.js';
 import {bookSupport} from './operations.js';
 import {CARS,getEvent,sectorAt} from './data.js';
-import {configuration,createRace,chooseAI,simulate} from './engine.js';
+import {configuration,createRace,chooseAI,chooseRacingLine,simulate} from './engine.js';
 import {freshDragState} from './drag.js';
 import {freshState} from './engine.js';
 import {hashSeed,executionRoll} from './execution.js';
@@ -29,15 +30,17 @@ export const CUPS=[
 ];
 export const POINTS=[10,6,4,2];
 export function emptyChampionship(){return {active:null,completed:[],history:[]};}
-export function getCup(id,career){const definition=career?.championships?.active?.definition;return CUPS.find(c=>c.id===id)||career?.organizer?.series?.find(c=>c.id===id)||(definition&&definition.id===id?definition:undefined);}
+export function getCup(id,career){const definition=career?.championships?.active?.definition;return CUPS.find(c=>c.id===id)||SPECIAL_CUPS.find(c=>c.id===id)||career?.organizer?.series?.find(c=>c.id===id)||(definition&&definition.id===id?definition:undefined);}
 export function activeCup(state){return state?.definition||getCup(state?.cupId);}
 export function cupUnlockReason(career,cup){
  if(cup.custom)return organizerReason(career,cup);
+ if(cup.special){if(career.races<cup.races)return 'Нужно '+cup.races+' финиша';const closed=cup.stages.find(([id])=>{const e=getEvent(id);return career.races<e.unlockRaces||career.street<e.unlockStreet;});if(closed)return 'Сначала открой трассу: '+getEvent(closed[0]).title;}
  if(cup.previous&&!career.championships?.completed?.includes(cup.previous))return 'Нужен подиум в предыдущем кубке';
  if(!cup.previous&&(career.races<cup.races||career.street<cup.street))return `Нужно ${cup.races} финишей и ${cup.street} Street Cred`;
  return '';
 }
 export function regulationReason(config,cup){
+ const special=specialRegulationReason(config,cup);if(special)return special;
  if(config.car.power>cup.maxPower)return `Лимит ${cup.maxPower} л.с. с учётом тюнинга`;
  if(!cup.drives.includes(config.car.drive))return `Допуск: ${cup.drives.join(' / ')}`;
  if(cup.naOnly&&config.car.engine.includes('TURBO'))return 'Кубок только для атмосферных моторов';
@@ -93,7 +96,8 @@ function finishNpc(config,state,eventId,weather,seed,side,index,style){
  for(let i=index;i<event.sectors.length&&!state.dnf;i++){
   const sector=sectorAt(i,weather,eventId),upcoming=event.sectors.slice(i+1,i+3).map((_,j)=>sectorAt(i+j+1,weather,eventId));
   const action=chooseAI(config,state,sector,Infinity,upcoming,orderPolicy(style));
-  const result=simulate(config,state,sector,action.card,executionRoll(seed,i,side,state.focus));
+  const card=['duel','timeattack'].includes(event.mode)?chooseRacingLine(config,state,sector,action.card,upcoming[0],style).card:action.card;
+  const result=simulate(config,state,sector,card,executionRoll(seed,i,side,state.focus));
   state={...result.next,seasonSlip:(state.seasonSlip||0)+result.slip};
  }
  return state;

@@ -142,6 +142,6 @@ test('all 64 equipment combinations preserve valid drag results',()=>{
  }
 });
 test('drag key is independent of road balance version',()=>{
- assert.ok(recordKey(cfg,'haruna','dry').startsWith('4|'));
+ assert.ok(recordKey(cfg,'haruna','dry').startsWith('5|'));
  assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-2|'));
 });
