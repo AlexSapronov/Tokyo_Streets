@@ -72,3 +72,19 @@
 .garage-player-note p{font-size:11px;color:var(--muted);margin:5px 0 0}
 @media(min-width:1250px){.session-context{max-width:46vw}.event-controls.session-active+ .session-context{margin-left:auto}}
 @media(max-width:800px){.session-context{justify-content:flex-start;text-align:left}}
+
+/* Car art atlas: a lightweight 2-column × 3-row transparent WebP.
+   Preserve exact 4:3 cell proportions at both thumbnail and full preview sizes. */
+.garage-price-sort{padding:7px 13px 6px;font:10px var(--mono);letter-spacing:1px;color:var(--muted);border-bottom:1px solid var(--line)}
+.garage-price-sort span{color:var(--accent)}
+.garage-render{display:block;width:100%;aspect-ratio:4 / 3;background-image:url("assets/garage-cars-v1.webp");background-repeat:no-repeat;background-size:200% 300%}
+.garage-render-ae86{background-position:0 0}
+.garage-render-mx5{background-position:100% 0}
+.garage-render-s13{background-position:0 50%}
+.garage-render-rx7{background-position:100% 50%}
+.garage-render-evo{background-position:0 100%}
+.mini-car .garage-render{width:85px;height:63.75px;max-width:100%}
+.garage-car-detail .vehicle-art{display:flex;align-items:center;justify-content:center;overflow:hidden}
+.garage-car-detail .vehicle-art .garage-render{width:min(100%,480px);max-height:100%;flex:0 1 auto}
+.garage-car-detail .vehicle-art>svg{max-width:100%;height:100%}
+@media(max-width:800px){.garage-car-detail .vehicle-art .garage-render{max-width:293px}}
