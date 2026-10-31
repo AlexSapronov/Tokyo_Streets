@@ -14,6 +14,7 @@ export function admissionReason(career,eventId){
 }
 export function unlockEverything(career){
  const next=structuredClone(career);next.money=1000000;next.races=Math.max(20,next.races);next.street=Math.max(100,next.street);next.official=Math.max(100,next.official);next.repairDebt=0;
+ next.championships??={active:null,history:[],completed:[]};next.championships.completed=['club','regional','masters'];
  next.ownedCars=CARS.map(c=>c.id);
  for(const car of CARS){next.purchased[car.id]=PARTS.filter(p=>!partReason(car.id,p.id)).map(p=>p.id);next.condition[car.id]=100;}
  next.team={...next.team,founded:true,contracts:PILOTS.map(p=>({pilotId:p.id,trust:100,experience:30}))};

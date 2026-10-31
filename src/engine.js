@@ -1,3 +1,4 @@
+import {orderPolicy} from './ai-policy.js';
 import {normalizeSetup} from './setup.js';
 import {tunedCar,normalizeBuild,tireFactor,aeroGrip} from './tuning.js';
 import {raceClass,incidentPrice,rewardFactor} from './balance.js';
@@ -148,7 +149,7 @@ export function resolveSector(race, cardId) {
   const seed=race.seed??hashSeed(race.runId||'legacy');
   const player = simulate(race.config, race.player, sector, card,executionRoll(seed,race.index,'player',race.player.focus));
   const ai = ['duel','drag'].includes(race.mode)&&!race.opponent.dnf
-    ? chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race)) : null;
+    ? chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race),race.rivalStyle?orderPolicy(race.rivalStyle):null) : null;
   if(ai)ai.result=simulate(race.rival,race.opponent,sector,ai.card,executionRoll(seed,race.index,'opponent',race.opponent.focus));
   if (card.id === 'defend' && ai) { ai.result.time += .35; ai.result.next.time += .35; }
   if (ai?.card.id === 'defend') {
@@ -156,7 +157,7 @@ export function resolveSector(race, cardId) {
     player.reasons.push('Соперник закрыл траекторию: +0.35 с');
   }
   const row = {index: race.index, sector: sector.name, cardId, card: card.name,
-    aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
+    aiSlip:ai?.result.slip||0,aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
     playerTime: player.time, aiTime: ai?.result.time ?? null,
     gap: ai&&!player.next.dnf&&!ai.result.next.dnf ? player.next.time - ai.result.next.time : null,
     execution:player.execution,aiExecution:ai?.result.execution||null,aiReasons:ai?.result.reasons||[],

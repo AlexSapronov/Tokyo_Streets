@@ -1,3 +1,4 @@
+import {settleCup} from './championship.js';
 import {setupKey} from './setup.js';
 import {teamAfterRace} from './team.js';
 import {getEvent} from './data.js';
@@ -40,7 +41,7 @@ export function awardRace(career, race) {
   const previous = bestFor(career, race.config, race.eventId, race.weather);
   const improved=!previous||(race.mode==='drift'?record.drift.score>previous.drift.score||record.drift.score===previous.drift.score&&record.time<previous.time:record.time<previous.time);
   const isBest = !race.player.dnf && !race.player.drag?.falseStart && improved;
-  const next = structuredClone(career);
+  let next = structuredClone(career);
   const debtPaid=Math.min(next.repairDebt||0,Math.floor(outcome.reward*.5));
   next.repairDebt=(next.repairDebt||0)-debtPaid;
   next.money += outcome.reward-debtPaid;
@@ -60,7 +61,8 @@ export function awardRace(career, race) {
   // Preserve the legacy all-build Haruna statistic for old saves.
   if (!race.player.dnf && race.eventId === 'haruna') next.best = next.best === null ? record.time : Math.min(next.best, record.time);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
-  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
+  const season=settleCup(next,race);next=season.career;
+  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }
 export function checkpointFractions(eventId) {
   const sectors = getEvent(eventId).sectors;

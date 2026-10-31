@@ -1,3 +1,5 @@
+import {emptyPresets,normalizePresets} from './presets.js';
+import {emptyChampionship,normalizeChampionship} from './championship.js';
 import {normalizeSetup,defaultSetup,validSetup,setupKey} from './setup.js';
 import {partReason,normalizeBuild} from './tuning.js';
 import {START_MONEY} from './balance.js';
@@ -16,7 +18,7 @@ export function newCareer() {
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -96,10 +98,13 @@ export function validateSave(raw) {
   out.car = out.ownedCars.includes(raw.car) ? raw.car : 'ae86';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
   out.team=normalizeTeam(raw.team);
+  out.championships=normalizeChampionship(raw.championships);
+  if(out.championships.active&&!out.ownedCars.includes(out.championships.active.carId))out.championships.active=null;
   out.control=raw.control==='manager'&&out.team.founded&&out.team.contracts.some(contract=>contract.pilotId===out.pilot)?'manager':'personal';
   for (const car of CARS) {
     out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(id=>validPart(id)&&!partReason(car.id,id)));
     out.builds[car.id] = normalizeBuild(car.id,list(raw.builds?.[car.id]).filter(id => out.purchased[car.id].includes(id)));
+    out.presets[car.id]=normalizePresets(car.id,raw.presets?.[car.id],out.purchased[car.id]);
     out.setups[car.id]=normalizeSetup(out.builds[car.id],raw.setups?.[car.id]);
     out.condition[car.id] = finite(raw.condition?.[car.id])
       ? Math.max(35, Math.min(100, raw.condition[car.id])) : 100;
