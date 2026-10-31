@@ -18,13 +18,13 @@ test('expanded fleet has eleven distinct identities, all four layouts and indepe
  assert.equal(transmissionProfile(configuration('supra','ren')).ratios.length,6);assert.equal(transmission(configuration('supra','ren'),350).gear,6);
 });
 test('legacy three-car save migrates without changing money, ownership, conditions or installed hardware',()=>{
- const legacy={...newCareer(),money:54321,ownedCars:['ae86','chaser'],car:'chaser',builds:{ae86:['cooling'],chaser:['lsd']},purchased:{ae86:['cooling'],chaser:['lsd']},condition:{ae86:80,chaser:70,evo:95}};
+ const legacy={...preparedCareer(),money:54321,ownedCars:['ae86','chaser'],car:'chaser',builds:{ae86:['cooling'],chaser:['lsd']},purchased:{ae86:['cooling'],chaser:['lsd']},condition:{ae86:80,chaser:70,evo:95}};
  const loaded=validateSave(legacy);assert.equal(loaded.money,54321);assert.deepEqual(loaded.ownedCars,['ae86','chaser']);assert.deepEqual(loaded.builds.chaser,['lsd']);assert.equal(loaded.condition.chaser,70);
  for(const car of CARS.slice(3)){assert.deepEqual(loaded.builds[car.id],[]);assert.deepEqual(loaded.purchased[car.id],[]);assert.equal(loaded.condition[car.id],100);}
  assert.deepEqual(validateSave(loaded),loaded);
 });
 test('hardware compatibility rejects impossible purchases atomically and normalizes impossible builds',()=>{
- const career={...newCareer(),money:1e6},copy=structuredClone(career);
+ const career={...preparedCareer(),money:1e6},copy=structuredClone(career);
  assert.match(partReason('missing','ecu'),/Неизвест/);assert.match(partReason('ae86','unknown'),/Неизвест/);
  assert.match(partReason('ae86','turbo'),/турбо/);assert.match(partReason('chaser','cams'),/атмосфер/);assert.match(partReason('ek9','angle'),/FR/);assert.match(partReason('evo','angle'),/FR/);
  for(const [car,id] of [['ae86','turbo'],['chaser','cams'],['ek9','angle']])assert.throws(()=>togglePart({...career,car},id),/Только/);
@@ -32,7 +32,7 @@ test('hardware compatibility rejects impossible purchases atomically and normali
  assert.deepEqual(configuration('ae86','ren',['turbo','cams','ecu','unknown']).parts,['cams','ecu']);
 });
 test('tires and final drives replace their slot but retain purchased hardware for free switching',()=>{
- let career={...newCareer(),money:1e6};
+ let career={...preparedCareer(),money:1e6};
  career=togglePart(career,'tires');career=togglePart(career,'wetTires');assert.deepEqual(career.builds.ae86,['wetTires']);assert.ok(career.purchased.ae86.includes('tires'));
  const cash=career.money;career=togglePart(career,'tires');assert.equal(career.money,cash);assert.deepEqual(career.builds.ae86,['tires']);
  career=togglePart(career,'shortFinal');career=togglePart(career,'longFinal');assert.ok(!career.builds.ae86.includes('shortFinal'));assert.ok(career.builds.ae86.includes('longFinal'));
@@ -86,13 +86,15 @@ for(const car of CARS)test(`expanded tuning cross-mode saves and bounded physics
   for(const event of EVENTS){
    let race=createRace(config,'rain',event.id,'expanded-'+car.id+'-'+event.id+'-'+recipe,42);
    while(!race.finished){const sector=sectorAt(race.index,'rain',event.id),choice=chooseAI(config,race.player,sector,race.opponent.dnf?Infinity:race.player.time-race.opponent.time,futureSectors(race));assert.equal(disabledReason(choice.card,sector,race.player,config,race.opponent.dnf?Infinity:race.player.time-race.opponent.time),'');race=resolveSector(race,choice.card.id);}
-   assertState(assert,race);const award=awardRace(newCareer(),race),loaded=validateSave(award.career);
+   assertState(assert,race);const award=awardRace(preparedCareer(),race),loaded=validateSave(award.career);
    if(award.isBest){assert.deepEqual(loaded.bests[0],raceRecord(race));}
   }
  }
 });
 test('debug unlock only grants compatible hardware and purchases remain independent for all cars',()=>{
- const career=unlockEverything(newCareer());assert.deepEqual(validateSave(career),career);
+ const career=unlockEverything(preparedCareer());assert.deepEqual(validateSave(career),career);
  for(const car of CARS){assert.ok(career.purchased[car.id].every(id=>!partReason(car.id,id)));assert.deepEqual(career.builds[car.id],[]);}
  const bought=togglePart(selectCar(career,'rx7'),'turbo');assert.deepEqual(bought.builds.rx7,['turbo']);assert.deepEqual(bought.builds.s13,[]);
 });
+
+function preparedCareer(){return {...newCareer(),street:60,streetPeak:60};}

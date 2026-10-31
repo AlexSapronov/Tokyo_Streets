@@ -50,8 +50,8 @@ test('stale season results cannot be awarded and withdrawal does not refund entr
  const race=finish(booked.race),bad={...race,season:{...race.season,stage:2}};assert.throws(()=>awardRace(c,bad),/этапу/);
  assert.throws(()=>withdrawCup(c,true),/заезд/);const dropped=withdrawCup(c);assert.equal(dropped.money,c.money);assert.equal(dropped.championships.active,null);assert.throws(()=>settleCup(dropped,race));assert.throws(()=>withdrawCup(newCareer()));
 });
-test('manager seasons use the same setup, salary and season path',()=>{
- let c=unlockEverything(newCareer());c.car='ae86';c.control='manager';c=togglePart(c,'gearbox');c=setCarSetup(c,{pressure:2.05,finalDrive:1.05});c=enterCup(c,'club','managed-season');const prepared=prepareStage(c),booked=bookCupRace(prepared,'managed-stage');assert.ok(booked.race.manager);assert.ok(booked.career.money<prepared.money);assert.equal(booked.race.config.setup.pressure,2.05);
+test('legacy manager preference starts a personal season with no staff salary',()=>{
+ let c=unlockEverything(newCareer());c.car='ae86';c.control='manager';c=togglePart(c,'gearbox');c=setCarSetup(c,{pressure:2.05,finalDrive:1.05});c=enterCup(c,'club','managed-season');const prepared=prepareStage(c),booked=bookCupRace(prepared,'managed-stage');assert.equal(booked.race.manager,undefined);assert.equal(booked.career.money,prepared.money);assert.equal(booked.race.config.setup.pressure,2.05);
  const award=awardRace(booked.career,finish(booked.race));assert.equal(award.career.championships.active.stage,1);assert.deepEqual(validateSave(award.career),award.career);
 });
 test('season normalization discards inconsistent stages, forged points and invalid NPC condition/budgets',()=>{

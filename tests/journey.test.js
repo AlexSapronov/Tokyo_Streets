@@ -31,11 +31,11 @@ test('new stamps pay each crossed tier once across builds and reloads; no downgr
  assert.deepEqual(validateSave(b.career),b.career);
  for(const player of [{...r.player,dnf:{damage:10}},{...r.player,drag:{falseStart:true}}]){const a=settleJourney(c,{...r,player},{won:true});assert.equal(a.report.bonus,0);assert.deepEqual(a.career,c);}
 });
-test('milestones support multiple disciplines and complete through team and cups',()=>{
+test('milestones support multiple disciplines and complete through preparation and cups',()=>{
  let c=newCareer();assert.equal(nextMilestone(c).id,'club');
  for(const [id,outcome] of [['haruna',{}],['tsukuba',{medal:'bronze'}],['ebisu',{medal:'gold'}]])c=settleJourney(c,race(id),outcome).career;
  assert.deepEqual(c.journey.claimed,['debut','result','explore']);assert.equal(nextMilestone(c).id,'club');
- c.team.founded=true;for(const id of ['club','regional','masters','allstars','legends'])c.championships.completed.push(id);
+ c.purchased.ae86=['streetTires','brakes','lsd'];for(const id of ['club','regional','masters','allstars','legends'])c.championships.completed.push(id);
  const a=settleJourney(c,race(),{});assert.deepEqual(a.career.journey.claimed,MILESTONES.map(m=>m.id));assert.equal(a.report.milestones.length,6);assert.equal(nextMilestone(a.career),undefined);
  assert.equal(settleJourney(a.career,race(),{}).report.bonus,0);
 });

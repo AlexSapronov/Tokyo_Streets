@@ -1,3 +1,4 @@
+import {WORKSHOP_PRESETS} from './workshop.js';
 import {emptyPlayer,normalizePlayer,SKILL_CARDS,validTraining,withTraining} from './player.js';
 import {emptyRivals,normalizeRivals,getChallenge} from './rivals.js';
 import {RACING_LINES,roadMode} from './racing-lines.js';
@@ -23,7 +24,7 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {player:emptyPlayer(),rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
+  return {lastWorkshop:null,streetPeak:0,player:emptyPlayer(),rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
@@ -65,7 +66,7 @@ function validateRecord(record) {
   if(record.lines!==undefined&&(!roadMode(event.mode)||!Array.isArray(record.lines)||record.lines.length!==count||record.lines.some((id,i)=>!RACING_LINES.some(line=>line.id===id)||(event.sectors[i].type!=='corner'&&id!=='neutral'))))return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
   const suffix=currentKey.slice(currentKey.indexOf('|'));
-  const legacyPrefixes=['2','3','4','5','drag-1','drift-1'];
+  const legacyPrefixes=['2','3','4','5','6','drag-1','drag-2','drift-1','drift-2'];
   const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
@@ -113,6 +114,8 @@ export function validateSave(raw) {
   out.car=out.ownedCars.includes(raw.car)?raw.car:out.ownedCars[0];
   out.rivalLevel=['easy','equal','hard'].includes(raw.rivalLevel)?raw.rivalLevel:'equal';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
+  out.streetPeak=Number.isFinite(raw.streetPeak)?Math.max(0,Math.floor(raw.streetPeak)):(Number.isFinite(raw.street)?Math.max(0,Math.floor(raw.street)):0);
+  const job=raw.lastWorkshop;if(job&&validCar(job.carId)&&WORKSHOP_PRESETS.some(p=>p.id===job.profile)&&Number.isFinite(job.quality)&&job.quality>=.85&&job.quality<=1)out.lastWorkshop={carId:job.carId,profile:job.profile,quality:job.quality};
   out.rivals=normalizeRivals(raw.rivals);
   out.team=normalizeTeam(raw.team);
   out.operations=normalizeOperations(raw.operations);

@@ -5,7 +5,7 @@ import {normalizeComponentWear,wornCar,tireKey} from './wear.js';
 import {orderPolicy} from './ai-policy.js';
 import {normalizeSetup} from './setup.js';
 import {tunedCar,normalizeBuild,tireFactor,aeroGrip} from './tuning.js';
-import {raceClass,incidentPrice,rewardFactor} from './balance.js';
+import {raceClass,incidentPrice,rewardFactor,medalPrize} from './balance.js';
 import {executionRoll,newSeed,hashSeed,applyRunOff,runOffChance} from './execution.js';
 import {attachTelemetry,readTelemetry,transmission} from './telemetry.js';
 import {freshDriftState,driftReason,simulateDrift,driftCards} from './drift.js';
@@ -91,7 +91,8 @@ function simulateRaw(config,state,sector,card,execution=null){
  const brake=car.brakes*(has('brakes')?car.partBrakeFactor:1)*brakeFade;
  const rpm=transmission(config,state.velocity*3.6);
  const band=parts.some(id=>['shortFinal','longFinal','cams','flywheel'].includes(id))?clamp(1-((rpm.rpm/rpm.redline-.8)/.8)**2,.75,1)*(rpm.rpm/rpm.redline<.6?car.lowRpmFactor:1):1;
- const power=car.power*735.5*.78*(.9+.1*config.condition/100)*band;
+ const engineFade=clamp(1-Math.max(0,(state.telemetry?.oil||88)-125)/120-Math.max(0,(state.telemetry?.coolant||82)-105)/100,.65,1);
+ const power=car.power*735.5*.78*(.9+.1*config.condition/100)*band*engineFade;
  const terminal=Math.cbrt(power/car.airResistance);
  const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1+.05*car.partLsdHealth:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);
  const cornerSpeed=corner?Math.sqrt(grip*9.81*sector.radius*line.radius):terminal;
@@ -135,6 +136,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit*(card.id==='skill-release'?1.08:1))*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
  const reasons=[corner?`Радиус ${sector.radius} м: предел дуги ${Math.round(cornerSpeed*3.6)} км/ч`:`${car.power} л.с. / ${mass} кг: разгон до ${Math.round(exit*3.6)} км/ч`];
  reasons.push(`Тормоза: ${Math.round(state.heat)} → ${Math.round(next.heat)}°C; охлаждение обдувом −${airCooling.toFixed(1)}°C`);
+ if(engineFade<1)reasons.push(`Перегрев мотора: доступно ${Math.round(engineFade*100)}% мощности`);
  if(control)reasons.push('Контроль машины: ниже нагрузка на сцепление');
  if(card.id==='skill-release')reasons.push('Поздний выпуск: выше скорость входа в следующий сектор');
  if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
@@ -254,16 +256,23 @@ export function isRaceFinished(player,opponent,index,sectorCount){
  return !!player?.dnf || !!opponent?.dnf || index >= sectorCount;
 }
 
-// A neutral Ren drives the exact healthy build through the shared physical model.
+// A neutral Ren drives the healthy build with route-aware lines. A separate
+// classic reference keeps bronze accessible without mastering line selection.
 // This continuously accounts for mass/power, wet grip, brakes, gearing and aero.
 const targetCache=new Map();
 export function medalTargets(eventId,weather,build='expert'){
  const config=typeof build==='string'?configuration(build==='club'?'ae86':build==='sport'?'chaser':'evo','ren'):nominalConfiguration(build);
  const key=JSON.stringify([eventId,weather,config.car,config.parts,config.setup]);
  if(targetCache.has(key))return {...targetCache.get(key)};
- let state=freshState(config);
- for(let i=0;i<getEvent(eventId).sectors.length;i++)state=simulate(config,state,sectorAt(i,weather,eventId),CARDS[0]).next;
- const reference=state.time,gold=reference*.955,silver=Math.max(gold+1,reference*.99),bronze=Math.max(silver+1,reference*1.04);
+ let state=freshState(config),classic=freshState(config);
+ const event=getEvent(eventId);
+ for(let i=0;i<event.sectors.length;i++){
+  const sector=sectorAt(i,weather,eventId),next=i+1<event.sectors.length?sectorAt(i+1,weather,eventId):null;
+  const card=chooseRacingLine(config,state,sector,CARDS[0],next).card;
+  state=simulate(config,state,sector,card).next;
+  classic=simulate(config,classic,sector,CARDS[0]).next;
+ }
+ const reference=state.time,gold=reference*.98,silver=Math.max(gold+1,reference*1.015),bronze=Math.max(silver+1,reference*1.07,classic.time*1.02);
  const targets={gold,silver,bronze};if(targetCache.size>=256)targetCache.clear();targetCache.set(key,targets);return {...targets};
 }
 function baseOutcome(race) {
@@ -277,13 +286,13 @@ function baseOutcome(race) {
   if(race.mode==='drift'){
     const medal=['gold','silver','bronze'].find(level=>race.player.drift.score>=event.medals[level])||null;
     return {won:false,medal,label:{gold:'Золото',silver:'Серебро',bronze:'Бронза'}[medal]||'Сессия завершена',
-      reward:{gold:22000,silver:14000,bronze:8500}[medal]||event.participation,street:0,official:{gold:12,silver:7,bronze:3}[medal]||1};
+      reward:medalPrize(event,medal),street:0,official:{gold:12,silver:7,bronze:3}[medal]||1};
   }
   const targets = race.targets||medalTargets(event.id,race.weather,race.config);
   const medal = ['gold', 'silver', 'bronze'].find(level => race.player.time <= targets[level]) || null;
   return {won: false, medal,
     label: {gold: 'Золото', silver: 'Серебро', bronze: 'Бронза'}[medal] || 'Сессия завершена',
-    reward: {gold: 16000, silver: 10000, bronze: 6500}[medal] || event.participation,
+    reward:medalPrize(event,medal),
     street: 0, official: {gold: 12, silver: 7, bronze: 3}[medal] || 1};
 }
 

@@ -1,3 +1,4 @@
+import {engineAccessReason} from './workshop.js';
 import {CARS,PARTS} from './data.js';
 import {ENGINES,MOTOR_PARTS,getEngine,stockEngineId,installedEngineId} from './engine-data.js';
 import {normalizeBuild,partReason} from './tuning.js';
@@ -10,7 +11,7 @@ export function normalizeEngines(raw){
  for(const e of Array.isArray(raw?.spares)?raw.spares:[]){if(!e||!validToken(e.instanceId)||seen.has(e.instanceId)||!getEngine(e.engineId)||out.spares.length>=MAX_SPARE_ENGINES)continue;seen.add(e.instanceId);const purchased=[...new Set((Array.isArray(e.purchased)?e.purchased:[]).filter(id=>MOTOR_PARTS.includes(id)&&!partReason('ae86',id,e.engineId)))],parts=normalizeBuild('ae86',(Array.isArray(e.parts)?e.parts:[]).filter(id=>purchased.includes(id)),e.engineId);out.spares.push({instanceId:e.instanceId,engineId:e.engineId,purchased,parts,wear:normalizeComponentWear(e.wear)});}
  return out;
 }
-export function swapReason(career,engineId){const e=getEngine(engineId);if(!e)return 'Мотор не найден';if(!career.team.founded)return 'Нужна своя команда';if(!(career.operations?.staff.engineer>=1))return 'Нужен инженер мастерской';if(e.extreme&&(career.operations.staff.engineer<2||career.street<60||career.races<10))return 'Экстремальный свап: инженер II, 60 Street Cred, 10 финишей';return '';}
+export const swapReason=engineAccessReason;
 export function fittingCost(engineId){const e=getEngine(engineId);return e?.extreme?28000:12000;}
 function editable(c,active){if(active)throw new Error('Сначала заверши текущий заезд');const n=structuredClone(c);n.engines??=emptyEngines();n.wear??=emptyWear();return n;}
 function pay(n,cost){if(n.money<cost)throw new Error('Недостаточно денег');n.money-=cost;}

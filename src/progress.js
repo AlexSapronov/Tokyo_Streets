@@ -3,22 +3,22 @@ import {settleChallenge} from './rivals.js';
 import {settleJourney} from './journey.js';
 import {settleWear} from './wear.js';
 import {stockEngineId} from './engine-data.js';
-import {settleSupport} from './operations.js';
+import {earnedStreet} from './workshop.js';
 import {settleCup} from './championship.js';
 import {setupKey} from './setup.js';
 import {teamAfterRace} from './team.js';
 import {getEvent} from './data.js';
 import {raceOutcome} from './engine.js';
 
-export const MODEL_VERSION = 6;
+export const MODEL_VERSION = 7;
 export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
-  return [getEvent(eventId).mode==='drift'?'drift-2':getEvent(eventId).mode==='drag'?'drag-2':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
+  return [getEvent(eventId).mode==='drift'?'drift-3':getEvent(eventId).mode==='drag'?'drag-3':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
     ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')+(config.engineId&&config.engineId!==stockEngineId(config.car.id)?';engine='+config.engineId:'')+(trainingKey(config)?';skills='+trainingKey(config):'')+(config.challengeId?';challenge='+config.challengeId:'')+(config.rivalLevel&&['duel','drag'].includes(getEvent(eventId).mode)?';rival='+config.rivalLevel:'')].join('|');
 }
 export function unlocked(event, career) {
-  return career.street >= event.unlockStreet && career.races >= event.unlockRaces;
+  return earnedStreet(career) >= event.unlockStreet && career.races >= event.unlockRaces;
 }
 export function unlockText(event) {
   return [event.unlockStreet ? `Street Cred ${event.unlockStreet}` : '',event.unlockRaces ? `${event.unlockRaces} завершённых заезда` : ''].filter(Boolean).join(' и ') || 'Доступно';
@@ -57,10 +57,10 @@ export function awardRace(career, race) {
   if(!race.player.dnf&&!race.player.drag?.falseStart){next.races++;next.eventCompletions={...next.eventCompletions,[race.eventId]:(next.eventCompletions?.[race.eventId]||0)+1};}
   if(race.runId)next.awardedRuns=[...next.awardedRuns,race.runId].slice(-256);
   if (outcome.won) next.wins++;
-  next.street += outcome.street;
+  next.street += outcome.street;next.streetPeak=Math.max(next.streetPeak||0,next.street);
   next.official += outcome.official;
   next.condition[race.config.car.id] = Math.max(35,
-    race.config.condition - (race.player.dnf?.damage||0) - ((race.config.tireCondition??100) - race.player.tires) * .55
+    race.config.condition - (race.player.dnf?.damage||0) - getEvent(race.eventId).sectors.slice(0,race.index).reduce((n,s)=>n+s.length,0)/1000*.12
     - race.history.reduce((sum, row) => sum + row.slip, 0) * .5);
   if (isBest) next.bests = [record, ...next.bests.filter(best => best.key !== record.key)].slice(0, 120);
   next.records.unshift({car: race.config.car.name, time: record.time, won: outcome.won,
@@ -72,11 +72,11 @@ export function awardRace(career, race) {
   next=settleWear(next,race);
   const teamResult=teamAfterRace(next.team,race,outcome);next.team=teamResult.team;
   const season=settleCup(next,race);next=season.career;
-  const support=settleSupport(next,race);next=support.career;
+
   const challenge=settleChallenge(next,race,outcome);next=challenge.career;
   const player=settlePlayer(next,race,outcome);next=player.career;
   const journey=settleJourney(next,race,outcome);next=journey.career;
-  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,journeyReport:journey.report,playerReport:player.report,...(challenge.report?{challengeReport:challenge.report}:{}),...(support.report?{sponsorReport:support.report}:{}),...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
+  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,journeyReport:journey.report,playerReport:player.report,...(challenge.report?{challengeReport:challenge.report}:{}),...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }
 export function checkpointFractions(eventId) {
   const sectors = getEvent(eventId).sectors;

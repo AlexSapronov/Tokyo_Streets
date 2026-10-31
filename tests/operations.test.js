@@ -21,12 +21,12 @@ function contractRun(c,event='haruna',id='race',edit=r=>r){const booked=bookSupp
 test('staff hire, level, dismissal, fees and repair discounts are immutable and guarded',()=>{
  let c=rich();const copy=structuredClone(c);assert.equal(supportCost(newCareer()),0);assert.equal(repairMultiplier(newCareer()),1);
  assert.throws(()=>hireStaff(c,'missing'));assert.throws(()=>hireStaff(newCareer(),'mechanic'));assert.throws(()=>hireStaff({...c,money:0},'engineer'));assert.throws(()=>hireStaff(c,'mechanic',true));
- c=hireStaff(c,'mechanic');assert.deepEqual(copy,rich());assert.equal(c.money,copy.money-12000);assert.equal(supportCost(c),450);assert.equal(repairMultiplier(c),.85);
- c.condition[c.car]=40;assert.equal(serviceCost(c),22950);assert.equal(serviceCar(c).condition[c.car],100);
- const recovered=recoveryService({...c,money:0});assert.equal(recovered.repairDebt,7650);assert.equal(recovered.condition[c.car],60);
- c=hireStaff(c,'mechanic');assert.equal(repairMultiplier(c),.75);assert.equal(serviceCost(c),20250);assert.throws(()=>hireStaff(c,'mechanic'));
- c=hireStaff(hireStaff(c,'engineer'),'engineer');assert.equal(supportCost(c),1800);assert.equal(bookSupport(c,'haruna','fees').fee,1800);
- assert.throws(()=>dismissStaff(c,'mechanic',true));assert.throws(()=>dismissStaff(c,'missing'));c=dismissStaff(c,'mechanic');assert.equal(supportCost(c),1000);assert.throws(()=>dismissStaff(c,'mechanic'));
+ c=hireStaff(c,'mechanic');assert.deepEqual(copy,rich());assert.equal(c.money,copy.money-STAFF.mechanic.fees[0]);assert.equal(supportCost(c),STAFF.mechanic.wages[0]);assert.equal(repairMultiplier(c),.85);
+ c.condition[c.car]=40;assert.equal(serviceCost(c),27000);assert.equal(serviceCar(c).condition[c.car],100);
+ const recovered=recoveryService({...c,money:0});assert.equal(recovered.repairDebt,9000);assert.equal(recovered.condition[c.car],60);
+ c=hireStaff(c,'mechanic');assert.equal(repairMultiplier(c),.75);assert.equal(serviceCost(c),27000);assert.throws(()=>hireStaff(c,'mechanic'));
+ c=hireStaff(hireStaff(c,'engineer'),'engineer');assert.equal(supportCost(c),STAFF.mechanic.wages[1]+STAFF.engineer.wages[1]);assert.equal(bookSupport(c,'haruna','fees').fee,supportCost(c));
+ assert.throws(()=>dismissStaff(c,'mechanic',true));assert.throws(()=>dismissStaff(c,'missing'));c=dismissStaff(c,'mechanic');assert.equal(supportCost(c),STAFF.engineer.wages[1]);assert.throws(()=>dismissStaff(c,'mechanic'));
  assert.deepEqual(validateSave(c),c);
 });
 test('sponsor admission, single contract, identity, mode and start affordability',()=>{
@@ -65,15 +65,10 @@ test('settlement rejects unfinished, stale and repeated results, DNF, foul, inco
  for(const t of [null,{oil:126,coolant:90},{oil:100,coolant:106},{oil:NaN,coolant:90}])assert.match(contractRun(signed('hks'),'haruna','hot',r=>({...r,history:r.history.map(()=>({telemetry:t}))})).report.reason,/тепловой/);
  assert.match(contractRun(signed('hks'),'haruna','missing',r=>({...r,history:[]})).report.reason,/телеметрии/);
 });
-test('actual engine award grants sponsor once and charges staff once in personal, manager and season runs',()=>{
- let c=hireStaff(signed('exedy'),'mechanic');const booked=bookSupport(c,'yokohama','real');const race=finishRace(configuration(c.car,c.pilot),'dry','yokohama',null,'real');
- const out=awardRace(booked.career,race);assert.ok(out.race.sponsorReport);assert.equal(out.career.operations.pending,null);assert.throws(()=>awardRace(out.career,race));
- c=hireStaff(rich(),'mechanic');const managed=beginManagedRace(c,'haruna','dry','manager');assert.equal(managed.race.supportFee,450);assert.equal(c.money-managed.career.money,450+managed.race.manager.fee);
- assert.throws(()=>beginManagedRace({...c,money:managed.race.manager.fee},'haruna','dry','poor'));assert.equal(c.operations.pending,null);
- let r=managed.race;while(!r.finished)r=resolveManagedSector(r);assert.equal(awardRace(managed.career,r).career.operations.pending,null);
- for(const control of ['personal','manager']){
-  const entry=prepareStage(enterCup({...c,control},'club','cup-'+control)),b=bookCupRace(entry,'stage-'+control);assert.equal(b.race.supportFee,450);assert.equal(entry.money-b.career.money,450+(b.race.manager?.fee||0));
- }
+test('legacy sponsor data cannot add a payout to a current race',()=>{
+ const c=signed('exedy'),booked=bookSupport(c,'yokohama','legacy-contract');
+ const race=finishRace(configuration(c.car,c.pilot),'dry','yokohama',null,'legacy-contract');
+ const out=awardRace(booked.career,race);assert.equal(out.race.sponsorReport,undefined);assert.throws(()=>awardRace(out.career,race));
 });
 test('engineer recommendations respect hardware, weather, mode and levels and change actual setup only',()=>{
  assert.throws(()=>engineerAdvice(newCareer()));let c=hireStaff(rich(),'engineer');assert.throws(()=>engineerAdvice(c,'pace'));assert.throws(()=>engineerAdvice(c,'unknown'));
@@ -100,11 +95,11 @@ test('operations UI exposes cost, contract progress, advice values, locks and re
  const done=contractRun(out.career,'haruna','second');assert.match(sponsorsHTML(done.career),/История контрактов/);assert.match(supportReportHTML({sponsorReport:{...out.report,success:false,reason:'Сход',debtPaid:100,status:'failed'}}),/Сход/);
  c=hireStaff(c,'mechanic');assert.match(staffHTML(c),/Механик · 2/);
 });
-for(const s of SPONSORS)test(`real seeded races complete sponsor contract through awards and reloads / ${s.id}`,()=>{
+for(const s of SPONSORS)test(`legacy sponsor history stays inert through current awards / ${s.id}`,()=>{
  let c=signed(s.id);const event=s.id==='exedy'?'yokohama':'haruna';
  for(let i=0;i<s.goal;i++){
-  c=serviceCar(c);const id='engine-'+s.id+i,b=bookSupport(c,event,id),r=finishRace(configuration(c.car,c.pilot,c.builds[c.car],c.condition[c.car],c.setups[c.car]),'dry',event,null,id),a=awardRace(b.career,r);
-  assert.equal(a.race.sponsorReport.success,true);assert.equal(a.race.sponsorReport.successes,i+1);c=validateSave(a.career);
+  c=serviceCar(c);const id='archive-'+s.id+i,r=finishRace(configuration(c.car,c.pilot),'dry',event,null,id),a=awardRace(c,r);
+  assert.equal(a.race.sponsorReport,undefined);c=validateSave(a.career);
  }
- assert.equal(c.operations.active,null);assert.equal(c.operations.history[0].status,'done');assert.ok(c.operations.completed.includes(s.id));
+ assert.equal(c.operations.active.successes,0);assert.ok(!c.operations.completed.includes(s.id));
 });

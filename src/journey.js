@@ -19,7 +19,7 @@ export const MILESTONES=[
  {id:'debut',title:'Первая ночь',detail:'Заверши любой заезд без схода и фальстарта.',target:1,value:c=>routes(c),reward:3000,view:'race'},
  {id:'result',title:'Заявить о себе',detail:'Победи в дуэли или дрэге либо получи медаль в Time Attack или дрифте.',target:1,value:results,reward:5000,view:'world'},
  {id:'explore',title:'Своё место в городе',detail:'Заверши заезды на трёх разных маршрутах. Дисциплины выбираешь сам.',target:3,value:routes,reward:7000,view:'world'},
- {id:'team',title:'Из гаража в команду',detail:'Основать команду: 4 финиша, 24 Street или 12 Official, ¥30 000. Награда после следующего зачётного финиша.',target:1,value:c=>Number(!!c.team?.founded),reward:6000,view:'team'},
+ {id:'workshop',title:'Своя подготовка',detail:'Купи три детали для своих машин. Награда после следующего зачётного финиша.',target:3,value:c=>Object.values(c.purchased||{}).reduce((n,parts)=>n+parts.length,0),reward:6000,view:'tuning'},
  {id:'club',main:true,title:'Ночные смены',detail:'Займи подиум в Night Shift. Зарегистрируй лёгкую атмосферную машину до 220 л.с.',target:1,value:c=>Number(c.championships?.completed?.includes('club')||false),reward:8000,view:'seasons'},
  {id:'regional',main:true,title:'Имя в Канто',detail:'Займи подиум в региональной серии Kanto.',target:1,value:c=>Number(c.championships?.completed?.includes('regional')||false),reward:10000,view:'seasons'},
  {id:'masters',main:true,title:'Japan Masters',detail:'Займи подиум в Japan Masters.',target:1,value:c=>Number(c.championships?.completed?.includes('masters')||false),reward:15000,view:'seasons'},
@@ -32,7 +32,7 @@ export function normalizeJourney(raw,career){
  const out=emptyJourney();
  if(raw&&typeof raw==='object'){
   for(const e of EVENTS){const n=raw.routes?.[e.id];if(Number.isInteger(n)&&n>=1&&n<=3)out.routes[e.id]=n;}
-  out.claimed=MILESTONES.filter(m=>Array.isArray(raw.claimed)&&raw.claimed.includes(m.id)).map(m=>m.id);
+  out.claimed=MILESTONES.filter(m=>Array.isArray(raw.claimed)&&(raw.claimed.includes(m.id)||m.id==='workshop'&&raw.claimed.includes('team'))).map(m=>m.id);
  }else{
   // Legacy saves retain provable progress, with no retroactive cash or repeat payouts.
   for(const e of EVENTS){

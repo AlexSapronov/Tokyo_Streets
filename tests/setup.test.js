@@ -19,19 +19,19 @@ test('default setup preserves old configurations and repairs malformed values, l
  assert.equal(normalizeSetup([],{pressure:2.13}).pressure,2.15);assert.equal(validSetup([],raw),false);assert.equal(validSetup([],{...defaultSetup(),unknown:2}),false);assert.equal(validSetup([],defaultSetup()),true);
 });
 test('stock gearbox cannot be adjusted; installation unlocks it, fixed alternatives reset the custom ratio',()=>{
- let career={...newCareer(),money:1e6};const before=structuredClone(career);
+ let career={...preparedCareer(),money:1e6};const before=structuredClone(career);
  assert.throws(()=>setCarSetup(career,{finalDrive:1.1}),/коробка/);assert.deepEqual(career,before);
  career=togglePart(career,'gearbox');const cash=career.money;career=setCarSetup(career,{finalDrive:1.12});assert.equal(career.money,cash);assert.equal(career.setups.ae86.finalDrive,1.12);
  const config=configuration('ae86','ren',career.builds.ae86,100,career.setups.ae86);assert.equal(config.car.finalRatio,1.12);assert.ok(transmissionProfile(config).final>transmissionProfile(cfg).final);
  career=togglePart(career,'longFinal');assert.ok(!career.builds.ae86.includes('gearbox'));assert.equal(career.setups.ae86.finalDrive,1);assert.throws(()=>setCarSetup(career,{finalDrive:.9}),/коробка/);
 });
 test('spring and wing controls require installed hardware and are restored to defaults when removed',()=>{
- let career={...newCareer(),money:1e6};assert.throws(()=>setCarSetup(career,{springRate:120}),/подвеска/);assert.throws(()=>setCarSetup(career,{wing:100}),/антикрыло/);
+ let career={...preparedCareer(),money:1e6};assert.throws(()=>setCarSetup(career,{springRate:120}),/подвеска/);assert.throws(()=>setCarSetup(career,{wing:100}),/антикрыло/);
  career=togglePart(togglePart(career,'suspension'),'aero');career=setCarSetup(career,{springRate:120,wing:100,pressure:2.05});
  career=togglePart(togglePart(career,'suspension'),'aero');assert.equal(career.setups.ae86.springRate,100);assert.equal(career.setups.ae86.wing,50);assert.equal(career.setups.ae86.pressure,2.05);
 });
 test('setup edits are atomic, free, per car, blocked during races and survive reload',()=>{
- let career={...newCareer(),money:200000};const before=structuredClone(career);
+ let career={...preparedCareer(),money:200000};const before=structuredClone(career);
  for(const values of [null,{pressure:NaN},{pressure:1},{pressure:9},{unknown:2}])assert.throws(()=>setCarSetup(career,values));
  assert.throws(()=>setCarSetup(career,{pressure:2},true),/заезд/);assert.deepEqual(career,before);
  career=setCarSetup(career,{pressure:2,brakeBias:65});career=selectCar(career,'mx5');assert.equal(career.setups.mx5.pressure,2.2);assert.equal(career.setups.ae86.pressure,2);assert.deepEqual(validateSave(career),career);
@@ -65,13 +65,15 @@ for(const event of EVENTS)test(`non-default setup survives physics, record and r
  const setup={pressure:2.05,finalDrive:1.06,springRate:90,brakeBias:58,wing:75},parts=['gearbox','suspension','aero'],config=configuration('s13','ren',parts,100,setup);
  let race=createRace(config,'rain',event.id,'setup-'+event.id,42);
  while(!race.finished){const choice=chooseAI(config,race.player,sectorAt(race.index,'rain',event.id),race.opponent.dnf?Infinity:race.player.time-race.opponent.time,futureSectors(race));race=resolveSector(race,choice.card.id);}
- const record=raceRecord(race),award=awardRace(newCareer(),race),loaded=validateSave(award.career);assert.deepEqual(record.setup,setup);
+ const record=raceRecord(race),award=awardRace(preparedCareer(),race),loaded=validateSave(award.career);assert.deepEqual(record.setup,setup);
  assert.notEqual(record.key,recordKey(configuration('s13','ren',parts),event.id,'rain'));
  if(award.isBest){assert.deepEqual(loaded.bests[0],record);assert.equal(bestFor(loaded,configuration('s13','ren',parts),event.id,'rain'),null);assert.equal(bestFor(loaded,config,event.id,'rain').time,record.time);}
  const replayConfig=configuration(record.carId,record.pilotId,record.parts,record.condition,record.setup);assert.deepEqual(replayConfig.setup,config.setup);
- const bad=structuredClone(record);bad.setup.finalDrive=99;assert.equal(validateSave({...newCareer(),bests:[bad]}).bests.length,0);
+ const bad=structuredClone(record);bad.setup.finalDrive=99;assert.equal(validateSave({...preparedCareer(),bests:[bad]}).bests.length,0);
 });
 test('manager booking snapshots the same setup and cannot be changed by later career edits',()=>{
- let career=unlockEverything(newCareer());career=togglePart(career,'gearbox');career=setCarSetup(career,{pressure:2.05,finalDrive:1.12});
+ let career=unlockEverything(preparedCareer());career=togglePart(career,'gearbox');career=setCarSetup(career,{pressure:2.05,finalDrive:1.12});
  const started=beginManagedRace(career,'haruna','dry','setup-managed');assert.deepEqual(started.race.config.setup,career.setups.ae86);career.setups.ae86.pressure=2.5;assert.equal(started.race.config.setup.pressure,2.05);
 });
+
+function preparedCareer(){return {...newCareer(),street:60,streetPeak:60};}

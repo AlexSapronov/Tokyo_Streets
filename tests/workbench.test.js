@@ -10,14 +10,14 @@ import {vehicleSVG,topVehicleSVG} from '../src/vehicles.js';
 import {CARS} from '../src/data.js';
 function root(html){const {document}=parseHTML('<html><body><main>'+html+'</main></body></html>');return document.querySelector('main');}
 test('tabs move existing nodes, preserve edits and handlers, and provide keyboard selection',()=>{
- const r=root('<div class="page-heading"></div><section class="panel">summary</section><section class="setup-panel"><input id="edit"></section><section class="preset-panel"><button id="action">save</button></section><section class="operations-panel">advice</section><nav class="tuning-nav"></nav><section class="tuning-group" id="engine"><h3>Engine</h3></section>');let calls=0;const input=r.querySelector('input'),button=r.querySelector('#action');input.value='unsaved';button.onclick=()=>calls++;
+ const r=root('<div class="page-heading"></div><section class="panel">summary</section><section class="setup-panel"><input id="edit"></section><section class="preset-panel"><button id="action">save</button></section><section class="workshop-panel">presets</section><nav class="tuning-nav"></nav><section class="tuning-group" id="engine"><h3>Engine</h3></section>');let calls=0;const input=r.querySelector('input'),button=r.querySelector('#action');input.value='unsaved';button.onclick=()=>calls++;
  mountWorkbench(r,'tuning',newCareer(),null);assert.equal(r.querySelectorAll('[role=tabpanel]').length,4);r.querySelector('[data-pane=presets]').click();assert.equal(input.value,'unsaved');r.querySelector('#action').click();assert.equal(calls,1);assert.ok(r.querySelector('#pane-tuning-setup').hidden);assert.equal(r.querySelector('[data-pane=presets]').getAttribute('aria-selected'),'true');
  for(const n of r.querySelectorAll('[role=tab]'))n.focus=()=>{};let prevented=false;r.querySelector('[data-pane=presets]').onkeydown({key:'ArrowRight',preventDefault(){prevented=true;}});assert.ok(prevented);assert.equal(r.querySelector('[role=tab][aria-selected=true]').dataset.pane,'engine');
  r.querySelector('[data-pane=engine]').onkeydown({key:'Enter'});assert.equal(input.value,'unsaved');
 });
 test('tab keys wrap, support Home/End and keep unrelated keys unchanged',()=>{const keys=['a','b','c'];for(const [current,key,expected] of [['a','ArrowLeft','c'],['c','ArrowRight','a'],['b','Home','a'],['a','End','c'],['b','Tab','b']])assert.equal(tabKey(current,keys,key),expected);});
 test('global context exposes condition, pilot, reputation and startup costs with escaped text',()=>{
- const c=newCareer();c.condition.ae86=40;const html=contextHTML(c,'garage',null);assert.match(html,/40%/);assert.match(html,/negative/);assert.match(html,/ПЕРСОНАЛ/);assert.match(html,/Street/);
+ const c=newCareer();c.condition.ae86=40;const html=contextHTML(c,'garage',null);assert.match(html,/40%/);assert.match(html,/negative/);assert.match(html,/ДОСТУП К ТЮНИНГУ/);assert.match(html,/Street/);
  const race={eventId:'haruna',index:2,config:{car:{id:'ae86',name:'<img>',drive:'FR'},pilot:{name:'<pilot>'}},finished:false};assert.ok(contextHTML(c,'race',race).includes('&lt;img&gt;'));assert.match(contextHTML(c,'race',{...race,finished:true}),/Финиш/);
 });
 test('organizer, history and current season are independent panels, not one long page',()=>{
@@ -47,11 +47,11 @@ test('actual app boots and all page navigation, garage preview and tuning tabs r
  const {document:d,values}=await boot(t),q=s=>d.querySelector(s),go=view=>q('[data-view='+view+']').click();assert.ok(q('#start'));go('garage');assert.equal(q('#app').dataset.page,'garage');
  const before=JSON.parse(values.get(SAVE_KEY));q('[data-garage-preview=supra]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).car,before.car);assert.match(q('.garage-car-detail').textContent,/Supra/);q('[data-car=supra]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).car,'supra');assert.match(q('.context-bar').textContent,/Supra/);
  go('tuning');const input=q('#setup-pressure');input.value='2.4';q('[data-pane=presets]').click();q('[data-pane=setup]').click();assert.equal(input.value,'2.4');q('#setup-save').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).setups.supra.pressure,2.4);
- for(const page of ['world','seasons','team','race']){go(page);assert.equal(q('#app').dataset.page,page);assert.ok(q('.context-bar'));assert.ok(q('#debug-unlock'));}
- go('team');q('[data-pane=staff]').click();q('[data-staff-hire=mechanic]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).operations.staff.mechanic,1);assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'staff');
+ for(const page of ['world','seasons','race']){go(page);assert.equal(q('#app').dataset.page,page);assert.ok(q('.context-bar'));assert.ok(q('#debug-unlock'));}
+ assert.equal(q('[data-view=team]'),null);
  go('seasons');q('[data-pane=organizer]').click();q('#series-name').value='DOM Series';q('#series-save').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).organizer.series[0].name,'DOM Series');assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'organizer');
  q('[data-series-enter]').click();assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'current');assert.ok(q('#season-prepare'));
- go('team');q('[data-pane=staff]').click();q('[data-staff-hire=engineer]').click();q('[data-staff-hire=engineer]').click();go('tuning');q('[data-pane=engines]').click();q('#engine-catalog-select').value='w16';q('#engine-catalog-select').onchange();assert.equal(q('[data-engine-buy=w16]').closest('.engine-row').hidden,false);q('#engine-catalog-select').value='1uz';q('#engine-catalog-select').onchange();q('[data-engine-buy=1uz]').click();q('[data-engine-install]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).engines.installed.supra.engineId,'1uz');assert.match(q('.page-overview').textContent,/1UZ/);
+ go('tuning');q('[data-pane=engines]').click();q('#engine-catalog-select').value='w16';q('#engine-catalog-select').onchange();assert.equal(q('[data-engine-buy=w16]').closest('.engine-row').hidden,false);q('#engine-catalog-select').value='1uz';q('#engine-catalog-select').onchange();q('[data-engine-buy=1uz]').click();q('[data-engine-install]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).engines.installed.supra.engineId,'1uz');assert.match(q('.page-overview').textContent,/1UZ/);
  go('race');q('#discipline-select').value='drift';q('#discipline-select').onchange({target:q('#discipline-select')});assert.ok([...q('#event-select').querySelectorAll('option')].every(o=>o.value==='ebisu'||o.value==='meihan'||o.value.endsWith('-drift')));
  go('world');q('#world-discipline').value='drag';q('#world-discipline').onchange({target:q('#world-discipline')});assert.equal(q('.event-grid').querySelectorAll('[data-event]').length,3);
  go('seasons');q('[data-pane=organizer]').click();q('[data-series-discipline]').value='drift';q('[data-series-discipline]').onchange();assert.ok([...q('[data-series-event]').querySelectorAll('option')].every(o=>o.value==='ebisu'||o.value==='meihan'||o.value.endsWith('-drift')));
@@ -94,10 +94,10 @@ test('garage trade-in shows the quote before confirmation and replaces inventory
  q('[data-garage-preview=ae86]').click();assert.match(q('[data-car=ae86]').textContent,/Купить/);assert.ok(sold.money<50000);
 });
 
-test('player-only interface hides driver recruitment and JSON export while preserving crew support',async t=>{
+test('player-only interface hides driver recruitment and JSON export and exposes solo workshop presets',async t=>{
  const {document:d,frames}=await boot(t),q=s=>d.querySelector(s),go=view=>q('[data-view='+view+']').click();
  go('garage');assert.equal(q('[data-pilot]'),null);assert.match(q('.garage-player-note').textContent,/За рулём: ты/);
- go('team');assert.equal(q('[data-hire]'),null);assert.equal(q('[data-assign]'),null);assert.equal(q('#plan-order'),null);assert.ok(q('[data-pane=staff]'));
+ assert.equal(q('[data-view=team]'),null);go('tuning');assert.ok(q('[data-pane=workshop]'));assert.equal(q('[data-staff-hire]'),null);
  go('race');assert.equal(q('#control'),null);
  q('#start').click();let turns=0;
  while(q('#execute')&&turns++<12){const card=q('[data-card=balanced]');if(card&&!card.disabled)card.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);}
@@ -164,4 +164,18 @@ test('top-level Player navigation opens the actual specialization controls direc
 
 test('race tools sit outside the road canvas and the overview toggle preserves the current run',async t=>{
  const {document:d,values}=await boot(t),q=s=>d.querySelector(s);assert.equal(q('.scene-tools').closest('.scene-wrap'),null);assert.match(q('#camera-toggle').textContent,/всю трассу/);const before=values.get(SAVE_KEY);q('#camera-toggle').click();assert.match(q('#camera-toggle').textContent,/текущей связке/);assert.equal(values.get(SAVE_KEY),before);
+});
+
+test('solo workshop buttons charge money and Street Cred and persist actual randomized settings',async t=>{
+ const c=newCareer();c.money=100000;c.street=60;c.streetPeak=60;
+ // Archived support data must not create a wage in the current game.
+ c.team.founded=true;c.operations.staff.mechanic=2;c.operations.staff.engineer=2;
+ const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s),go=view=>q('[data-view='+view+']').click();
+ assert.equal(q('[data-view=team]'),null);go('tuning');q('[data-pane=workshop]').click();
+ assert.equal(d.querySelectorAll('[data-workshop-preset]').length,4);assert.match(q('#pane-tuning-workshop').textContent,/85–100%/);
+ q('[data-workshop-preset=wet]').click();const saved=JSON.parse(values.get(SAVE_KEY));
+ assert.equal(saved.money,98800);assert.equal(saved.street,58);assert.equal(saved.streetPeak,60);assert.ok(saved.setups.ae86.pressure<2.2);
+ assert.ok(saved.lastWorkshop.quality>=.85&&saved.lastWorkshop.quality<=1);assert.deepEqual(saved.builds.ae86,[]);
+ go('race');q('#start').click();const started=JSON.parse(values.get(SAVE_KEY));assert.equal(started.money,98800);
+ go('tuning');assert.ok([...d.querySelectorAll('[data-workshop-preset]')].every(b=>b.disabled));
 });
