@@ -1,10 +1,10 @@
 import {vehicleSVG} from './vehicles.js';
 import {escapeHTML} from './career-view.js';
 
-// Each image in the WebP atlas occupies one cell of a 2 × 3 grid.
-// The final R34 render is retained in the atlas for future use, but not
-// displayed for BNR32: those are different vehicles.
-export const GARAGE_ART_IDS = Object.freeze(['ae86','mx5','s13','rx7','evo']);
+// The first atlas (2×3) contains AE86, MX-5, S13, RX-7, Evo VI and R34.
+// The second atlas (2×2) contains Chaser, Supra, EK9 and NSX.
+// R32 intentionally retains its own silhouette: the R34 image is not an R32.
+export const GARAGE_ART_IDS = Object.freeze(['ae86','mx5','s13','rx7','evo','chaser','supra','ek9','nsx','r34']);
 
 export function garageArtworkHTML(car) {
   if (!GARAGE_ART_IDS.includes(car.id)) return vehicleSVG(car);
