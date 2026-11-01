@@ -13,3 +13,8 @@ test('natural route projection fits with uniform scale and road margins',()=>{
   assert.deepEqual(event.anchors,before);
  }
 });
+
+test('zoom steps are bounded and anchored at the cursor',async()=>{
+ const {ZOOM_STEPS,nextZoom,zoomAround}=await import('../src/scene-camera.js');assert.ok(ZOOM_STEPS.length>8);assert.equal(nextZoom(1,1),1.25);assert.equal(nextZoom(1.5,-1),1.25);assert.equal(nextZoom(24,1),24);assert.equal(nextZoom(.5,-1),.5);
+ const c={zoom:2,x:-120,y:-80},n=zoomAround(c,3,400,250);assert.equal((400-n.x)/n.zoom,(400-c.x)/c.zoom);assert.equal((250-n.y)/n.zoom,(250-c.y)/c.zoom);assert.equal(zoomAround(c,99,0,0).zoom,24);
+});
