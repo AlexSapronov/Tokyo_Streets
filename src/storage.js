@@ -69,7 +69,7 @@ function validateRecord(record) {
   if(record.lines!==undefined&&(!roadMode(event.mode)||!Array.isArray(record.lines)||record.lines.length!==count||record.lines.some((id,i)=>!RACING_LINES.some(line=>line.id===id)||(event.sectors[i].type!=='corner'&&id!=='neutral'))))return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
   const suffix=currentKey.slice(currentKey.indexOf('|'));
-  const legacyPrefixes=['2','3','4','5','6','drag-1','drag-2','drift-1','drift-2'];
+  const legacyPrefixes=['2','3','4','5','6','7','drag-1','drag-2','drag-3','drift-1','drift-2','drift-3'];
   const oldLearning=currentKey.endsWith(';opponent=learning-1')&&(record.key===currentKey.slice(0,-';opponent=learning-1'.length)||legacyPrefixes.some(prefix=>record.key===prefix+suffix.slice(0,-';opponent=learning-1'.length)));
   const key=oldLearning||legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);

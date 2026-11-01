@@ -59,7 +59,7 @@ test('archived mechanics cannot discount current service or charge a championshi
 test('resource recovery repetitions never become a tire destruction multiplier in other disciplines',()=>{
  const reset=DRIFT_CARDS.find(c=>c.reset),race=createRace(cfg,'dry','ebisu'),s=sectorAt(0,'dry','ebisu');
  const first=simulate(cfg,race.player,s,reset),repeated=simulate(cfg,{...race.player,recentActions:Array(6).fill(reset.id)},s,reset);
- assert.equal(first.next.tires,repeated.next.tires);assert.ok(repeated.time>first.time);
+ assert.equal(first.next.tires,repeated.next.tires);assert.equal(repeated.time,first.time);
  for(const c of [...CARDS,...DRIFT_CARDS])assert.ok(repetitionEffect({recentActions:Array(6).fill(c.id)},c).wearFactor<=3);
 });
 test('hot oil and coolant reduce road acceleration without pretending that throttle heats brake discs',()=>{

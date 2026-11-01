@@ -1,5 +1,6 @@
 import {executionLabel} from './execution.js';
-// Repeated active intentions accumulate strain within the last six decisions.
+// Repetition and overall attack strain tax focus only. Execution risk comes
+// from actual focus and driving conditions, never from the history counter.
 // A single filler card does not reset it; a genuinely varied sequence does.
 export const HABIT_WINDOW=6;
 export function attackLoad(card){
@@ -12,13 +13,14 @@ export function strainAfter(state,card){
 }
 export function strainEffect(state,card){
  const strain=state.strain||0,active=attackLoad(card)>0;
- return {strain,focusFactor:active?1+strain*.09:1,timeFactor:active?1+Math.max(0,strain-2)*.006:1,risk:strain*.025};
+ return {strain,focusFactor:active?1+strain*.09:1,timeFactor:1,risk:0};
 }
 export function repetitionEffect(state,card) {
   const repeats=card.id==='balanced'?0:(state.recentActions||[]).slice(-HABIT_WINDOW).filter(id=>id===card.id).length;
   const strain=2**repeats-1;
-  return {repeats,strain,timeFactor:1+.018*strain,focusFactor:1+.35*strain,
-    wearFactor:card.focus<=0?1:Math.min(3,1+.3*strain),heatExtra:3*strain,recoveryFactor:1/(1+.5*strain)};
+  // Neutral physical fields keep the helper contract; only focus fields vary.
+  return {repeats,strain:0,timeFactor:1,focusFactor:1+.35*strain,
+    wearFactor:1,heatExtra:0,recoveryFactor:1/(1+.5*strain)};
 }
 export function rememberAction(state,card) {
   return [...(state.recentActions||[]),card.id].slice(-HABIT_WINDOW);
@@ -44,10 +46,10 @@ export function qualitativeForecast(config,state,sector,card,prediction) {
     :prediction.slip>.1?'Есть риск потери сцепления и темпа.'
     :state.heat>110?'Перегрев ограничивает исполнение.':'';
   if(card.id==='defend')warning+=(warning?' ':'')+'Соперник получит +0.35 с, но защита не гарантирует удержание позиции.';
-  if(card.gain>0&&prediction.gain<0)warning+=(warning?' ':'')+'Сейчас потери съедают ускорение приёма: проверь повторы, нагрузку и сцепление.';
-  if((state.strain||0)>2)warning+=(warning?' ':'')+'Накоплена общая нагрузка от атак: смена карты не снимает напряжение.';
+  if(card.gain>0&&prediction.gain<0)warning+=(warning?' ':'')+'Сейчас потери съедают ускорение приёма: проверь сцепление, нагрев и состояние машины.';
+  if((state.strain||0)>2)warning+=(warning?' ':'')+'Накоплена нагрузка на фокус: активные приёмы дороже, смена карты не сбрасывает её.';
   if(state.focus<40&&sector.phase!=='prep'&&!card.reset)warning+=(warning?' ':'')+'Низкий фокус: крайняя ошибка исполнения может привести к вылету и сходу.';
   return {pace,load,wear,focus,warning,execution:executionLabel(state.focus),
-    habit:effect.repeats?`Повтор приёма: ${effect.repeats+1}-е применение в последних ${HABIT_WINDOW+1} решениях. Нагрузка растёт экспоненциально.`
+    habit:effect.repeats?`Повтор приёма: ${effect.repeats+1}-е применение с учётом предыдущих ${HABIT_WINDOW} решений. Меняется только расход или восстановление фокуса; прямого штрафа темпа нет.`
       :card.id==='balanced'?'Базовый безопасный темп: без штрафа за повтор.':'Свежий приём: без штрафа за повтор.'};
 }

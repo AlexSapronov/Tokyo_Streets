@@ -40,7 +40,7 @@ test('line recordings round-trip; old road records remain in the previous-model 
  while(!r.finished)r=resolveSector(r,'balanced',getEvent(r.eventId).sectors[r.index].type==='corner'?'late-apex':'neutral');
  const result=awardRace(c,r);assert.equal(result.isBest,true);
  const saved=validateSave(result.career);assert.deepEqual(saved.bests[0].lines,result.career.bests[0].lines);
- const legacy=structuredClone(result.career);legacy.bests[0].key=legacy.bests[0].key.replace(/^7\|/,'6|');delete legacy.bests[0].lines;
+ const legacy=structuredClone(result.career);legacy.bests[0].key=legacy.bests[0].key.replace(/^8\|/,'6|');delete legacy.bests[0].lines;
  assert.ok(validateSave(legacy).bests[0].key.startsWith('6|'));
  const corrupt=structuredClone(result.career);corrupt.bests[0].lines[0]='bogus';assert.equal(validateSave(corrupt).bests.length,0);
  const pose=lineFrame({sectorTimes:[10],lines:['wide-exit']},5);assert.ok(pose.offset>0);assert.deepEqual(lineFrame({sectorTimes:[10]},5),{offset:0,yaw:0});

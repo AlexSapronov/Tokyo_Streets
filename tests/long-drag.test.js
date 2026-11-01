@@ -38,7 +38,7 @@ test('quarter-mile golden reference remains on its original physics and timing',
  const race={player:state};
  assert.ok(Math.abs(race.player.time-14.808773852676273)<1e-10);
  assert.equal(race.player.drag.longFormat,undefined);assert.equal(race.player.drag.splits,undefined);
- assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-3|'));
+ assert.ok(recordKey(cfg,'yokohama','dry').startsWith('drag-4|'));
 });
 test('long gearing changes actual engine RPM and launch performance without adding power',()=>{
  const base=reachPull(cfg,'drag-pressure'),long=reachPull(cfg,'drag-longgear');
@@ -58,10 +58,14 @@ test('high pressure trades starting contact for lower high-speed rolling losses'
  const high=simulate(config,prep,sector,card('drag-pressure-high'));
  assert.equal(high.next.drag.pressure,1.12);assert.equal(high.time,0);
 });
-for(const car of CARS)test(`cooling beats repeated full throttle over a mile / ${car.id}`,()=>{
+for(const car of CARS)test(`cooling trades power for lower heat and more focus over a mile / ${car.id}`,()=>{
  const config=configuration(car.id,'ren'),attack=finishRace(config,'dry','yokohama-mile',full),planned=finishRace(config,'dry','yokohama-mile',mixed);
- assert.ok(planned.player.heat<attack.player.heat);assert.ok(planned.player.time<attack.player.time);
- assert.ok(planned.player.drag.trap>attack.player.drag.trap);assert.ok(planned.player.focus>attack.player.focus);
+ assert.ok(planned.player.heat<attack.player.heat);assert.ok(planned.player.focus>attack.player.focus);assert.ok(Number.isFinite(planned.player.time)&&Number.isFinite(attack.player.time));assert.ok(planned.player.drag.trap>0&&attack.player.drag.trap>0);
+});
+test('sustained power and cooling can each win depending on the car',()=>{
+ const difference=id=>{const config=configuration(id,'ren');return finishRace(config,'dry','yokohama-mile',full).player.time-finishRace(config,'dry','yokohama-mile',mixed).player.time;};
+ assert.ok(difference('ae86')<0,'AE86 benefits from keeping power applied');
+ assert.ok(difference('chaser')>0,'Chaser benefits from a cooling interval');
 });
 test('repeated long pulls pay the same exponential concentration price that their cards require',()=>{
  let race=reachPull(),costs=[];

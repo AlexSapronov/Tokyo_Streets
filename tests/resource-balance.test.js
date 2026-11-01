@@ -56,7 +56,7 @@ test('braking and attacks still heat brakes; hardware helps, engine tune does no
  const normal=simulate(config,state,corner,card('balanced')),late=simulate(config,state,corner,card('late'));
  assert.ok(normal.next.heat>state.heat&&late.next.heat>normal.next.heat);
  const repeated=simulate(config,{...state,recentActions:['late','balanced','late']},corner,card('late'));
- assert.ok(repeated.next.heat>late.next.heat);
+ assert.equal(repeated.next.heat,late.next.heat);
  const upgraded=configuration('nsx','ren',['slicks','brakes','pads']);
  assert.ok(simulate(upgraded,state,corner,card('late')).next.heat<late.next.heat);
  const engineHeat={...config,car:{...config.car,heatFactor:99,engineHeat:99}};
@@ -71,15 +71,15 @@ test('wear persists across actual finishes and reloads; previous road records st
   let race=createRace(cfg,'dry','suzuka',null,42);
   while(!race.finished)race=resolveSector(race,'balanced');
   assert.equal(race.player.dnf,undefined);assert.equal(race.history.length,12);
-  const record=raceRecord(race);assert.ok(record.key.startsWith('7|'));
+  const record=raceRecord(race);assert.ok(record.key.startsWith('8|'));
   career=settleWear(career,race);
-  const old={...record,key:record.key.replace(/^7\|/,'6|')};
+  const old={...record,key:record.key.replace(/^8\|/,'6|')};
   career=validateSave({...career,bests:[old]});
   assert.equal(career.bests[0].key,old.key);assert.equal(bestFor(career,cfg,'suzuka','dry'),null);
   assert.equal(career.wear.r34.slicks,race.player.tires);
   if(lap===0)first=race.player.tires;
   else assert.ok(race.player.tires<first&&race.player.tires>60);
  }
- assert.ok(recordKey(config,'yokohama','dry').startsWith('drag-3|'));
- assert.ok(recordKey(config,'ebisu','dry').startsWith('drift-3|'));
+ assert.ok(recordKey(config,'yokohama','dry').startsWith('drag-4|'));
+ assert.ok(recordKey(config,'ebisu','dry').startsWith('drift-4|'));
 });

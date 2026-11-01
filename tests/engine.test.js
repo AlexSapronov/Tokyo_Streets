@@ -33,10 +33,10 @@ test('slipstream and defence require actual positional windows',()=>{
  assert.ok(disabledReason(card('draft'),s,state,cfg,0));assert.equal(disabledReason(card('draft'),s,state,cfg,1),'');assert.ok(disabledReason(card('draft'),s,state,cfg,3));
  assert.equal(disabledReason(card('defend'),s,state,cfg,-1),'');assert.ok(disabledReason(card('defend'),s,state,cfg,1));
 });
-test('attack costs resources and cooldown requires another action',()=>{
+test('attack costs resources and can be repeated immediately while focus is sufficient',()=>{
  const state=freshState(cfg),s=sectorAt(0),a=simulate(cfg,state,s,card('attack')),b=simulate(cfg,state,s,card('balanced'));
  assert.ok(a.time<b.time);assert.ok(a.next.tires<b.next.tires);assert.ok(a.next.focus<b.next.focus);
- assert.match(disabledReason(card('attack'),sectorAt(1),a.next,cfg),/Откат/);
+ assert.equal(disabledReason(card('attack'),sectorAt(1),a.next,cfg),'');const repeated=simulate(cfg,a.next,sectorAt(1),card('attack'));assert.ok(repeated.next.focus<a.next.focus);
  const second=simulate(cfg,a.next,sectorAt(1),card('balanced'));assert.equal(disabledReason(card('attack'),sectorAt(2),second.next,cfg),'');
 });
 test('low focus and brake overheating block costly actions',()=>{
