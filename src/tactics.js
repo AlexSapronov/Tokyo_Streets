@@ -43,6 +43,8 @@ export function qualitativeForecast(config,state,sector,card,prediction) {
   let warning=prediction.clip?.spin?'Нагрузка грозит разворотом и потерей клипа.':card.reset?'Стабилизация прервёт связку: клип без баллов.':prediction.next.drag?.falseStart?'Фальстарт: результат не будет засчитан.'
     :prediction.slip>.1?'Есть риск потери сцепления и темпа.'
     :state.heat>110?'Перегрев ограничивает исполнение.':'';
+  if(card.id==='defend')warning+=(warning?' ':'')+'Соперник получит +0.35 с, но защита не гарантирует удержание позиции.';
+  if(card.gain>0&&prediction.gain<0)warning+=(warning?' ':'')+'Сейчас потери съедают ускорение приёма: проверь повторы, нагрузку и сцепление.';
   if((state.strain||0)>2)warning+=(warning?' ':'')+'Накоплена общая нагрузка от атак: смена карты не снимает напряжение.';
   if(state.focus<40&&sector.phase!=='prep'&&!card.reset)warning+=(warning?' ':'')+'Низкий фокус: крайняя ошибка исполнения может привести к вылету и сходу.';
   return {pace,load,wear,focus,warning,execution:executionLabel(state.focus),

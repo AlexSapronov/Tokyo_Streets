@@ -71,7 +71,7 @@ export const TUNING_GROUPS = [
 ];
 export const CARDS = [
  {id:'balanced',name:'Чистый темп',en:'BALANCED PACE',icon:'↗',category:'Темп',desc:'Нейтральная линия без лишнего риска.',gain:0,focus:0,heat:0,wear:1,risk:0},
- {id:'attack',name:'Полная атака',en:'FULL ATTACK',icon:'⚡',category:'Темп',desc:'Быстрее на любом секторе. Высокая нагрузка на ресурсы.',gain:.045,focus:17,heat:14,wear:2.2,risk:.18},
+ {id:'attack',name:'Полная атака',en:'FULL ATTACK',icon:'⚡',category:'Темп',desc:'Потенциал ускорения на любом секторе. Повторы, нагрузка и скольжение могут съесть выигрыш.',gain:.045,focus:17,heat:14,wear:2.2,risk:.18},
  {id:'preserve',name:'Беречь шины',en:'TIRE PRESERVE',icon:'◎',category:'Ресурс',desc:'Небольшая потеря темпа, износ шин ×0.35.',gain:-.035,focus:-6,heat:-7,wear:.35,risk:-.12},
  {id:'cool',name:'Остудить тормоза',en:'COOL BRAKES',icon:'❄',category:'Ресурс',desc:'Уменьшает нагрев тормозов ценой темпа. Итог зависит от торможений, обдува и повторов.',gain:-.045,focus:-4,heat:-24,wear:.65,risk:-.12},
  {id:'breathe',name:'Собраться',en:'RESET FOCUS',icon:'◌',category:'Ресурс',desc:'Восстанавливает 24 концентрации. Спокойный темп.',gain:-.055,focus:-24,heat:-8,wear:.7,risk:-.14},
@@ -79,10 +79,10 @@ export const CARDS = [
  {id:'safe',name:'Надёжный вход',en:'CONSERVATIVE ENTRY',icon:'⌁',category:'Поворот',desc:'Стабильный вход в поворот, особенно в дождь.',gain:-.015,focus:-4,heat:-8,wear:.65,risk:-.24,only:'corner'},
  {id:'apexEarly',name:'Ранний апекс',en:'EARLY APEX',icon:'⌃',category:'Поворот',desc:'Выгодно в тесной связке; хуже перед длинной прямой.',gain:.024,focus:7,heat:3,wear:1.1,risk:.05,only:'corner'},
  {id:'weight',name:'Перенос веса',en:'WEIGHT TRANSFER',icon:'⇄',category:'Поворот',desc:'Разворот машины в связке. TEIN улучшает реализацию.',gain:.029,focus:10,heat:3,wear:1.25,risk:.07,only:'corner'},
- {id:'power',name:'Силовой выход',en:'POWER EXIT',icon:'»',category:'Поворот',desc:'Реализовать тягу. AWD и LSD уменьшают пробуксовку.',gain:.04,focus:11,heat:6,wear:1.6,risk:.14,only:'corner'},
+ {id:'power',name:'Силовой выход',en:'POWER EXIT',icon:'»',category:'Поворот',desc:'Быстрее выход из поворота. На мокром без LSD легче потерять сцепление; повтор добавляет штраф.',gain:.04,focus:11,heat:6,wear:1.6,risk:.14,only:'corner'},
  {id:'draft',name:'Слипстрим',en:'SLIPSTREAM',icon:'⇢',category:'Дуэль',desc:'Меньше сопротивление за соперником на прямой.',gain:.043,focus:6,heat:4,wear:1,risk:.02,only:'straight',gap:'behind'},
  {id:'study',name:'Изучить соперника',en:'STUDY RIVAL',icon:'◉',category:'Дуэль',desc:'Спокойный сектор; следующее действие получает +1.5% темпа.',gain:-.012,focus:-9,heat:-3,wear:.85,risk:-.08},
- {id:'defend',name:'Закрыть траекторию',en:'DEFEND LINE',icon:'⊣',category:'Дуэль',desc:'Сдерживает близкого соперника на 0.35 с; сам теряешь темп.',gain:-.01,focus:8,heat:2,wear:1.2,risk:.03,gap:'ahead'},
+ {id:'defend',name:'Закрыть траекторию',en:'DEFEND LINE',icon:'⊣',category:'Дуэль',desc:'Добавляет близкому сопернику 0.35 с; сам теряешь темп и скорость выхода. Не гарантирует защиту от обгона.',gain:-.01,focus:8,heat:2,wear:1.2,risk:.03,gap:'ahead'},
  {id:'apex',name:'Точный апекс',en:'PERFECT APEX',icon:'◇',category:'Характер',desc:'Дисциплина Рэна: чистая дуга без лишней нагрузки.',gain:.035,focus:7,heat:2,wear:.95,risk:-.08,only:'corner',pilot:'ren'},
  {id:'dive',name:'Решающий выпад',en:'COMMIT TO PASS',icon:'↯',category:'Характер',desc:'Атака Аки в повороте. Только в пределах 2.5 с от соперника.',gain:.065,focus:18,heat:16,wear:2,risk:.22,only:'corner',pilot:'aki',gap:'close'},
  {id:'rain',name:'Дождевая линия',en:'RAIN LINE',icon:'☂',category:'Характер',desc:'Юи использует сцепление вне отполированной траектории.',gain:.047,focus:7,heat:0,wear:.85,risk:-.2,only:'wet',pilot:'yui'},

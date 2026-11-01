@@ -67,7 +67,8 @@ function validateRecord(record) {
   const currentKey=recordKey(config,record.eventId,record.weather);
   const suffix=currentKey.slice(currentKey.indexOf('|'));
   const legacyPrefixes=['2','3','4','5','6','drag-1','drag-2','drift-1','drift-2'];
-  const key=legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
+  const oldLearning=currentKey.endsWith(';opponent=learning-1')&&(record.key===currentKey.slice(0,-';opponent=learning-1'.length)||legacyPrefixes.some(prefix=>record.key===prefix+suffix.slice(0,-';opponent=learning-1'.length)));
+  const key=oldLearning||legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
   return {key,...(record.training?{training:{...config.training}}:{}),...(record.slips?{slips:[...record.slips]}:{}),...(config.challengeId?{challengeId:config.challengeId}:{}),...(record.lines?{lines:[...record.lines]}:{}),...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
