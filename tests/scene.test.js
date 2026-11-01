@@ -153,3 +153,9 @@ test('drag cameras draw a single complete world at start, mid-run and finish on 
   assert.deepEqual(finished,before);scene.destroy();
  }
 });
+
+test('rival never advances into an unresolved sector and chosen line has a visible preview',()=>{
+ const next=resolveSector(race(),'balanced');next.history[0].aiTime=next.history[0].playerTime/2;next.opponent.time=next.history[0].aiTime;
+ const scene=new Scene(canvas(),next),poses=[];scene.elapsed=next.player.time+100;scene.drawCar=(...args)=>poses.push(args);scene.previewLine='inside';calls=[];scene.draw();
+ assert.ok(poses[0][0]<=scene.checkpoints[1]);assert.ok(calls.some(call=>call[0]==='setLineDash'&&call[1]?.length===2),'current corner preview draws a selected path');scene.destroy();
+});

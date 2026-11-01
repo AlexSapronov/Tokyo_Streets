@@ -27,6 +27,8 @@ function tabs(root,view,groups,{paneView=view,onSelect=()=>{},label='Разде�
  return activate;
 }
 export function fitWorkspace(root){
+ const track=root.dataset.page==='race'?root.querySelector('.race-layout>section'):null;
+ if(track&&Number.isFinite(globalThis.window?.innerHeight)){const top=track.getBoundingClientRect().top;if(Number.isFinite(top))root.style.setProperty('--race-room',Math.max(320,Math.floor(window.innerHeight-top-18))+'px');}
  const body=root.querySelector('.workspace-body');if(!body)return;
  const top=body.getBoundingClientRect().top;if(Number.isFinite(top))body.style.setProperty('--workspace-top',Math.max(0,Math.round(top))+'px');
 }

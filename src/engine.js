@@ -34,7 +34,7 @@ export function performanceProfile(config,eventId='haruna',weather='dry'){
  const powerWeight=config.car.power/mass;
  return {mass,power:config.car.power,grip,powerWeight,kgPerHp:mass/config.car.power,rating:100*(powerWeight/(130/940))**(event.mode==='drag'?.9:.65)*(grip/1.02)**(event.mode==='drag'?.1:.35)};
 }
-export const RIVAL_LEVELS=[{id:'easy',name:'Слабее',factor:.8,reward:.7},{id:'equal',name:'На равных',factor:1,reward:1},{id:'hard',name:'Сильнее',factor:1.2,reward:1.35}];
+export const RIVAL_LEVELS=[{id:'easy',name:'Учебный',factor:.8,reward:.7},{id:'equal',name:'На равных',factor:1,reward:1},{id:'hard',name:'Сильнее',factor:1.2,reward:1.35}];
 const rivalsCache=new Map();
 export function freeRivalOptions(config,eventId,weather='dry'){
  const player=nominalConfiguration(config),profile=performanceProfile(player,eventId,weather),event=getEvent(eventId);
@@ -53,7 +53,7 @@ export function freeRivalOptions(config,eventId,weather='dry'){
    const current=performanceProfile(rival,eventId,weather).rating;
    rival.car.power=Math.max(1,Math.round(rival.car.power*(target/current)**(1/(event.mode==='drag'?.9:.65))));prepared=true;
   }
-  return {...level,rival,prepared,profile:performanceProfile(rival,eventId,weather),playerRating:profile.rating};
+  return {...level,name:event.mode==='drag'&&level.id==='easy'?'Слабее':level.name,rival,prepared,profile:performanceProfile(rival,eventId,weather),playerRating:profile.rating};
  });
  if(rivalsCache.size>=128)rivalsCache.clear();rivalsCache.set(key,options);return structuredClone(options);
 }
@@ -143,14 +143,15 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
  if(strain.strain>2)reasons.push('Накопленная нагрузка от атак: смена приёма не снимает напряжение');
  if(['late','apexEarly','power','defend'].includes(card.id))reasons.push('Траектория изменила скорость входа в следующий сектор');
- if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: нагрузка растёт экспоненциально, потеря ${(time-unpenalized).toFixed(2)} с`);
+ if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: нагрузка растёт экспоненциально, потеря ${(unpenalized*(repeat.timeFactor-1)).toFixed(2)} с`);
  if(sector.wet>.35)reasons.push(`Мокрое покрытие ${Math.round(sector.wet*100)}%: сцепление снижено`);
  if(brakeFade<1)reasons.push(`Перегрев: эффективность тормозов ${Math.round(brakeFade*100)}%`);
  if(slip>.001)reasons.push(`Предел сцепления превышен: +${slip.toFixed(2)} с`);
  if(state.study)reasons.push('Изучение соперника: +1.5% реализации темпа');
  if(has('brakes')&&card.id==='late')reasons.push('Brembo: эффективнее поздний вход и меньше нагрев');
  if(has('lsd')&&card.id==='power')reasons.push('CUSCO LSD: лучше реализация тяги');
- return {time,next,risk,slip,speed:(card.lineId&&card.lineId!=='neutral'?next.velocity:exit)*3.6,gain:baseTime-time,reasons};
+ const breakdown={base:baseTime,tactic:-baseTime*clamp(gain,-.09,.08),grip:slip,repetition:unpenalized*(repeat.timeFactor-1),strain:unpenalized*repeat.timeFactor*(strain.timeFactor-1),execution:time-unpenalized*repeat.timeFactor*strain.timeFactor};
+ return {time,next,risk,slip,breakdown,speed:(card.lineId&&card.lineId!=='neutral'?next.velocity:exit)*3.6,gain:baseTime-time,reasons};
 }
 export function simulate(config,state,sector,card,execution=null){
   const blocked=lineReason(card.lineId||'neutral',sector);if(blocked)throw new Error(blocked);
@@ -214,6 +215,12 @@ export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=n
   return {config, rival, category,...(offer?{rivalLevel:offer.id,difficultyReward:offer.reward,rivalName:offer.name+' · '+offer.rival.pilot.name}:{}),...(event.mode==='timeattack'?{targets:medalTargets(eventId,weather,config)}:{}),rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
+// A learning rival uses the same physics and resources, but basic lines and a simple plan.
+function chooseLearningRival(config,state,sector,gap){
+ const wanted=state.focus<55?'breathe':sector.type==='corner'?(sector.wet>.35?'safe':!(state.recentActions||[]).includes('power')?'power':'balanced'):'balanced';
+ const cards=availableCards(config,sector.mode),card=cards.find(c=>c.id===wanted&&!disabledReason(c,sector,state,config,gap))||cards[0];
+ return {card,result:simulate(config,state,sector,card),plan:[card.name]};
+}
 export function resolveSector(race, cardId, lineId='neutral') {
   if (race.finished) throw new Error('Заезд уже завершён');
   const event = getEvent(race.eventId);
@@ -226,19 +233,22 @@ export function resolveSector(race, cardId, lineId='neutral') {
   if (reason) throw new Error(reason);
   const seed=race.seed??hashSeed(race.runId||'legacy');
   const player = simulate(race.config, race.player, sector, card,executionRoll(seed,race.index,'player',race.player.focus));
+  const learning=race.mode==='duel'&&race.rivalLevel==='easy'&&!race.season&&!race.challenge;
   const ai = ['duel','drag'].includes(race.mode)&&!race.opponent.dnf
-    ? chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race),race.rivalStyle?orderPolicy(race.rivalStyle):null) : null;
-  if(ai&&roadMode(race.mode)){
+    ? learning?chooseLearningRival(race.rival,race.opponent,sector,-gap):chooseAI(race.rival, race.opponent, sector, -gap, futureSectors(race),race.rivalStyle?orderPolicy(race.rivalStyle):null) : null;
+  if(ai&&roadMode(race.mode)&&!learning){
     const choice=chooseRacingLine(race.rival,race.opponent,sector,ai.card,futureSectors(race)[0],race.rivalStyle);
     ai.card=choice.card;ai.plan[0]+=' / '+lineName(ai.card.lineId);
   }
   if(ai)ai.result=simulate(race.rival,race.opponent,sector,ai.card,executionRoll(seed,race.index,'opponent',race.opponent.focus));
-  if (card.id === 'defend' && ai) { ai.result.time += .35; ai.result.next.time += .35; }
+  if (card.id === 'defend' && ai) { ai.result.time += .35; ai.result.next.time += .35; player.reasons.push('Защита сработала: соперник +0.35 с. Замедление не запрещает обгон.'); }
   if (ai?.card.id === 'defend') {
     player.time += .35; player.next.time += .35;
     player.reasons.push('Соперник закрыл траекторию: +0.35 с');
   }
+  const clean=roadMode(race.mode)?simulate(race.config,race.player,sector,lineCard(CARDS[0],'neutral'),executionRoll(seed,race.index,'player',race.player.focus)):null;
   const row = {index: race.index, sector: sector.name, cardId, card: card.name,
+    ...(roadMode(race.mode)?{impact:{breakdown:player.breakdown,cleanTime:clean.time,decisionGain:!player.next.dnf&&!clean.next.dnf?clean.time-(player.time-(ai?.card.id==='defend'?.35:0)):null,nextSpeedGain:(player.next.velocity-clean.next.velocity)*3.6,focusBefore:race.player.focus,gapChange:ai&&!player.next.dnf&&!ai.result.next.dnf?player.time-ai.result.time:null,playerDelay:ai?.card.id==='defend'?.35:0,rivalDelay:card.id==='defend'&&ai?.35:0}}:{}),
     ...(roadMode(race.mode)?{lineId,aiLineId:ai?.card.lineId||'neutral'}:{}),
     aiSlip:ai?.result.slip||0,aiCardId:ai?.card.id||null,aiCard: ai?.card.name || (race.opponent.dnf?'Сход соперника':'—'), aiPlan: ai?.plan || [],
     playerTime: player.time, aiTime: ai?.result.time ?? null,

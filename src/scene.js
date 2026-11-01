@@ -1,6 +1,7 @@
 import {sectionCamera,sceneryClear} from './scene-camera.js';
 import {sceneLayout} from './scene-layout.js';
-import {presentationRecord,presentationFrame} from './presentation.js';
+import {presentationRecord,presentationFrame,racingLane} from './presentation.js';
+import {lineFrame} from './racing-lines.js';
 import {CARS, getEvent} from './data.js';
 import {checkpointFractions, progressAtTime} from './progress.js';
 import {topVehicleSVG} from './vehicles.js';
@@ -217,7 +218,7 @@ export class Scene {
         c.fillStyle='#b1c3ba50';for(let i=0;i<3;i++){c.globalAlpha=(1-i*.25)*effects.smoke;c.beginPath();c.ellipse((-30-i*12)*s,Math.sin((effects.fraction||0)*5+i)*4*s,(10+i*3)*s,(5+i*2)*s,0,0,7);c.fill();}c.globalAlpha=1;
       }
     }
-    c.restore();c.save();c.font='bold '+(12/(this.cameraState?.zoom||1))+'px monospace';c.fillStyle=ghost?'#b0e1d5':label==='YOU'?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s-(ghost?35:24)*s);c.restore();
+    c.restore();c.save();c.font='bold '+(12/(this.cameraState?.zoom||1))+'px monospace';c.fillStyle=ghost?'#b0e1d5':label.startsWith('YOU')?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s-(ghost?35:24)*s);c.restore();
   }
   draw() {
     const c=this.ctx,w=this.w,h=this.h;
@@ -251,27 +252,32 @@ export class Scene {
       const n=Math.max(10,Math.min(790,Math.floor(progress*800))),a=this.route[n-10],b=this.route[n],d=this.route[n+10];
       return Math.sign((b[0]-a[0])*(d[1]-b[1])-(b[1]-a[1])*(d[0]-b[0]))||1;
     };
+    if(['duel','timeattack'].includes(this.event.mode)&&!this.motion&&!this.replayRecord&&!this.race.finished&&this.event.sectors[this.race.index]?.type==='corner'){
+      const start=this.checkpoints[this.race.index],end=this.checkpoints[this.race.index+1],trace=[];
+      for(let j=0;j<=48;j++){
+        const fraction=j/48,progress=start+(end-start)*fraction,n=Math.min(799,Math.floor(progress*800)),point=this.project(...this.route[n]),next=this.project(...this.route[n+1]),angle=Math.atan2(next[1]-point[1],next[0]-point[0]);
+        const pose=lineFrame({sectorTimes:[1],lines:[this.previewLine||'neutral']},fraction),lane=racingLane(-9,{fraction,lineId:this.previewLine||'neutral',lineOffset:pose.offset,position:0},direction(progress),this.event.mode)*this.scale;
+        trace.push([point[0]-Math.sin(angle)*lane,point[1]+Math.cos(angle)*lane]);
+      }
+      this.path(c,trace,'#ffb477bb',2*this.scale,[6*this.scale,4*this.scale]);
+    }
     if(this.replayRecord){
       const progress=progressAtTime(visualRecord.sectorTimes,this.elapsed,this.event.id),sign=direction(progress);
-      this.drawCar(progress,-4,this.replayRecord.carId,'REPLAY',false,frame.yaw*(this.event.mode==='drift'?1:sign),frame.lineOffset*sign+frame.position,frame);
+      this.drawCar(progress,-4,this.replayRecord.carId,'REPLAY',false,frame.yaw*(this.event.mode==='drift'?1:sign),racingLane(-4,frame,sign,this.event.mode)+4,frame);
     }else{
       const playerTimes=visualRecord.sectorTimes;
       if(this.ghost&&this.showGhost){
         const progress=progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),ghost=presentationFrame(this.ghost,this.elapsed,this.event.id);
-        this.drawCar(progress,0,this.ghost.carId,'BEST',true,ghost.yaw*(this.event.mode==='drift'?1:direction(progress)),ghost.lineOffset*direction(progress)+ghost.position);
+        this.drawCar(progress,0,this.ghost.carId,'BEST',true,ghost.yaw*(this.event.mode==='drift'?1:direction(progress)),racingLane(0,ghost,direction(progress),this.event.mode));
       }
       if(['duel','drag'].includes(this.race.mode)){
         const aiRecord=presentationRecord(this.race,true),aiTimes=aiRecord.sectorTimes;
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
-        const total=aiTimes.reduce((sum,time)=>sum+time,0);
-        if(!this.race.opponent.dnf&&aiTimes.length&&this.elapsed>total&&aiTimes.length<this.event.sectors.length){
-          progress+=(this.elapsed-total)/aiTimes.at(-1)*(this.checkpoints[aiTimes.length+1]-this.checkpoints[aiTimes.length]);
-        }
         const ai=presentationFrame(aiRecord,this.elapsed,this.event.id);
-        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':'RIVAL',false,this.race.opponent.dnf?.7:ai.yaw*direction(progress),this.race.opponent.dnf?0:ai.lineOffset*direction(progress)-ai.position,ai);
+        this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':this.event.mode==='duel'&&aiTimes.length?'RIVAL · '+aiTimes.at(-1).toFixed(2)+' с':'RIVAL',false,this.race.opponent.dnf?.7:ai.yaw*direction(progress),this.race.opponent.dnf?0:racingLane(9,ai,direction(progress),this.event.mode)-9,ai);
       }
       const progress=Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id));
-      this.drawCar(progress,this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':'YOU',false,this.race.player.dnf?.7:frame.yaw*(this.event.mode==='drift'?1:direction(progress)),this.race.player.dnf?0:frame.lineOffset*direction(progress)+frame.position,frame);
+      this.drawCar(progress,this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':['duel','timeattack'].includes(this.event.mode)&&playerTimes.length?'YOU · '+playerTimes.at(-1).toFixed(2)+' с':'YOU',false,this.race.player.dnf?.7:frame.yaw*(this.event.mode==='drift'?1:direction(progress)),this.race.player.dnf?0:racingLane(-9,frame,direction(progress),this.event.mode)+9,frame);
     }
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
     this.drawMinimap(cameraProgress);

@@ -23,3 +23,14 @@ test('drag prep, drift clips and retired opponents stay finite and only use thei
  for(const event of ['yokohama','ebisu']){const r=finishRace(configuration('s13','ren'),'dry',event),record=raceRecord(r);for(let t=0;t<=record.time;t+=2){const frame=presentationFrame(record,t,event);assert.ok(Number.isFinite(frame.yaw));assert.ok(frame.smoke>=0&&frame.smoke<=1);}}
  let r=resolveSector(createRace(configuration('ae86','ren'),'dry','haruna','ai',42),'balanced');r.history.push({...r.history[0],aiTime:null});const opponent=presentationRecord(r,true);assert.equal(opponent.sectorTimes.length,1);assert.ok(opponent.actions[0]);
 });
+
+test('inside and outside visual lanes respect both turn directions for either driver',async()=>{
+ const {racingLane}=await import('../src/presentation.js');
+ for(const turn of [-1,1])for(const base of [-9,9]){
+  assert.ok(racingLane(base,{fraction:.5,lineId:'inside',lineOffset:-5},turn)*turn>0);
+  assert.ok(racingLane(base,{fraction:.5,lineId:'wide-exit',lineOffset:6},turn)*turn<0);
+  assert.equal(racingLane(base,{fraction:.5,lineId:'neutral',lineOffset:0},turn),base);
+ }
+ const mid=racingLane(-9,{fraction:.5,lineId:'late-apex',lineOffset:0},1),before=racingLane(-9,{fraction:.5-1e-8,lineId:'late-apex',lineOffset:1e-7},1);
+ assert.ok(Math.abs(mid-before)<1e-5,'late apex must not jump back to a default lane at its crossover');
+});

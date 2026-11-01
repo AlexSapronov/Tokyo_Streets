@@ -27,5 +27,14 @@ export function presentationFrame(record,elapsed,eventId){
  const gear=gearTo>=gearFrom?gearFrom+Math.floor((gearTo-gearFrom)*fraction):fraction<.5?gearFrom:gearTo;
  const rpm=to?clamp((from?.rpm||900)+((to.rpm||900)-(from?.rpm||900))*fraction,0,10000):900;
  const cue=slip>.05?'Потеря сцепления':drift?.clip.spin?'Разворот':braking?'Торможение':id==='defend'?'Защита линии':id==='draft'?'В слипстриме':['dive','skill-feint'].includes(id)?'Попытка обгона':release&&fraction>.5?'Выход на тяге':drift?.clip.valid?'Контроль заноса':id==='drag-burnout'?'Прогрев шин':'Исполнение приёма';
- return {index,fraction,offset:line.offset+positional*phase,lineOffset:line.offset,position:positional*phase,yaw,braking,smoke,marks:smoke*phase,throttle:braking?.2:release?.95:card?.focus<0?.35:.7,rpm,gear,cue,actionName:card?.name||'Сохранённый приём',lineName:record.lines?.[index]?lineName(record.lines[index]):'',slip,wet:sector.wet||0};
+ return {index,fraction,lineId:record.lines?.[index]||'neutral',offset:line.offset+positional*phase,lineOffset:line.offset,position:positional*phase,yaw,braking,smoke,marks:smoke*phase,throttle:braking?.2:release?.95:card?.focus<0?.35:.7,rpm,gear,cue,actionName:card?.name||'Сохранённый приём',lineName:record.lines?.[index]?lineName(record.lines[index]):'',slip,wet:sector.wet||0};
+}
+
+// Positive normal points into a positive turn. Keep explicit inside/outside choices
+// independent of the permanent separation used to distinguish the two cars.
+export function racingLane(base,frame,turn,mode='duel'){
+ if(!['duel','timeattack'].includes(mode))return base+(frame.lineOffset||0)*turn+(frame.position||0)*-Math.sign(base||-1);
+ const phase=Math.sin(Math.PI*(frame.fraction||0)),chosen=frame.lineId?frame.lineId!=='neutral':Math.abs(frame.lineOffset||0)>.001;
+ const separation=base*(chosen?1-.75*phase:1);
+ return separation-(frame.lineOffset||0)*turn*2.4+(frame.position||0)*-Math.sign(base||-1);
 }

@@ -278,3 +278,14 @@ test('animation pauses when the tab goes into the background',async t=>{
 test('download button produces a portable copy of current progress',async t=>{
  const c=newCareer();c.money=7281;const {document:d}=await boot(t,c);let captured;const create=URL.createObjectURL;URL.createObjectURL=blob=>{captured=blob;return 'blob:test';};t.after(()=>{URL.createObjectURL=create;});d.querySelector('#saves').click();d.querySelector('#save-download').click();assert.ok(captured instanceof Blob);const payload=JSON.parse(await captured.text());assert.equal(payload.format,'tokyo-streets-career');assert.equal(payload.career.money,7281);
 });
+
+test('race workspace sizing follows actual viewport and track offset instead of display resolution',()=>{
+ const r=root('<div class="race-layout"><section></section></div>');r.dataset.page='race';r.querySelector('section').getBoundingClientRect=()=>({top:300});const descriptor=Object.getOwnPropertyDescriptor(globalThis,'window');Object.defineProperty(globalThis,'window',{configurable:true,value:{innerHeight:1080}});
+ try{fitWorkspace(r);assert.equal(r.style.getPropertyValue('--race-room'),'762px');window.innerHeight=1440;fitWorkspace(r);assert.equal(r.style.getPropertyValue('--race-room'),'1122px');}finally{if(descriptor)Object.defineProperty(globalThis,'window',descriptor);else delete globalThis.window;}
+});
+test('corner choice and sector feedback form a visible three-step decision with actual costs',async t=>{
+ const {document:d,frames}=await boot(t,newCareer()),q=s=>d.querySelector(s);q('#start').click();q('#execute').click();let callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
+ assert.match(q('.upcoming-sectors .current').textContent,/ПОВОРОТ/);assert.match(q('.upcoming-sectors .current').textContent,/2\/8/);assert.match(q('.line-options legend').textContent,/1\. Траектория/);
+ q('[data-line=late-apex]').click();assert.match(q('.forecast-main').textContent,/Поздний апекс/);assert.match(q('.forecast-values').textContent,/ФОКУС:.*→/);assert.match(q('#execute').textContent,/3\. Исполнить/);
+ q('#execute').click();callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);q('#sector-details').click();assert.match(q('#modal-content').textContent,/Случайное исполнение/);assert.match(q('#modal-content').textContent,/Соперник:/);assert.match(q('#modal-content').textContent,/Повтор приёма/);
+});
