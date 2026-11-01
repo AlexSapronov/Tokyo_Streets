@@ -26,14 +26,14 @@ jobs:
       - name: Check out verified commit
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
 
       - name: Configure pinned SSH access
         shell: bash
         env:
-          SSH_PRIVATE_KEY: \${{ secrets.TOKYO_DEPLOY_SSH_KEY }}
-          SSH_KNOWN_HOSTS: \${{ secrets.TOKYO_DEPLOY_KNOWN_HOSTS }}
+          SSH_PRIVATE_KEY: ${{ secrets.TOKYO_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.TOKYO_DEPLOY_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           if [[ -z "$SSH_PRIVATE_KEY" || -z "$SSH_KNOWN_HOSTS" ]]; then
@@ -49,5 +49,5 @@ jobs:
       - name: Publish verified release
         shell: bash
         env:
-          RELEASE_SHA: \${{ github.event.workflow_run.head_sha }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
         run: bash scripts/deploy-vps.sh
