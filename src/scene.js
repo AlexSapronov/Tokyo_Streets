@@ -100,13 +100,17 @@ export class Scene {
     this.polygon(ctx,[[px-14*s,py-7*s],[px,py-h],[px+14*s,py-7*s]],seed>.5?'#264c3b':'#1f4037');
     this.polygon(ctx,[[px,py-h],[px,py-7*s],[px+14*s,py-7*s]],'#15312d');
   }
+  groundGradient(ctx,x0,y0,x1,y1) {
+    const circuit=['circuit','dragstrip','driftpark'].includes(this.event.theme),ridge=this.event.theme==='ridge';
+    const gradient=ctx.createLinearGradient(x0,y0,x1,y1);
+    gradient.addColorStop(0,circuit?'#263338':ridge?'#2b2939':'#152d2c');gradient.addColorStop(1,'#101d23');
+    return gradient;
+  }
   renderBackground() {
     const c=this.background.getContext('2d'),w=this.w,h=this.h,s=this.scale;
     c.setTransform(this.backgroundDpr,0,0,this.backgroundDpr,0,0);
     const circuit=['circuit','dragstrip','driftpark'].includes(this.event.theme),ridge=this.event.theme==='ridge',highway=this.event.theme==='highway';
-    const bg=c.createLinearGradient(0,0,w,h);
-    bg.addColorStop(0,circuit?'#263338':ridge?'#2b2939':'#152d2c');bg.addColorStop(1,'#101d23');
-    c.fillStyle=bg;c.fillRect(0,0,w,h);
+    c.fillStyle=this.groundGradient(c,0,0,w,h);c.fillRect(0,0,w,h);
     if (!circuit&&!highway) {
       this.polygon(c,[[0,h*.4],[w*.1,h*.18],[w*.25,h*.3],[w*.39,h*.04],[w*.52,h*.32],[w*.65,h*.11],[w*.8,h*.3],[w,h*.15],[w,h],[0,h]],ridge?'#383647':'#213d35');
       this.polygon(c,[[0,h*.7],[w*.15,h*.44],[w*.31,h*.59],[w*.44,h*.31],[w*.58,h*.6],[w*.75,h*.38],[w,h*.7],[w,h],[0,h]],ridge?'#2c333c':'#1c3630');
@@ -165,8 +169,7 @@ export class Scene {
       c.fillStyle=i===this.checkpoints.length-1?'#ffac77':'#b6c6ad';c.fill();
       if(i>0&&i<this.checkpoints.length-1){c.font='10px monospace';c.fillStyle='#b0c1b0';c.fillText(String(i).padStart(2,'0'),point[0]+15*s,point[1]-12*s);}
     }
-    const fog=c.createLinearGradient(0,h*.68,0,h);fog.addColorStop(0,'#10212500');fog.addColorStop(1,'#102125e6');
-    c.fillStyle=fog;c.fillRect(0,0,w,h);
+
   }
   animateSector(race,ghost,duration) {
     this.fromState=this.race.player;this.race=race;this.ghost=ghost;
@@ -229,8 +232,17 @@ export class Scene {
       this.cameraState.x=Math.max(w*.15-car[0]*z,Math.min(w*.85-car[0]*z,this.cameraState.x));
       this.cameraState.y=Math.max(h*.15-car[1]*z,Math.min(h*.85-car[1]*z,this.cameraState.y));
     }
-    const {zoom,x:tx,y:ty}=this.cameraState;
-    c.setTransform(this.dpr,0,0,this.dpr,0,0);c.drawImage(this.background,0,0,w,h);c.drawImage(this.background,tx,ty,w*zoom,h*zoom);c.setTransform(this.dpr*zoom,0,0,this.dpr*zoom,this.dpr*tx,this.dpr*ty);
+    // Keep the view inside the cached world: tracking near the start/finish
+    // must not expose a second, unzoomed copy of the track underneath.
+    const {zoom}=this.cameraState;
+    const tx=this.cameraState.x=zoom>=1?Math.max(w*(1-zoom),Math.min(0,this.cameraState.x)):w*(1-zoom)/2;
+    const ty=this.cameraState.y=zoom>=1?Math.max(h*(1-zoom),Math.min(0,this.cameraState.y)):h*(1-zoom)/2;
+    c.setTransform(this.dpr,0,0,this.dpr,0,0);
+    c.fillStyle=this.groundGradient(c,tx,ty,tx+w*zoom,ty+h*zoom);c.fillRect(0,0,w,h);
+    c.drawImage(this.background,tx,ty,w*zoom,h*zoom);
+    const fog=c.createLinearGradient(0,ty+h*.68*zoom,0,ty+h*zoom);fog.addColorStop(0,'#10212500');fog.addColorStop(1,'#102125e6');
+    c.fillStyle=fog;c.fillRect(0,0,w,h);
+    c.setTransform(this.dpr*zoom,0,0,this.dpr*zoom,this.dpr*tx,this.dpr*ty);
     const visualRecord=this.replayRecord||presentationRecord(this.race),frame=presentationFrame(visualRecord,this.elapsed,this.event.id);
     const moving=!!this.motion&&!this.paused&&!this.race.player.dnf;
     this.sound?.update(frame,moving&&document.visibilityState!=='hidden');

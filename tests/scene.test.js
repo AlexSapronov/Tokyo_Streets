@@ -78,9 +78,10 @@ test('every scene theme renders its initial state and drag preparation ghost wit
  }
 });
 test('static environment is cached between frames and rebuilt on resize',()=>{
- const scene=new Scene(canvas(),race());calls=[];scene.draw();
- assert.ok(!calls.some(call=>call[0]==='fillRect'),'background geometry must not redraw per frame');
- calls=[];observers[0].callback();assert.ok(calls.some(call=>call[0]==='fillRect'));scene.destroy();
+ const scene=new Scene(canvas(),race()),render=scene.renderBackground.bind(scene);let rebuilds=0;
+ scene.renderBackground=()=>{rebuilds++;render();};scene.draw();
+ assert.equal(rebuilds,0,'camera must reuse cached track and scenery');
+ observers[0].callback();assert.equal(rebuilds,1);scene.destroy();
 });
 test('solo drift draws yaw and its recorded ghost without inventing an AI car',t=>{
  t.mock.method(performance,'now',()=>0);
@@ -128,5 +129,27 @@ test('recorded braking, slip and attack cues render lights and trails; sound sto
 
 test('close camera follows recorded progress without touching simulation or rebuilding scenery',()=>{
  const initial=race(),next=resolveSector(initial,'balanced'),scene=new Scene(canvas(),next),before=structuredClone(next);
- scene.follow=true;calls=[];scene.draw();assert.ok(calls.some(call=>call[0]==='setTransform'&&call[1]>1));assert.ok(!calls.some(call=>call[0]==='fillRect'));assert.deepEqual(next,before);scene.destroy();
+ scene.follow=true;scene.renderBackground=()=>assert.fail('camera must reuse cached scenery');calls=[];scene.draw();assert.ok(calls.some(call=>call[0]==='setTransform'&&call[1]>1));assert.ok(calls.some(call=>call[0]==='fillRect'));assert.deepEqual(next,before);scene.destroy();
+});
+
+test('drag cameras draw a single complete world at start, mid-run and finish on both pixel densities',()=>{
+ for(const dpr of [1,2])for(const event of EVENTS.filter(e=>e.mode==='drag')){
+  window.devicePixelRatio=dpr;
+  const config=configuration('ae86','ren'),finished=finishRace(config,'dry',event.id),record=raceRecord(finished);
+  const scene=new Scene(canvas(2048,440),finished),before=structuredClone(finished);
+  scene.replayRecord=record;
+  for(const follow of [true,false])for(const elapsed of [0,record.time/2,record.time]){
+   scene.follow=follow;scene.elapsed=elapsed;scene.cameraState=null;calls=[];scene.draw();
+   const worlds=calls.filter(call=>call[0]==='drawImage'&&call[1]===scene.background);
+   assert.equal(worlds.length,1,event.id+' must not leave an overview under the close view');
+   assert.ok(calls.some(call=>call[0]==='fillRect'&&call[3]===2048&&call[4]===440),'ground covers the entire viewport');
+   const [,,x,y,width,height]=worlds[0];
+   if(scene.cameraState.zoom>=1)assert.ok(x<=0&&y<=0&&x+width>=2048-1e-6&&y+height>=440-1e-6,event.id+' camera stays inside cached scenery');
+   else{assert.ok(x>=0&&y>=0);assert.ok(Math.abs(x-(2048-width)/2)<1e-6);assert.ok(Math.abs(y-(440-height)/2)<1e-6);}
+  }
+  scene.follow=true;scene.paused=true;scene.cameraState={zoom:2,x:400,y:-2000};calls=[];scene.draw();
+  assert.equal(scene.cameraState.x,0);assert.equal(scene.cameraState.y,-440);
+  scene.size();calls=[];scene.draw();assert.equal(calls.filter(c=>c[0]==='drawImage'&&c[1]===scene.background).length,1);
+  assert.deepEqual(finished,before);scene.destroy();
+ }
 });
