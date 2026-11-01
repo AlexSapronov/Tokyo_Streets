@@ -60,7 +60,7 @@ export function prepareStage(career,active=false){
  const next=editable(career,active),state=next.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
  const [eventId,weather]=cup.stages[state.stage];next.car=state.carId;next.eventId=eventId;next.weather=weather;return next;
 }
-function entrants(cup){return [{id:'player',name:'Твоя команда'},...cup.roster.map(([id,name,carId,pilotId,style,parts,engineId])=>({id,name,carId,pilotId,style,parts,engineId}))];}
+function entrants(cup){return [{id:'player',name:'Ты'},...cup.roster.map(([id,name,carId,pilotId,style,parts,engineId])=>({id,name,carId,pilotId,style,parts,engineId}))];}
 export function standings(state){
  const cup=activeCup(state);
  return entrants(cup).map((e,index)=>({...e,points:state.results.reduce((n,r)=>n+r.rows.find(row=>row.id===e.id).points,0),wins:state.results.filter(r=>r.rows.find(row=>row.id===e.id).points===10).length,
