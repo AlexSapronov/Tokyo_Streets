@@ -164,3 +164,8 @@
 .tuning-subspace .workspace-pane{max-height:none;overflow:visible;padding:0}
 .tuning-subspace .workspace-tabs{position:sticky;top:-2px;z-index:2;padding:4px 0 10px}
 .tuning-subspace .workspace-tabs button{padding:8px 12px;font-size:11px}
+/* Public alpha: short first-run guidance and readable career management. */
+.beginner-guide{display:flex;align-items:center;gap:16px;padding:12px 16px;margin:0 0 12px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--panel)}
+.beginner-guide strong{flex-shrink:0;color:var(--accent);font-size:13px}.beginner-guide span{font-size:12px;line-height:1.6;flex:1}.beginner-guide button{flex-shrink:0}
+#modal{width:min(960px,94vw);max-width:94vw;max-height:88dvh;overflow:auto}#modal h2{margin-top:0}.save-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.save-slot{min-width:0;padding:16px}.save-slot .section-title{align-items:flex-start;gap:8px}.save-slot h3{overflow-wrap:anywhere;margin:0}.save-slot p{font-size:12px}.save-slot label{display:flex;flex-direction:column;gap:7px;font-size:12px;margin:12px 0}.save-slot input{width:100%;min-width:0;box-sizing:border-box}.save-slot .inline-actions{align-items:stretch;flex-direction:column;gap:8px}.save-slot button{font-size:11px;text-align:left}.save-slot input[type=file]{font-size:10px}#save-error{color:var(--accent)}#saves{font-size:11px;white-space:nowrap}#save-warning{margin:10px 0}.account{gap:10px}
+@media(max-width:1000px){.save-slots{grid-template-columns:1fr}.beginner-guide{flex-wrap:wrap}.beginner-guide span{flex-basis:60%}}

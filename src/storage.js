@@ -173,11 +173,42 @@ export function validateSave(raw) {
   out.journey=normalizeJourney(raw.journey,out);
   return out;
 }
-export function loadCareer(storage) {
-  try { const data = storage.getItem(SAVE_KEY); return data ? validateSave(JSON.parse(data)) : newCareer(); }
-  catch { return newCareer(); }
+// Slot 1 keeps the original key; existing careers never move or reset implicitly.
+export const SLOT_COUNT=3;
+export const ACTIVE_SLOT_KEY=SAVE_KEY+'-active-slot';
+export const slotKey=id=>{if(!Number.isInteger(id)||id<1||id>SLOT_COUNT)throw Error('Неизвестный слот');return id===1?SAVE_KEY:SAVE_KEY+'-slot-'+id;};
+export function activeSlot(storage){try{const id=Number(storage.getItem(ACTIVE_SLOT_KEY));return id>=1&&id<=SLOT_COUNT&&Number.isInteger(id)?id:1;}catch{return 1;}}
+export function readSlot(storage,id=activeSlot(storage)){
+ const key=slotKey(id);let raw;
+ try{raw=storage.getItem(key);return raw!==null&&raw!==undefined?{status:'ok',career:validateSave(JSON.parse(raw)),raw}:{status:'empty',career:newCareer(),raw:null};}
+ catch(error){return {status:'error',career:newCareer(),raw,error:String(error.message||error)};}
 }
-export function storeCareer(storage, career) {
-  try { storage.setItem(SAVE_KEY, JSON.stringify(career)); return true; }
-  catch { return false; }
+export function loadCareer(storage){return readSlot(storage).career;}
+export function writeSlot(storage,id,career,{replace=false}={}){
+ const key=slotKey(id),next=JSON.stringify(validateSave(career));
+ const previous=storage.getItem(key);
+ if(previous!==null&&previous!==undefined){
+  try{validateSave(JSON.parse(previous));}catch{if(!replace)throw Error('Слот повреждён. Сначала восстанови копию или явно замени его.');}
+  // Preserve a previous readable autosave. Never back up corrupt data over a good copy.
+  let valid=false;try{validateSave(JSON.parse(previous));valid=true;}catch{}
+  if(valid&&previous!==next)storage.setItem(key+'-backup',previous);
+ }
+ storage.setItem(key,next);return JSON.parse(next);
+}
+export function storeCareer(storage,career){try{writeSlot(storage,activeSlot(storage),career);return true;}catch{return false;}}
+export function slotList(storage){return Array.from({length:SLOT_COUNT},(_,i)=>{
+ const id=i+1,state=readSlot(storage,id);let name='Карьера '+id,backup=false;
+ try{name=storage.getItem(slotKey(id)+'-name')||name;const raw=storage.getItem(slotKey(id)+'-backup');if(raw){validateSave(JSON.parse(raw));backup=true;}}catch{}
+ return {id,name:name.slice(0,40),status:state.status,career:state.status==='ok'?state.career:null,backup};
+});}
+export function renameSlot(storage,id,name){const value=String(name).replace(/[\x00-\x1f]/g,'').trim().slice(0,40);if(!value)throw Error('Укажи название слота');storage.setItem(slotKey(id)+'-name',value);}
+export function activateSlot(storage,id){const state=readSlot(storage,id);if(state.status==='error')throw Error('Этот слот повреждён. Восстанови резервную копию или импортируй файл.');storage.setItem(ACTIVE_SLOT_KEY,String(id));return state.career;}
+export function restoreSlot(storage,id){const raw=storage.getItem(slotKey(id)+'-backup');if(!raw)throw Error('Резервной копии нет');const career=validateSave(JSON.parse(raw));storage.setItem(slotKey(id),JSON.stringify(career));return career;}
+export const SAVE_FILE_LIMIT=5*1024*1024;
+export function exportCareer(career){return JSON.stringify({format:'tokyo-streets-career',formatVersion:1,exportedAt:new Date().toISOString(),career:validateSave(career)},null,2);}
+export function importCareer(text){
+ if(typeof text!=='string'||new TextEncoder().encode(text).length>SAVE_FILE_LIMIT)throw Error('Файл должен быть JSON до 5 МБ');
+ let raw;try{raw=JSON.parse(text);}catch{throw Error('Не удалось прочитать JSON сохранения');}
+ if(raw?.format){if(raw.format!=='tokyo-streets-career'||raw.formatVersion!==1)throw Error('Неизвестный формат файла');raw=raw.career;}
+ return validateSave(raw);
 }
