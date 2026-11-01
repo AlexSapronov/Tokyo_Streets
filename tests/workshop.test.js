@@ -59,3 +59,26 @@ test('legacy support purchases and current part inventory survive migration with
  assert.equal(validateSave({...c,lastWorkshop:{carId:'bad',profile:'wet',quality:1}}).lastWorkshop,null);
  assert.equal(validateSave({...c,lastWorkshop:{carId:'ae86',profile:'wet',quality:.5}}).lastWorkshop,null);
 });
+
+test('workshop receipt stores actual paid parameters and marks later edits instead of advertising old quality as current',()=>{
+ const c=prepared(),paid=applyWorkshopPreset(c,'wet',false,()=>0),receipt=structuredClone(paid.lastWorkshop);
+ assert.deepEqual(receipt.before,c.setups.ae86);assert.deepEqual(receipt.after,paid.setups.ae86);
+ assert.equal(receipt.paidMoney,1200);assert.equal(receipt.paidStreet,2);assert.equal(receipt.engineId,'4age');assert.deepEqual(receipt.parts,[]);
+ assert.deepEqual(validateSave(paid),paid);
+ const html=workshopHTML(paid);assert.match(html,/Дождь · 85%/);assert.match(html,/Было/);assert.match(html,/Получено/);assert.match(html,/Этот результат сейчас установлен/);
+ assert.doesNotMatch(html,/ориентир|Уже настроено/);
+ const edited=setCarSetup(paid,{pressure:2.6});assert.deepEqual(edited.lastWorkshop,receipt);assert.match(workshopHTML(edited),/сборка или настройки изменены/);
+ const hardware=togglePart(paid,'streetTires');assert.match(workshopHTML(hardware),/сборка или настройки изменены/);
+ const swapped=structuredClone(paid);swapped.engines.installed.ae86.engineId='1uz';assert.match(workshopHTML(swapped),/сборка или настройки изменены/);
+ const other=structuredClone(paid);other.car='s13';assert.doesNotMatch(workshopHTML(other),/Последняя работа:/);
+});
+test('legacy or corrupted receipt details never invent a paid price or parameter history',()=>{
+ const paid=applyWorkshopPreset(prepared(),'dry',false,()=>1),base={carId:'ae86',profile:'dry',quality:1};
+ for(const patch of [{detailVersion:2},{engineId:'missing'},{parts:null},{parts:['bogus']},{parts:['gearbox','gearbox']},{before:{pressure:100}},{after:{...paid.lastWorkshop.after,brakeBias:NaN}},{paidMoney:-1},{paidMoney:Infinity},{paidStreet:101},{paidStreet:1.5}]){
+  const loaded=validateSave({...paid,lastWorkshop:{...paid.lastWorkshop,...patch}});assert.deepEqual(loaded.lastWorkshop,base);
+  const html=workshopHTML(loaded);assert.match(html,/В старом сохранении нет подробностей/);assert.doesNotMatch(html,/Списано:|<th>Получено/);
+ }
+ const legacy=validateSave({...paid,lastWorkshop:base});assert.deepEqual(legacy.lastWorkshop,base);
+ const unchanged=prepared();unchanged.setups.ae86=paid.lastWorkshop.after;
+ const second=applyWorkshopPreset(unchanged,'dry',false,()=>1);assert.match(workshopHTML(second),/После округления параметры остались прежними/);
+});

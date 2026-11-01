@@ -179,3 +179,18 @@ test('solo workshop buttons charge money and Street Cred and persist actual rand
  go('race');q('#start').click();const started=JSON.parse(values.get(SAVE_KEY));assert.equal(started.money,98800);
  go('tuning');assert.ok([...d.querySelectorAll('[data-workshop-preset]')].every(b=>b.disabled));
 });
+
+test('paid workshop receipt opens actual settings, survives reload and reports manual edits',async t=>{
+ const c=newCareer();c.money=100000;c.street=60;c.streetPeak=60;
+ const first=await boot(t,c),d=first.document,q=s=>d.querySelector(s);
+ q('[data-view=tuning]').click();q('[data-pane=workshop]').click();q('[data-workshop-preset=wet]').click();
+ const paid=JSON.parse(first.values.get(SAVE_KEY));assert.equal(paid.lastWorkshop.paidMoney,1200);assert.equal(paid.lastWorkshop.paidStreet,2);
+ assert.deepEqual(paid.lastWorkshop.after,paid.setups.ae86);assert.match(q('.workshop-result').textContent,/Дождь/);
+ assert.match(q('.workshop-result').textContent,/Что изменилось после оплаты/);assert.doesNotMatch(q('.workshop-result').textContent,/ориентир/);
+ q('[data-workshop-open-setup]').click();assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'setup');
+ q('#setup-pressure').value='2.6';q('#setup-save').click();q('[data-pane=workshop]').click();
+ assert.match(q('.workshop-result').textContent,/сборка или настройки изменены/);
+ const edited=JSON.parse(first.values.get(SAVE_KEY));assert.equal(edited.money,paid.money);assert.equal(edited.street,paid.street);assert.deepEqual(edited.lastWorkshop,paid.lastWorkshop);
+ const second=await boot(t,edited),q2=s=>second.document.querySelector(s);q2('[data-view=tuning]').click();q2('[data-pane=workshop]').click();
+ assert.match(q2('.workshop-result').textContent,/сборка или настройки изменены/);assert.match(q2('.workshop-result').textContent,/Списано:/);
+});
