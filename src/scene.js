@@ -8,6 +8,11 @@ import {CARS, getEvent} from './data.js';
 import {checkpointFractions, progressAtTime} from './progress.js';
 import {topVehicleSVG} from './vehicles.js';
 
+// Four simulated seconds per wall-clock second. Tiny sectors stay readable;
+// untimed drag preparation still has a visible execution interval.
+export function playbackDuration(seconds,speed=1){
+  return (seconds>0?Math.max(350,seconds*250):900)/speed;
+}
 export class Scene {
   constructor(canvas, race, ghost = null, showGhost = true, sound = null) {
     this.canvas = canvas;this.sound=sound;this.follow=false;this.cameraState=null;this.pointer=null;this.inputHandlers=[];
@@ -189,13 +194,13 @@ export class Scene {
   }
   animateSector(race,ghost,duration) {
     this.fromState=this.race.player;this.race=race;this.ghost=ghost;
-    this.motion={from:this.elapsed,to:race.player.time,started:performance.now(),duration};
+    this.motion={from:this.elapsed,to:race.player.time,started:performance.now(),duration:duration??playbackDuration(race.player.time-this.elapsed,this.speed)};
     this.paused=false;
   }
-  replay(record,duration=12000) {
+  replay(record,duration) {
     this.replayRecord=record;
     this.elapsed=0;
-    this.motion={from:0,to:record.time,started:performance.now(),duration};
+    this.motion={from:0,to:record.time,started:performance.now(),duration:duration??playbackDuration(record.time,this.speed)};
   }
   setPaused(value) {
     if(value)this.sound?.stop();
@@ -204,7 +209,7 @@ export class Scene {
     this.paused=value;
   }
   setSpeed(multiplier) {
-    if(!this.motion)return;
+    if(!this.motion){this.speed=multiplier;return;}
     const now=this.paused?this.pauseAt:performance.now();
     const fraction=Math.min(1,(now-this.motion.started)/this.motion.duration);
     const duration=this.motion.duration/(multiplier/this.speed);

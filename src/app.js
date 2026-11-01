@@ -184,7 +184,7 @@ function renderRace() {
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
     ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>2. Выбери приём <span>ПОЛНЫЙ НАБОР · ${schoolCards(r).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PUBLIC ALPHA 0.27</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PUBLIC ALPHA 0.27.1</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   if(isSchool)app.dataset.lesson=String(r.school.step);
   if($('#school-leave'))$('#school-leave').onclick=()=>{schoolIntent=null;race=null;render();};
   $('.sidebar')?.prepend($('.race-session'));
@@ -236,7 +236,7 @@ function renderRace() {
       document.querySelectorAll('.sector-node').forEach((node,i)=>{node.classList.toggle('current',i===index);node.classList.toggle('done',i<index);});
     };
     scene.onComplete=()=>{stopReplay();toast('Повтор завершён. Время и награды карьеры не изменились.');};
-    scene.replay(replayRecord,fast?6000:12000);
+    scene.replay(replayRecord);
   }else{
     scene.onComplete=finishAnimation;
     scene.onTick=(elapsed,frame)=>{if(frame.from)dashboardUpdate(interpolateTelemetry(r.config,r.mode,readTelemetry(r.config,frame.from,r.mode),readTelemetry(r.config,frame.to,r.mode),frame.fraction,frame.to.drag));};
@@ -307,7 +307,7 @@ function execute() {
   try {
     const next=resolveLesson(race,selected,selectedLine);
     setBusy(true);paused=false;$('#pause').disabled=false;
-    scene.animateSector(next,race.ghost,fast?900:1800);
+    scene.animateSector(next,race.ghost);
     race=next;$('#execute').textContent='Исполнение…';
     $('#scene-status').textContent='ИСПОЛНЕНИЕ · '+String(race.index).padStart(2,'0');
   }catch(error){toast(error.message);}
