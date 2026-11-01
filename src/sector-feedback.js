@@ -2,11 +2,16 @@ import {lineName} from './racing-lines.js';
 import {escapeHTML} from './career-view.js';
 const seconds=n=>Math.abs(n).toFixed(2)+' с';
 const choiceText=impact=>Number.isFinite(impact?.decisionGain)?'Твой выбор: '+(Math.abs(impact.decisionGain)<.005?'без изменения своего времени':impact.decisionGain>0?'выигрыш '+seconds(impact.decisionGain):'потеря '+seconds(impact.decisionGain))+(Number.isFinite(impact.nextSpeedGain)&&Math.abs(impact.nextSpeedGain)>.3?' · следующий вход '+(impact.nextSpeedGain>0?'+':'−')+Math.abs(impact.nextSpeedGain).toFixed(1)+' км/ч':'')+(impact.rivalDelay?' · сопернику +'+seconds(impact.rivalDelay):''):'';
+export function mainSectorReason(row){
+ const b=row.impact?.breakdown;
+ if(b){const penalties=[['Защита соперника',row.impact?.playerDelay],['Повтор приёма',b.repetition],['Общая нагрузка атак',b.strain],['Потеря сцепления',b.grip],['Случайное исполнение',b.execution],['Эффект приёма',b.tactic]].filter(([,n])=>Number.isFinite(n)&&n>.01).sort((a,b)=>b[1]-a[1]);if(penalties.length)return 'Главная потеря: '+penalties[0][0]+' +'+seconds(penalties[0][1]);}
+ return (row.reasons||[]).find(r=>/Перегрев|Повтор приёма|Общая нагрузка|сцеплен|ВЫЛЕТ|Разворот/.test(r))||'Результат учитывает машину, скорость входа и исполнение.';
+}
 export function sectorFeedbackHTML(row){
  if(!row)return '';
  const change=row.impact?.gapChange,duel=Number.isFinite(row.aiTime);
  const gapText=Number.isFinite(change)?Math.abs(change)<.005?'Разрыв не изменился':(change<0?'Отыграл ':'Потерял ')+seconds(change):!duel?'Участок завершён':'Разрыв не определён';
- return `<div class="last-sector"><strong>${escapeHTML(row.card)}${row.lineId?' / '+escapeHTML(lineName(row.lineId)):''} · ${row.playerTime.toFixed(2)} с${row.drift?' · '+row.drift.points.toFixed(1)+' баллов':''}</strong><span class="decision-impact">${choiceText(row.impact)}</span><span>${gapText}${duel?' · соперник '+row.aiTime.toFixed(2)+' с':''}</span><button id="sector-details" class="secondary">Почему такой результат?</button></div>`;
+ return `<div class="last-sector"><span class="eyebrow">ПРОШЛЫЙ УЧАСТОК · ${row.index+1}</span><strong>${escapeHTML(row.card)}${row.lineId?' / '+escapeHTML(lineName(row.lineId)):''} · ${row.playerTime.toFixed(2)} с${row.drift?' · '+row.drift.points.toFixed(1)+' баллов':''}</strong><span class="decision-impact">${choiceText(row.impact)}</span><span class="main-reason">${escapeHTML(mainSectorReason(row))}</span><span>${gapText}${duel?' · соперник '+row.aiTime.toFixed(2)+' с':''}</span><button id="sector-details" class="secondary">Почему такой результат?</button></div>`;
 }
 export function sectorDetailsHTML(row){
  const impact=row.impact,b=impact?.breakdown,duel=Number.isFinite(row.aiTime);

@@ -1,0 +1,13 @@
+import {repetitionEffect,strainEffect,focusCost,strainAfter} from './tactics.js';
+import {lineCard} from './racing-lines.js';
+import {simulate,disabledReason} from './engine.js';
+import {escapeHTML} from './career-view.js';
+const pct=n=>((n-1)*100).toFixed(1).replace(/\.0$/,'');
+export function cardComparison(config,state,sector,card,line='neutral',blocked=null){
+ const repeat=repetitionEffect(state,card),cost=focusCost(config,state,card,sector),fresh=focusCost(config,{...state,recentActions:[]},card,sector),reason=blocked??disabledReason(card,sector,state,config),prediction=reason?null:simulate(config,state,sector,lineCard(card,line));
+ const slip=!prediction?'—':prediction.risk>.3?'Высокий':prediction.risk>.15?'Умеренный':'Низкий',focus=cost>0?'−'+Math.ceil(cost):'+'+Math.floor(-cost),exit=prediction?prediction.next.velocity*3.6-state.velocity*3.6:0;
+ return {mode:sector.mode,repeat,cost,fresh,extra:Math.max(0,Math.ceil(cost)-Math.ceil(fresh)),risk:slip,focus,exit:!prediction?'Недоступно':Math.abs(exit)<1?'Скорость почти прежняя':exit>0?'Разгон на выходе':'Снижение скорости',strain:strainEffect(state,card),nextStrain:strainAfter(state,card),wear:prediction?state.tires-prediction.next.tires:null};
+}
+export function cardMetricsHTML(metrics){const m=metrics,r=m.repeat;return `<dl class="card-metrics"><div><dt>Фокус</dt><dd>${m.focus}</dd></div><div><dt>Риск</dt><dd>${m.risk}</dd></div><div><dt>Выход</dt><dd>${m.exit}</dd></div></dl><span class="card-repeat ${r.repeats?'negative':''}">${r.repeats?'Повтор ×'+(r.repeats+1)+(m.cost>0?(m.extra?' · ещё −'+m.extra+' фокуса':' · цена повтора учтена'):' · восстановление слабее')+(m.mode==='drag'?' · нагрузка на ресурс':' · штраф времени +'+pct(r.timeFactor)+'%'):'Без штрафа повтора'}</span>`;}
+export function strainHTML(state,next=state.strain||0){const value=state.strain||0;return `<div class="strain-meter"><label for="attack-strain">Нагрузка атак <strong>${value.toFixed(1)}${Math.abs(next-value)>.05?' → '+next.toFixed(1):''} / 6</strong></label><meter id="attack-strain" min="0" max="6" low="2" high="4" optimum="0" value="${value}"></meter><span>${value>2?'Усиливает риск и цену атак. Спокойные и ресурсные ходы снижают нагрузку.':'Разные атакующие карты тоже накапливают общую нагрузку.'}</span></div>`;}
+export function unavailableHTML(cards){if(!cards.length)return '';return `<details class="unavailable-cards"><summary>Недоступные приёмы · ${cards.length}</summary><ul>${cards.map(({card,reason})=>`<li><strong>${escapeHTML(card.name)}</strong> — ${escapeHTML(reason)}</li>`).join('')}</ul></details>`;}

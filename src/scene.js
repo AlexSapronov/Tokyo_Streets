@@ -3,7 +3,7 @@ import {trackGeometry} from './track-geometry.js';
 import {sectionCamera,sceneryClear,nextZoom,zoomAround,ZOOM_STEPS} from './scene-camera.js';
 import {sceneLayout} from './scene-layout.js';
 import {presentationRecord,presentationFrame,racingLane} from './presentation.js';
-import {lineFrame} from './racing-lines.js';
+import {lineFrame,SECTOR_COLORS} from './racing-lines.js';
 import {CARS, getEvent} from './data.js';
 import {checkpointFractions, progressAtTime} from './progress.js';
 import {topVehicleSVG} from './vehicles.js';
@@ -65,6 +65,23 @@ export class Scene {
   panBy(x,y){const camera=this.ensureCamera();this.follow=false;this.pendingView=null;camera.x+=x;camera.y+=y;this.onCameraChange?.();}
   showAll(){this.follow=false;this.pendingView=null;this.cameraState={zoom:1,x:0,y:0};this.onCameraChange?.();}
   focusCar(){this.follow=false;this.cameraState=null;this.pendingView=null;this.ensureCamera();this.onCameraChange?.();}
+  focusSector(index){
+    if(this.motion||!Number.isInteger(index)||index<this.race.index||index>=Math.min(this.event.sectors.length,this.race.index+3))return;
+    const start=this.checkpoints[index],end=this.checkpoints[index+1],points=Array.from({length:49},(_,i)=>this.project(...this.geometry.at(start+(end-start)*i/48))),xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
+    const zoom=Math.max(.5,Math.min(24,this.w*.8/(right-left+90*this.scale),this.h*.65/(bottom-top+90*this.scale)));
+    this.previewSector=index;this.follow=false;this.pendingView=null;this.cameraState={zoom,x:this.w/2-(left+right)/2*zoom,y:this.h*.53-(top+bottom)/2*zoom};this.onCameraChange?.();
+  }
+  drawDecisionGuide(index){
+    const c=this.ctx,zoom=this.cameraState?.zoom||1;
+    for(let offset=0;offset<3&&index+offset<this.event.sectors.length;offset++){
+      const n=index+offset,start=this.checkpoints[n],end=this.checkpoints[n+1],points=Array.from({length:49},(_,j)=>this.project(...this.geometry.at(start+(end-start)*j/48))),color=SECTOR_COLORS[offset];
+      this.path(c,points,color,Math.max(2/zoom,(this.previewSector===n?5:3)*this.scale));
+      for(const [f,label] of [[start,'ВХОД '+(n+1)],[end,'ВЫХОД '+(n+1)]]){const p=this.project(...this.geometry.at(f));c.strokeStyle=color;c.lineWidth=1.5/zoom;c.beginPath();c.arc(p[0],p[1],5/zoom,0,Math.PI*2);c.stroke();if(this.previewSector===n){c.font='bold '+10/zoom+'px monospace';c.fillStyle=color;c.fillText(label,p[0]+8/zoom,p[1]-10/zoom);}}
+      const a=points[19],b=points[25],d=Math.atan2(b[1]-a[1],b[0]-a[0]),size=7/zoom;
+      this.path(c,[[b[0]-Math.cos(d-.6)*size,b[1]-Math.sin(d-.6)*size],b,[b[0]-Math.cos(d+.6)*size,b[1]-Math.sin(d+.6)*size]],color,1.8/zoom);
+      const p=points[24];c.font='bold '+11/zoom+'px monospace';c.fillStyle=color;c.fillText(String(n+1),p[0]+9/zoom,p[1]-7/zoom);
+    }
+  }
   bindCameraInput(){
     const listen=(name,handler,options)=>{this.canvas.addEventListener?.(name,handler,options);this.inputHandlers.push([name,handler,options]);};
     listen('wheel',event=>{if(!event.deltaY||event.ctrlKey||event.metaKey)return;event.preventDefault();const rect=this.canvas.getBoundingClientRect();this.zoomBy(event.deltaY<0?1:-1,event.clientX-(rect.left||0),event.clientY-(rect.top||0));},{passive:false});
@@ -193,7 +210,7 @@ export class Scene {
 
   }
   animateSector(race,ghost,duration) {
-    this.fromState=this.race.player;this.race=race;this.ghost=ghost;
+    this.previewSector=null;this.fromState=this.race.player;this.race=race;this.ghost=ghost;
     this.motion={from:this.elapsed,to:race.player.time,started:performance.now(),duration:duration??playbackDuration(race.player.time-this.elapsed,this.speed)};
     this.paused=false;
   }
@@ -265,6 +282,7 @@ export class Scene {
     const fog=c.createLinearGradient(0,ty+h*.68*zoom,0,ty+h*zoom);fog.addColorStop(0,'#10212500');fog.addColorStop(1,'#102125e6');
     c.fillStyle=fog;c.fillRect(0,0,w,h);
     c.setTransform(this.dpr*zoom,0,0,this.dpr*zoom,this.dpr*tx,this.dpr*ty);
+    if(!this.replayRecord&&!this.race.finished&&['duel','timeattack'].includes(this.event.mode))this.drawDecisionGuide(index);
     const visualRecord=this.replayRecord||presentationRecord(this.race),frame=presentationFrame(visualRecord,this.elapsed,this.event.id);
     const moving=!!this.motion&&!this.paused&&!this.race.player.dnf;
     this.sound?.update(frame,moving&&document.visibilityState!=='hidden');

@@ -1,0 +1,10 @@
+import {serviceCost,recoveryNeeded} from './garage.js';
+const yen=n=>'¥ '+Math.round(n).toLocaleString('ru-RU');
+export function finishOverviewHTML(career,race){
+ const active={...career,car:race.config.car.id};
+ const cost=serviceCost(active),credit=(race.outcome?.reward||0)-(race.debtPaid||0),urgent=recoveryNeeded(active),season=!!race.season&&!!career.championships.active,low=race.player.focus<40;
+ const bonus=[race.journeyReport,race.seasonReport,race.challengeReport].reduce((sum,r)=>sum+Math.max(0,(r?.bonus??r?.reward??0)-(r?.debtPaid||0)),0);
+ const short=urgent&&cost>career.money;
+ const next=short?'Полный сервис не по карману. В гараже доступно восстановление основных узлов до 60%.':urgent?'Восстанови машину перед следующим стартом.':season?'Продолжи текущий кубок: подготовь машину к следующему этапу.':low?'На следующем заезде чередуй атаки с восстановлением фокуса.':'Попробуй улучшить самый слабый участок из разбора выше.';
+ return `<section class="finish-overview" aria-label="Деньги и следующий шаг"><dl><div><dt>Всего зачислено</dt><dd>${yen(credit+bonus)}</dd></div><div><dt>Полный сервис сейчас</dt><dd>${yen(cost)}</dd></div><div><dt>${cost>career.money?'До сервиса не хватает':'На счету после такого сервиса'}</dt><dd>${yen(Math.abs(career.money-cost))}</dd></div></dl><p>Из них: заезд ${yen(credit)}, карьерные бонусы ${yen(bonus)}. Удержания за долг уже учтены.</p><p>Сервис ещё не оплачен. Его цена включает весь текущий износ машины.</p><strong>Следующий шаг: ${next}</strong><button id="report-next" class="primary" ${!urgent&&!season?'hidden':''} data-next="${short?'recovery':urgent?'maintenance':season?'season':'retry'}">${short?'Открыть гараж и восстановление':urgent?'Открыть сервис':season?'К следующему этапу':'Повторить трассу'}</button></section>`;
+}
