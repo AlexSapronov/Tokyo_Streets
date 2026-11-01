@@ -16,7 +16,7 @@ function context(){
   return (...args)=>{for(const value of args)if(typeof value==='number')assert.ok(Number.isFinite(value),`${String(key)} received a nonfinite value`);calls.push([key,...args]);};
  },set(object,key,value){object[key]=value;return true;}});
 }
-function canvas(width=1100,height=580){const ctx=context();return {width,height,getContext:()=>ctx,getBoundingClientRect:()=>({width,height})};}
+function canvas(width=1100,height=580){const ctx=context(),listeners=new Map();return {width,height,listeners,getContext:()=>ctx,getBoundingClientRect:()=>({width,height}),addEventListener:(name,handler)=>listeners.set(name,handler),removeEventListener:name=>listeners.delete(name)};}
 beforeEach(()=>{
  calls=[];raf=new Map();observers=[];saved=new Map();
  const stubs={window:{devicePixelRatio:1},document:{createElement:()=>canvas()},
@@ -158,4 +158,26 @@ test('rival never advances into an unresolved sector and chosen line has a visib
  const next=resolveSector(race(),'balanced');next.history[0].aiTime=next.history[0].playerTime/2;next.opponent.time=next.history[0].aiTime;
  const scene=new Scene(canvas(),next),poses=[];scene.elapsed=next.player.time+100;scene.drawCar=(...args)=>poses.push(args);scene.previewLine='inside';calls=[];scene.draw();
  assert.ok(poses[0][0]<=scene.checkpoints[1]);assert.ok(calls.some(call=>call[0]==='setLineDash'&&call[1]?.length===2),'current corner preview draws a selected path');scene.destroy();
+});
+
+test('free pan and stepped zoom remain fixed when the car moves and preserve race data',()=>{
+ const initial=race(),before=structuredClone(initial),scene=new Scene(canvas(),initial);assert.equal(scene.follow,false);scene.showAll();scene.panBy(-120,-30);const view={...scene.cameraState};
+ scene.race=resolveSector(initial,'balanced');scene.elapsed=scene.race.player.time;scene.draw();assert.deepEqual(scene.cameraState,view);assert.deepEqual(initial,before);
+ const x=250,y=140,world=[(x-view.x)/view.zoom,(y-view.y)/view.zoom];scene.zoomBy(1,x,y);assert.equal(scene.cameraState.zoom,1.25);assert.ok(Math.abs((x-scene.cameraState.x)/scene.cameraState.zoom-world[0])<1e-8);assert.ok(Math.abs((y-scene.cameraState.y)/scene.cameraState.zoom-world[1])<1e-8);
+ scene.zoomBy(1);assert.equal(scene.cameraState.zoom,1.5);scene.zoomBy(-1);assert.equal(scene.cameraState.zoom,1.25);assert.equal(scene.follow,false);scene.focusCar();assert.equal(scene.follow,false);scene.destroy();
+});
+test('wheel and pointer drag disable following and input handlers are removed on teardown',()=>{
+ const c=canvas(),scene=new Scene(c,race());scene.showAll();scene.follow=true;let prevented=0;
+ c.listeners.get('wheel')({deltaY:-100,clientX:200,clientY:100,preventDefault(){prevented++;}});assert.equal(scene.cameraState.zoom,1.25);assert.equal(scene.follow,false);assert.equal(prevented,1);
+ const before=scene.cameraState.x;c.listeners.get('pointerdown')({button:0,pointerId:4,clientX:20,clientY:30,preventDefault(){}});c.listeners.get('pointermove')({pointerId:4,clientX:70,clientY:40});assert.equal(scene.cameraState.x,before+50);c.listeners.get('pointerup')({pointerId:4});assert.equal(scene.pointer,null);
+ c.listeners.get('keydown')({key:'Home',preventDefault(){}});assert.equal(scene.cameraState.zoom,1);c.listeners.get('keydown')({key:'ArrowRight',preventDefault(){}});assert.equal(scene.cameraState.x,-50);scene.destroy();assert.equal(c.listeners.size,0);
+});
+test('a manual view survives resize and temporary hidden report panels',()=>{
+ let width=1100,height=580;const c=canvas();c.getBoundingClientRect=()=>({width,height});const scene=new Scene(c,race());scene.showAll();scene.panBy(-50,-30);const before=scene.viewState;
+ width=1400;height=700;scene.size();assert.ok(Math.abs(scene.viewState.worldZoom-before.worldZoom)<1e-8);for(let i=0;i<2;i++)assert.ok(Math.abs(scene.viewState.center[i]-before.center[i])<1e-8);
+ width=0;height=0;scene.size();assert.deepEqual(scene.viewState,before);width=1100;height=580;scene.size();for(let i=0;i<2;i++)assert.ok(Math.abs(scene.viewState.center[i]-before.center[i])<1e-8);scene.destroy();
+});
+
+test('car reaches the exact visual sector boundary rather than the previous lookup sample',()=>{
+ const scene=new Scene(canvas(),race()),end=scene.geometry.pieces[0].end,expected=scene.project(...scene.geometry.at(end));calls=[];scene.drawCar(end,0,'ae86','YOU');const translate=calls.find(call=>call[0]==='translate');assert.ok(Math.abs(translate[1]-expected[0])<1e-8);assert.ok(Math.abs(translate[2]-expected[1])<1e-8);scene.destroy();
 });

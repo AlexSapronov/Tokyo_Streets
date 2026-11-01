@@ -163,7 +163,7 @@ test('top-level Player navigation opens the actual specialization controls direc
 });
 
 test('race tools sit outside the road canvas and the overview toggle preserves the current run',async t=>{
- const {document:d,values}=await boot(t),q=s=>d.querySelector(s);assert.equal(q('.scene-tools').closest('.scene-wrap'),null);assert.match(q('#camera-toggle').textContent,/всю трассу/);const before=values.get(SAVE_KEY);q('#camera-toggle').click();assert.match(q('#camera-toggle').textContent,/текущей связке/);assert.equal(values.get(SAVE_KEY),before);
+ const {document:d,values}=await boot(t),q=s=>d.querySelector(s);assert.equal(q('.scene-tools').closest('.scene-wrap'),null);assert.match(q('#camera-toggle').textContent,/Вся трасса/);const before=values.get(SAVE_KEY);q('#camera-toggle').click();assert.equal(q('#map-zoom').textContent,'100%');assert.equal(q('#camera-follow').getAttribute('aria-pressed'),'false');assert.equal(values.get(SAVE_KEY),before);
 });
 
 test('solo workshop buttons charge money and Street Cred and persist actual randomized settings',async t=>{
@@ -288,4 +288,13 @@ test('corner choice and sector feedback form a visible three-step decision with 
  assert.match(q('.upcoming-sectors .current').textContent,/ПОВОРОТ/);assert.match(q('.upcoming-sectors .current').textContent,/2\/8/);assert.match(q('.line-options legend').textContent,/1\. Траектория/);
  q('[data-line=late-apex]').click();assert.match(q('.forecast-main').textContent,/Поздний апекс/);assert.match(q('.forecast-values').textContent,/ФОКУС:.*→/);assert.match(q('#execute').textContent,/3\. Исполнить/);
  q('#execute').click();callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);q('#sector-details').click();assert.match(q('#modal-content').textContent,/Случайное исполнение/);assert.match(q('#modal-content').textContent,/Соперник:/);assert.match(q('#modal-content').textContent,/Повтор приёма/);
+});
+
+test('map zoom buttons offer steps, following is optional, and camera controls do not touch career',async t=>{
+ const {document:d,values}=await boot(t),q=s=>d.querySelector(s),before=values.get(SAVE_KEY);q('#camera-toggle').click();assert.equal(q('#map-zoom').textContent,'100%');q('#map-zoom-in').click();assert.equal(q('#map-zoom').textContent,'125%');q('#map-zoom-in').click();assert.equal(q('#map-zoom').textContent,'150%');q('#map-zoom-out').click();assert.equal(q('#map-zoom').textContent,'125%');
+ q('#camera-follow').click();assert.equal(q('#camera-follow').getAttribute('aria-pressed'),'true');q('#camera-focus').click();assert.equal(q('#camera-follow').getAttribute('aria-pressed'),'false');assert.equal(values.get(SAVE_KEY),before);
+});
+test('active racing hides career chrome automatically and can reveal it without interrupting execution',async t=>{
+ const {document:d,frames,values}=await boot(t,newCareer()),q=s=>d.querySelector(s);assert.equal(d.body.classList.contains('race-focus'),false);q('#start').click();assert.equal(d.body.classList.contains('race-focus'),true);q('#execute').click();const before=values.get(SAVE_KEY);q('#race-menu-toggle').click();assert.equal(d.body.classList.contains('race-focus'),false);assert.equal(q('#execute').disabled,true);assert.equal(values.get(SAVE_KEY),before);q('#race-menu-toggle').click();assert.equal(d.body.classList.contains('race-focus'),true);
+ let turns=0;while(q('#execute')&&turns++<16){const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);if(q('#execute'))q('#execute').click();}assert.ok(q('.report'));assert.equal(d.body.classList.contains('race-focus'),false);
 });
