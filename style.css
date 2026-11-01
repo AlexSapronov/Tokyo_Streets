@@ -158,3 +158,9 @@
 #app[data-page=race] .scene-tactic{top:14px;max-width:calc(100% - 230px)}
 #app[data-page=race] .scene-caption{max-width:45%;bottom:12px}
 @media(min-width:1250px){#app[data-page=race]{max-width:2500px}#app[data-page=race] .scene-wrap{height:clamp(360px,37vh,560px)}}
+
+/* Tuning uses two primary modes; the selected mode owns the only scroll area. */
+#app[data-page=tuning]>.workbench>.workspace-tabs button{flex:1;font-size:14px}
+.tuning-subspace .workspace-pane{max-height:none;overflow:visible;padding:0}
+.tuning-subspace .workspace-tabs{position:sticky;top:-2px;z-index:2;padding:4px 0 10px}
+.tuning-subspace .workspace-tabs button{padding:8px 12px;font-size:11px}

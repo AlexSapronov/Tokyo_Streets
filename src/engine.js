@@ -1,3 +1,4 @@
+import {hasPart,partCapabilities} from './parts.js';
 import {unlockedSkillCards,trainedExecution} from './player.js';
 import {lineGeometry,lineReason,lineCard,lineName,RACING_LINES,roadMode} from './racing-lines.js';
 import {engineCar,stockEngineId,getEngine} from './engine-data.js';
@@ -22,11 +23,11 @@ export function configuration(carId,pilotId,parts=[],condition=100,rawSetup={},e
 // Ratings use the healthy installed build, so deliberate wear cannot buy easier opposition.
 export function nominalConfiguration(config){return configuration(config.car.id,'ren',config.parts,100,config.setup,config.engineId);}
 export function performanceProfile(config,eventId='haruna',weather='dry'){
- const event=getEvent(eventId),mass=config.car.mass-(config.parts.includes('weight')?65:0)+(config.parts.includes('suspension')?8:0);
+ const event=getEvent(eventId),mass=config.car.mass-(hasPart(config.parts,'weight')?65:0)+(hasPart(config.parts,'suspension')?8:0);
  let grip=0,length=0;
  for(let i=0;i<event.sectors.length;i++){
   const sector=sectorAt(i,weather,eventId),wet=sector.wet;
-  const effective=config.car.grip*tireFactor(config,wet,true,event.mode==='drag'?'drag':'road')*(config.parts.includes('suspension')?1.05:1)*aeroGrip(config,sector.type==='corner'?30:55);
+  const effective=config.car.grip*tireFactor(config,wet,true,event.mode==='drag'?'drag':'road')*(hasPart(config.parts,'suspension')?1.05:1)*aeroGrip(config,sector.type==='corner'?30:55);
   grip+=effective*sector.length;length+=sector.length;
  }
  grip/=length;
@@ -57,7 +58,7 @@ export function freeRivalOptions(config,eventId,weather='dry'){
  if(rivalsCache.size>=128)rivalsCache.clear();rivalsCache.set(key,options);return structuredClone(options);
 }
 export function freshState(config){return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
-export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return [...CARDS,...unlockedSkillCards(config)].filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||config.parts.includes(c.part)));}
+export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return [...CARDS,...unlockedSkillCards(config)].filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||hasPart(config.parts,c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
  if(sector.mode==='drift')return driftReason(card,sector,state,config);
  if(sector.mode==='drag')return dragReason(card,sector,state,config);
@@ -82,7 +83,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  const line=lineGeometry(card.lineId,sector,config.car);
  const repeat=repetitionEffect(state,card);
  const strain=strainEffect(state,card);
- const {car,pilot,parts}=config,has=id=>parts.includes(id),corner=sector.type==='corner';
+ const {car,pilot}=config,parts=partCapabilities(config.parts),has=id=>parts.includes(id),corner=sector.type==='corner';
  // SI units: metric hp -> watts, kg, m/s. A bounded sector approximation,
  // not a wheel-level simulator. Both drivers use exactly this function.
  const mass=car.mass-(has('weight')?65:0)+(has('suspension')?8:0);
@@ -126,7 +127,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  const brakeHardware=(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1);
  const heatInput=corner?(brakingLoad+Math.max(0,card.heat)+Math.min(12,card.heat>=0?repeat.heatExtra:0))*(mass/1100)*brakeHardware:0;
  const recovery=Math.min(0,card.heat)*repeat.recoveryFactor;
- const coolingRate=(.012+Math.min(80,average)*.0002)*(corner?.65:1)*car.cooling;
+ const coolingRate=(.012+Math.min(80,average)*.0002)*(corner?.65:1)*car.cooling*(car.brakeCooling||1);
  const coolingFraction=1-Math.exp(-time*coolingRate);
  const airCooling=Math.max(0,state.heat-35)*coolingFraction;
  const cooled=heatInput*(1-coolingFraction*.5)+recovery-airCooling;

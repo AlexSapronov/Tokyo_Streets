@@ -1,4 +1,4 @@
-import {CARS} from './data.js';
+import {CARS,PARTS} from './data.js';
 // Approximate game ratings, not homologated manufacturer specifications.
 const stockIds=['4age','1jz','4g63','b6','sr20','13b','rb26','2jz','b16b','c30a','rb26r34'];
 const masses=[115,210,150,110,150,125,230,230,120,200,230],rpms=[7600,7200,8000,7200,7500,8200,8000,7200,8600,8200,8000];
@@ -13,7 +13,7 @@ ENGINES.push(
  {id:'om606',name:'Mercedes-Benz OM606 · 3.0 DIESEL TURBO',power:177,mass:245,redline:4800,heat:1.12,cooling:.95,price:68000,fuel:'diesel'},
  {id:'6bt',name:'Cummins 6BT · 5.9 DIESEL TURBO',power:215,mass:490,redline:3200,heat:1.3,cooling:.85,price:95000,extreme:true,fuel:'diesel'}
 );
-export const MOTOR_PARTS=['ecu','turbo','cams','exhaust','intercooler','flywheel'];
+export const MOTOR_PARTS=PARTS.filter(p=>['ecu','turbo','cams','exhaust','intercooler','flywheel'].includes(p.family||p.id)).map(p=>p.id);
 export const stockEngineId=carId=>stockIds[CARS.findIndex(c=>c.id===carId)]||'4age';
 export const getEngine=id=>ENGINES.find(e=>e.id===id);
 export const installedEngineId=(career,carId=career.car)=>career.engines?.installed?.[carId]?.engineId||stockEngineId(carId);

@@ -1,3 +1,4 @@
+import {hasPart,partCapabilities} from './parts.js';
 import {tireFactor} from './tuning.js';
 import {transmissionProfile,longShiftSpeeds} from './telemetry.js';
 import {focusCost,repetitionEffect,rememberAction} from './tactics.js';
@@ -22,7 +23,7 @@ function reactionFor(config,card,error=0) {
   return card.reaction+(.98-config.pilot.skill)*.08+error*.6;
 }
 function tireGrip(config,state,sector) {
-  const wet=sector.wet,drag=state.drag,parts=config.parts;
+  const wet=sector.wet,drag=state.drag,parts=partCapabilities(config.parts);
   const optimum=wet>.35?60:85;
   const temperature=clamp(1-Math.abs(drag.temperature-optimum)/180,.67,1);
   const pressure=1+(1-drag.pressure)*.4;
@@ -34,7 +35,7 @@ function tireGrip(config,state,sector) {
 // horsepower from cards. Gear timing changes delivered power and interruption.
 function travel(config,state,sector,card,error=0) {
   if(sector.longDrag)return travelLong(config,state,sector,card,error);
-  const drag=state.drag,parts=config.parts,car=config.car,launch=sector.phase==='launch';
+  const drag=state.drag,parts=partCapabilities(config.parts),car=config.car,launch=sector.phase==='launch';
   const mass=car.mass-(parts.includes('weight')?65:0)+(parts.includes('suspension')?8:0);
   const drive=car.drive==='AWD'?1.18:car.drive==='FF'?.9:car.drive==='MR'?1.08:1;
   const lsd=parts.includes('lsd')?1+.045*car.partLsdHealth:1;
@@ -111,23 +112,23 @@ export function simulateDrag(config,state,sector,card,execution=null) {
       for(const split of result.splits)reasons.push(`Отсечка ${split.distance.toFixed(3)} м: ET ${split.et.toFixed(3)} с / ${split.speed.toFixed(1)} км/ч`);
     }
     if(state.heat>105)reasons.push('Перегрев мотора снижает доступную мощность');
-    if(config.parts.includes('lsd')&&launch)reasons.push('CUSCO LSD улучшает реализацию тяги');
+    if(hasPart(config.parts,'lsd')&&launch)reasons.push('CUSCO LSD улучшает реализацию тяги');
     drag.temperature=clamp(drag.temperature+(launch?8:4)-sector.wet*4,20,140);
     if(sector.phase==='finish')drag.trap=result.velocity*3.6;
   }
-  const cooling=config.car.cooling*(config.parts.includes('cooling')?config.car.coolerFactor:1);
+  const cooling=config.car.cooling*(hasPart(config.parts,'cooling')?config.car.coolerFactor:1);
   const heat=card.heat>0?card.heat*(config.car.heatFactor||1)*(config.car.engineHeat||1)/cooling:card.heat*cooling;
   if(!sector.longDrag||prep)next.heat=clamp(state.heat+heat,35,200);
   next.focus=clamp(state.focus-focusCost(config,state,card),0,config.pilot.focus);
-  next.tires=clamp(state.tires-card.wear*(config.parts.includes('tires')?1.25:1)*(repeat?.wearFactor||1)*(config.car.wearFactor||1)-slip*2,0,100);
+  next.tires=clamp(state.tires-card.wear*(hasPart(config.parts,'tires')?1.25:1)*(repeat?.wearFactor||1)*(config.car.wearFactor||1)-slip*2,0,100);
   next.time+=time;
-  if(config.parts.includes('cooling'))reasons.push('HKS уменьшает нагрев мотора');
+  if(hasPart(config.parts,'cooling'))reasons.push('HKS уменьшает нагрев мотора');
   return {time,next,risk,slip,speed:next.velocity*3.6,gain:0,reasons};
 }
 export function dragCards(long=false){return long?ALL_DRAG_CARDS:DRAG_CARDS;}
 
 function travelLong(config,state,sector,card,error=0){
-  const drag=state.drag,car=config.car,parts=config.parts,launch=sector.phase==='launch';
+  const drag=state.drag,car=config.car,parts=partCapabilities(config.parts),launch=sector.phase==='launch';
   const mass=car.mass-(parts.includes('weight')?65:0)+(parts.includes('suspension')?8:0);
   const grip=tireGrip(config,state,sector)*(1-error*.4),drive=car.drive==='AWD'?1.18:car.drive==='FF'?.9:car.drive==='MR'?1.08:1,lsd=parts.includes('lsd')?1+.045*car.partLsdHealth:1;
   const demand=(car.power/mass)*5.4*(launch?card.throttle*clamp(drag.rpm/(car.launchRPM||4800),.7,1.15):1)*(drag.gearing||1)*(car.finalRatio||1);

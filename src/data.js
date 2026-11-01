@@ -47,13 +47,27 @@ PARTS.push(
  {id:'brace',name:'CUSCO Strut Tower Bar',type:'Распорка кузова',price:6500,desc:'Сцепление +1.5%, отклик угла в дрифте +2%, масса +3 кг. Более резкая реакция требует точности.',effect:'brace'},
  {id:'splitter',name:'Voltex Front Splitter',type:'Передняя аэродинамика',price:11500,desc:'Дополнительное сцепление растёт со скоростью до +3.5%. Сопротивление воздуху +4%, масса +3 кг; сочетается с крылом.',effect:'splitter'}
 );
+// Workshop alternatives: one part per replaceable hardware slot. Values are game ratings.
+for(const part of PARTS)if(['ecu','turbo','cooling','aero','splitter'].includes(part.id))part.slot=part.id;
+PARTS.push(
+ {id:'enduranceTires',slot:'tires',name:'Endurance Club Compound',type:'Выносливый полуслик',price:16000,reputation:24,desc:'Сухое сцепление +9%, мокрое −1%, износ ×0.72. Дольше живёт, уступает мягкому слику в темпе.',effect:'endurance'},
+ {id:'streetEcu',family:'ecu',slot:'ecu',name:'Street ECU Calibration',type:'Умеренная прошивка',price:8000,reputation:12,mod:{power:1.04,heat:1.05},desc:'Мощность +4%, нагрев +5%. Дешевле и спокойнее HKS; заменяет другой ЭБУ.',effect:'power'},
+ {id:'responseTurbo',family:'turbo',slot:'turbo',turboOnly:true,name:'Response Turbo Kit',type:'Лёгкий турбокомплект',price:21000,reputation:36,mod:{power:1.12,heat:1.15,wear:1.06,focus:1.04,mass:8},desc:'Для турбомотора: мощность +12%, нагрев +15%, масса +8 кг, износ ×1.06, фокус ×1.04. Заменяет другой турбокомплект.',effect:'boost'},
+ {id:'compactOil',family:'cooling',slot:'cooling',name:'Compact Oil Cooler',type:'Компактный маслокулер',price:4500,reputation:12,mod:{cooling:1.15,mass:0},desc:'Теплоотвод масла +15%, без прибавки массы. Бюджетная альтернатива; открывает «Тепловое окно».',effect:'cooling'},
+ {id:'raceOil',family:'cooling',slot:'cooling',name:'Endurance Oil Cooler',type:'Гоночный маслокулер',price:19000,reputation:36,mod:{cooling:1.55,mass:6},desc:'Теплоотвод масла +55%, масса +6 кг. Для длительной нагрузки; заменяет другой маслокулер.',effect:'cooling'},
+ {id:'brakeDucts',name:'Brake Cooling Ducts',type:'Обдув тормозов',price:6000,reputation:12,desc:'Охлаждение тормозов обдувом +25%, масса +2 кг. Не охлаждает мотор и не заменяет колодки.',effect:'brakeCooling'},
+ {id:'streetWing',family:'aero',slot:'aero',name:'Street Low-Drag Wing',type:'Крыло с малым сопротивлением',price:11000,reputation:24,mod:{grip:.055,drag:.06,mass:6},desc:'При стандартном прижиме: сцепление на скорости до +5.5%, сопротивление +6%, масса +6 кг. Заменяет другое крыло.',effect:'aero'},
+ {id:'trackWing',family:'aero',slot:'aero',name:'Time Attack GT Wing',type:'Крыло высокого прижима',price:26000,reputation:48,mod:{grip:.15,drag:.24,mass:17},desc:'При стандартном прижиме: сцепление на скорости до +15%, сопротивление +24%, масса +17 кг. Сильнее в дугах, медленнее на прямой.',effect:'aero'},
+ {id:'streetLip',family:'splitter',slot:'splitter',name:'Street Front Lip',type:'Лёгкий передний лип',price:6500,reputation:12,mod:{grip:.018,drag:.018,mass:2},desc:'Сцепление на скорости до +1.8%, сопротивление +1.8%, масса +2 кг. Дешевле сплиттера; занимает тот же слот.',effect:'splitter'},
+ {id:'flatFloor',name:'Club Flat Floor',type:'Плоское днище',price:21000,reputation:36,desc:'Сцепление на скорости до +3%, сопротивление +1.5%, масса +7 кг. Сочетается с крылом и передним обвесом.',effect:'floor'}
+);
 export const TUNING_GROUPS = [
- {id:'tires',name:'Шины',description:'Состав под покрытие. Установлен только один комплект.',parts:['streetTires','tires','wetTires','slicks','dragRadial']},
- {id:'engine',name:'Двигатель',description:'Мощность, рабочий диапазон и цена тепловой нагрузки.',parts:['ecu','turbo','cams','exhaust']},
- {id:'cooling',name:'Охлаждение',description:'Контроль температуры и стабильность под длительной нагрузкой.',parts:['cooling','radiator','intercooler']},
+ {id:'tires',name:'Шины',description:'Состав под покрытие. Установлен только один комплект.',parts:['streetTires','tires','wetTires','slicks','dragRadial','enduranceTires']},
+ {id:'engine',name:'Двигатель',description:'Мощность, рабочий диапазон и цена тепловой нагрузки.',parts:['streetEcu','ecu','responseTurbo','turbo','cams','exhaust']},
+ {id:'cooling',name:'Охлаждение',description:'Контроль температуры и стабильность под длительной нагрузкой.',parts:['compactOil','cooling','raceOil','radiator','intercooler','brakeDucts']},
  {id:'transmission',name:'Трансмиссия',description:'Дифференциал, сцепление и выбор главной пары.',parts:['lsd','clutch','flywheel','shortFinal','longFinal','gearbox']},
  {id:'chassis',name:'Шасси и тормоза',description:'Торможение, подвеска, облегчение и дрифтовая геометрия.',parts:['brakes','pads','suspension','brace','weight','angle']},
- {id:'aero',name:'Аэродинамика',description:'Сцепление на скорости в обмен на сопротивление и массу.',parts:['aero','splitter']}
+ {id:'aero',name:'Аэродинамика',description:'Сцепление на скорости в обмен на сопротивление и массу.',parts:['streetWing','aero','trackWing','streetLip','splitter','flatFloor']}
 ];
 export const CARDS = [
  {id:'balanced',name:'Чистый темп',en:'BALANCED PACE',icon:'↗',category:'Темп',desc:'Нейтральная линия без лишнего риска.',gain:0,focus:0,heat:0,wear:1,risk:0},

@@ -11,8 +11,8 @@ import {CARS} from '../src/data.js';
 function root(html){const {document}=parseHTML('<html><body><main>'+html+'</main></body></html>');return document.querySelector('main');}
 test('tabs move existing nodes, preserve edits and handlers, and provide keyboard selection',()=>{
  const r=root('<div class="page-heading"></div><section class="panel">summary</section><section class="setup-panel"><input id="edit"></section><section class="preset-panel"><button id="action">save</button></section><section class="workshop-panel">presets</section><nav class="tuning-nav"></nav><section class="tuning-group" id="engine"><h3>Engine</h3></section>');let calls=0;const input=r.querySelector('input'),button=r.querySelector('#action');input.value='unsaved';button.onclick=()=>calls++;
- mountWorkbench(r,'tuning',newCareer(),null);assert.equal(r.querySelectorAll('[role=tabpanel]').length,4);r.querySelector('[data-pane=presets]').click();assert.equal(input.value,'unsaved');r.querySelector('#action').click();assert.equal(calls,1);assert.ok(r.querySelector('#pane-tuning-setup').hidden);assert.equal(r.querySelector('[data-pane=presets]').getAttribute('aria-selected'),'true');
- for(const n of r.querySelectorAll('[role=tab]'))n.focus=()=>{};let prevented=false;r.querySelector('[data-pane=presets]').onkeydown({key:'ArrowRight',preventDefault(){prevented=true;}});assert.ok(prevented);assert.equal(r.querySelector('[role=tab][aria-selected=true]').dataset.pane,'engine');
+ mountWorkbench(r,'tuning',newCareer(),null);assert.equal(r.querySelectorAll('[role=tabpanel]').length,6);r.querySelector('[data-pane=presets]').click();assert.equal(input.value,'unsaved');r.querySelector('#action').click();assert.equal(calls,1);assert.ok(r.querySelector('#pane-tuning-setup').hidden);assert.equal(r.querySelector('[data-pane=presets]').getAttribute('aria-selected'),'true');
+ for(const n of r.querySelectorAll('[role=tab]'))n.focus=()=>{};let prevented=false;r.querySelector('[data-pane=presets]').onkeydown({key:'ArrowRight',preventDefault(){prevented=true;}});assert.ok(prevented);assert.equal(r.querySelector('[data-pane=setup]').getAttribute('aria-selected'),'true');assert.equal(r.querySelector('[data-pane=settings]').getAttribute('aria-selected'),'true');
  r.querySelector('[data-pane=engine]').onkeydown({key:'Enter'});assert.equal(input.value,'unsaved');
 });
 test('tab keys wrap, support Home/End and keep unrelated keys unchanged',()=>{const keys=['a','b','c'];for(const [current,key,expected] of [['a','ArrowLeft','c'],['c','ArrowRight','a'],['b','Home','a'],['a','End','c'],['b','Tab','b']])assert.equal(tabKey(current,keys,key),expected);});
@@ -187,10 +187,30 @@ test('paid workshop receipt opens actual settings, survives reload and reports m
  const paid=JSON.parse(first.values.get(SAVE_KEY));assert.equal(paid.lastWorkshop.paidMoney,1200);assert.equal(paid.lastWorkshop.paidStreet,2);
  assert.deepEqual(paid.lastWorkshop.after,paid.setups.ae86);assert.match(q('.workshop-result').textContent,/Дождь/);
  assert.match(q('.workshop-result').textContent,/Что изменилось после оплаты/);assert.doesNotMatch(q('.workshop-result').textContent,/ориентир/);
- q('[data-workshop-open-setup]').click();assert.equal(q('[role=tab][aria-selected=true]').dataset.pane,'setup');
+ q('[data-workshop-open-setup]').click();assert.equal(q('[data-pane=setup]').getAttribute('aria-selected'),'true');assert.equal(q('[data-pane=settings]').getAttribute('aria-selected'),'true');
  q('#setup-pressure').value='2.6';q('#setup-save').click();q('[data-pane=workshop]').click();
  assert.match(q('.workshop-result').textContent,/сборка или настройки изменены/);
  const edited=JSON.parse(first.values.get(SAVE_KEY));assert.equal(edited.money,paid.money);assert.equal(edited.street,paid.street);assert.deepEqual(edited.lastWorkshop,paid.lastWorkshop);
  const second=await boot(t,edited),q2=s=>second.document.querySelector(s);q2('[data-view=tuning]').click();q2('[data-pane=workshop]').click();
  assert.match(q2('.workshop-result').textContent,/сборка или настройки изменены/);assert.match(q2('.workshop-result').textContent,/Списано:/);
+});
+
+test('tuning separates installation from setup, preserves edits between modes and replaces alternative hardware',async t=>{
+ const c=newCareer();c.money=1000000;c.street=60;c.streetPeak=60;
+ const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s),saved=()=>JSON.parse(values.get(SAVE_KEY));
+ q('[data-view=tuning]').click();q('[data-pane=installation]').click();
+ assert.equal(q('[aria-label="Разделы тюнинга"]').querySelectorAll('[role=tab]').length,2);
+ assert.equal(q('#pane-tuning-installation').hidden,false);assert.equal(q('#pane-tuning-settings').hidden,true);
+ assert.equal(q('#pane-tuning-settings .tuning-group'),null);assert.equal(q('#pane-tuning-installation .setup-panel'),null);
+ const cats=q('[aria-label="Категории деталей"]');assert.ok(cats);
+ for(const category of ['tires','engine','cooling','transmission','chassis','aero'])assert.equal(q('#tuning-'+category).querySelectorAll('[data-part]').length,6);
+ q('[data-pane=tuning-engine]').click();q('[data-part=streetEcu]').click();assert.deepEqual(saved().builds.ae86,['streetEcu']);
+ const spent=saved().money;q('[data-part=ecu]').click();assert.deepEqual(saved().builds.ae86,['ecu']);assert.equal(saved().money,spent-16000);
+ assert.ok(saved().purchased.ae86.includes('streetEcu'));assert.equal(q('[data-pane=tuning-engine]').getAttribute('aria-selected'),'true');
+ assert.equal(q('[data-pane=installation]').getAttribute('aria-selected'),'true');
+ q('[data-pane=settings]').click();q('[data-pane=setup]').click();q('#setup-pressure').value='2.4';
+ q('[data-pane=installation]').click();q('[data-pane=settings]').click();assert.equal(q('#setup-pressure').value,'2.4');
+ assert.equal(q('[data-pane=setup]').getAttribute('aria-selected'),'true');
+ const ids=[...d.querySelectorAll('[role=tab],[role=tabpanel]')].map(n=>n.id);assert.equal(new Set(ids).size,ids.length);
+ q('[data-view=garage]').click();q('#open-maintenance').click();assert.equal(q('[data-pane=installation]').getAttribute('aria-selected'),'true');assert.equal(q('#pane-tuning-maintenance').hidden,false);
 });

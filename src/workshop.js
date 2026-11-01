@@ -1,10 +1,11 @@
-import {getEvent} from './data.js';
+import {hasPart} from './parts.js';
+import {PARTS,getEvent} from './data.js';
 import {getEngine,installedEngineId} from './engine-data.js';
 import {SETUP_FIELDS,normalizeSetup} from './setup.js';
 export const earnedStreet=career=>Math.max(career.streetPeak||0,career.street||0);
 export const tuningReputation=career=>Math.max(earnedStreet(career),career.official||0);
 const requirements={streetTires:4,pads:4,tires:12,brakes:12,lsd:12,suspension:12,weight:12,exhaust:12,brace:12,wetTires:24,dragRadial:24,cooling:24,radiator:24,clutch:24,flywheel:24,angle:24,shortFinal:24,longFinal:24,ecu:36,cams:36,intercooler:36,aero:36,splitter:36,gearbox:36,slicks:48,turbo:48};
-export const partReputation=id=>requirements[id]??0;
+export const partReputation=id=>{const part=PARTS.find(p=>p.id===id);return part?.reputation??requirements[part?.family||id]??0;};
 export function partAccessReason(career,id){
  if(career.purchased[career.car].includes(id))return '';
  const need=partReputation(id);return tuningReputation(career)<need?`Нужно ${need} репутации (Street или Official)`:'';
@@ -40,7 +41,7 @@ export function applyWorkshopPreset(career,id,active=false,rng=randomUnit){
  const draw=()=>{const value=rng();if(!Number.isFinite(value)||value<0||value>1)throw new Error('Недопустимый результат настройки');return value;};
  const quality=Number((.85+.15*draw()).toFixed(6)),parts=next.builds[next.car],values=targetSetup(career,id);
  for(const field of SETUP_FIELDS){
-  if(field.requires&&!parts.includes(field.requires))continue;
+  if(field.requires&&!hasPart(parts,field.requires))continue;
   values[field.key]+=(draw()*2-1)*(1-quality)*(field.max-field.min);
  }
  next.setups[next.car]=normalizeSetup(parts,values);

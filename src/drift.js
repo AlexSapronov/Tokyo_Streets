@@ -1,3 +1,4 @@
+import {partCapabilities} from './parts.js';
 import {tireFactor,aeroGrip} from './tuning.js';
 import {DRIFT_CARDS} from './drift-data.js';
 import {focusCost,repetitionEffect,rememberAction,strainEffect} from './tactics.js';
@@ -20,7 +21,7 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const error=execution?.error||0;
   const reason=driftReason(card,sector,state,config);
   if(reason)throw new Error(reason);
-  const {car,pilot,parts}=config,has=id=>parts.includes(id),repeat=repetitionEffect(state,card);
+  const {car,pilot}=config,parts=partCapabilities(config.parts),has=id=>parts.includes(id),repeat=repetitionEffect(state,card);
   const previous=state.drift,phase=sector.phase,wet=sector.wet;
   const mass=car.mass-(has('weight')?65:0)+(has('suspension')?8:0);
   const condition=.86+.14*config.condition/100;
