@@ -17,8 +17,8 @@ function drivingFlags(rows,lang){
   }
   const repeats=rows.filter(row=>(row.reasons||[]).some(reason=>String(reason).startsWith('Повтор приёма')));
   if(repeats.length)messages.push(phrase(lang,
-    'Повторные приёмы повышали цену фокуса'+(repeats.length>1?' на '+repeats.length+' участках.':'.'),
-    'Repeated tactics increased focus costs'+(repeats.length>1?' in '+repeats.length+' sectors.':'.')));
+    'Повторы меняли расход или восстановление фокуса'+(repeats.length>1?' на '+repeats.length+' участках.':'.'),
+    'Repeated moves changed focus costs or recovery'+(repeats.length>1?' in '+repeats.length+' sectors.':'.')));
   const slip=rows.filter(row=>valid(row.slip)&&row.slip>.03);
   if(slip.length)messages.push(phrase(lang,
     'На '+slip.length+' участк'+(slip.length===1?'е':slip.length<5?'ах':'ах')+' машина выходила за предел сцепления.',

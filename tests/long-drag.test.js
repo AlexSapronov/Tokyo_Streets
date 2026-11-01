@@ -76,7 +76,7 @@ test('repeated long pulls pay the same exponential concentration price that thei
  assert.ok(costs[1]>costs[0]);assert.ok(costs[2]-costs[1]>costs[1]-costs[0]);
  assert.ok(race.player.heat>150);assert.ok(race.history.at(-1).reasons.some(reason=>reason.includes('Повтор')));
  const poor={...race.player,focus:0};assert.equal(disabledReason(card('drag-cooling'),sectorAt(5,'dry','yokohama-mile'),poor,cfg),'');
- assert.match(disabledReason(card('drag-sustain'),sectorAt(5,'dry','yokohama-mile'),poor,cfg),/концентрации/);
+ assert.match(disabledReason(card('drag-sustain'),sectorAt(5,'dry','yokohama-mile'),poor,cfg),/фокуса/);
 });
 test('early top gear and returning to power band are distinct real transmission decisions',()=>{
  const start=reachPull(configuration('chaser','ren')),s=sectorAt(3,'dry','yokohama-mile');

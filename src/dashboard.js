@@ -1,3 +1,4 @@
+import {localize} from './i18n.js';
 import {thermalStatus} from './thermal-status.js';
 import {transmission} from './telemetry.js';
 const speedLimit=config=>config.car.power>600?480:config.car.power>350?360:240;
@@ -14,8 +15,8 @@ function dial(kind,max,label,unit,redline=null){
 export function dashboardHTML(config){
   return `<section class="dashboard" aria-label="Приборная панель"><div class="dash-car"><strong>${config.car.name}</strong><span>${config.car.drive} / ${config.pilot.name}</span><span class="dash-engine">${config.car.engine} · ${config.car.power} л.с.</span></div>
     <div class="dash-cluster">${dial('speed',speedLimit(config),'Скорость, км/ч','KM/H')}${dial('rpm',9000,'Обороты двигателя','RPM ×1000',transmission(config,0).redline)}<div class="dash-gear" aria-label="Передача"><small>GEAR</small><strong data-value="gear">N</strong></div></div>
-    <div class="dash-sensors"><div><span>ВОДА</span><strong data-value="coolant">82°</strong><i data-temp="coolant"></i></div><div><span>МАСЛО</span><strong data-value="oil">88°</strong><i data-temp="oil"></i></div><div><span>ТОРМОЗА</span><strong data-value="brakes">55°</strong><i data-temp="brakes"></i></div><div><span>ШИНЫ °C</span><strong data-value="tireTemp">60°</strong><i data-temp="tireTemp"></i></div></div>
-    <p class="dash-effects" data-value="thermalAdvice" role="status"></p><p class="micro" data-value="tireAdvice"></p><div class="dash-aux"><span>ШИНЫ <b data-value="tires">100%</b></span><span data-value="warning" role="status">● READY</span></div><div class="dash-focus"><div class="dash-focus-head"><strong>ФОКУС</strong><b data-value="focus">100</b></div><div class="focus-track" data-value="focusTrack" role="meter" aria-label="Фокус пилота" aria-valuemin="0" aria-valuemax="${config.pilot.focus}" aria-valuenow="${config.pilot.focus}"><i data-value="focusFill"></i></div><span data-value="focusStatus">Стабильное исполнение</span></div></section>`;
+    <div class="dash-sensors"><div><span>ОХЛ. ЖИДК.</span><strong data-value="coolant">82°</strong><i data-temp="coolant"></i></div><div><span>МАСЛО</span><strong data-value="oil">88°</strong><i data-temp="oil"></i></div><div><span>ТОРМОЗА</span><strong data-value="brakes">55°</strong><i data-temp="brakes"></i></div><div><span>ШИНЫ °C</span><strong data-value="tireTemp">60°</strong><i data-temp="tireTemp"></i></div></div>
+    <p class="dash-effects" data-value="thermalAdvice" role="status"></p><p class="micro" data-value="tireAdvice"></p><div class="dash-aux"><span>ШИНЫ <b data-value="tires">100%</b></span><span data-value="warning" role="status">● READY</span></div><div class="dash-focus"><div class="dash-focus-head"><strong>ФОКУС</strong><b data-value="focus">100</b></div><div class="focus-track" data-value="focusTrack" role="meter" aria-label="Фокус пилота" aria-valuemin="0" aria-valuemax="${config.pilot.focus}" aria-valuenow="${config.pilot.focus}"><i data-value="focusFill"></i></div><span data-value="focusStatus">Малый разброс результата</span></div></section>`;
 }
 export function bindDashboard(root,config,mode='duel'){
   const values=Object.fromEntries([...root.querySelectorAll('[data-value]')].map(node=>[node.dataset.value,node]));
@@ -40,7 +41,8 @@ export function bindDashboard(root,config,mode='duel'){
     values.focusTrack.setAttribute('aria-valuenow',Math.round(data.focus));
     values.focusFill.style.width=Math.max(0,Math.min(100,data.focus/config.pilot.focus*100))+'%';
     values.focusTrack.classList.toggle('low',data.focus<40);values.focusTrack.classList.toggle('critical',data.focus<20);
-    values.focusStatus.textContent=data.focus<20?'КРИТИЧНО · восстанови фокус':data.focus<40?'НИЗКИЙ ФОКУС · выше разброс и риск вылета':data.focus<75?'Повышенный разброс исполнения':'Стабильное исполнение';
+    values.focusStatus.textContent=data.focus<20?'КРИТИЧНО · восстанови фокус':data.focus<40?'НИЗКИЙ ФОКУС · выше разброс и риск вылета':data.focus<75?'Повышенный разброс результата':'Малый разброс результата';
     values.warning.textContent=hot?'● TEMP':data.rpm>redline*.94?'● SHIFT':'● RUN';values.warning.classList.toggle('negative',hot);
+    for(const key of ['thermalAdvice','tireAdvice','focusStatus','tireTemp','brakes','oil'])if(values[key])localize(values[key]);
   };
 }

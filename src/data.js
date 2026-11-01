@@ -3,24 +3,24 @@ import {segmentRoad} from './road-segments.js';
 export const CARS = [
  {id:'ae86',brand:'TOYOTA',name:'Sprinter Trueno AE86',year:1986,tag:'Лёгкий FR',drive:'FR',power:130,mass:940,grip:1.02,brakes:1.0,cooling:1.0,color:'#eee8d9',price:18000,engine:'4A-GE · 1.6 L · NA',description:'Лёгкий кузов и точная смена направления. Прощает меньше ошибок на мокром выходе, зато бережёт тормоза.'},
  {id:'chaser',brand:'TOYOTA',name:'Chaser Tourer V JZX100',year:1996,tag:'Мощный FR',drive:'FR',power:280,mass:1470,grip:1.0,brakes:.96,cooling:.9,color:'#944fff',price:45000,engine:'1JZ-GTE · 2.5 L · TURBO',description:'Тяга турбошестёрки решает на прямых. Масса нагружает тормоза, а мокрые шпильки требуют терпения.'},
- {id:'evo',brand:'MITSUBISHI',name:'Lancer Evolution VI',year:1999,tag:'Устойчивый AWD',drive:'AWD',power:280,mass:1360,grip:1.09,brakes:1.06,cooling:1.05,color:'#e34b43',price:60000,engine:'4G63T · 2.0 L · TURBO',description:'Полный привод раньше реализует тягу на мокром асфальте. Тяжелее AE86 и быстрее расходует передние шины.'},
+ {id:'evo',brand:'MITSUBISHI',name:'Lancer Evolution VI',year:1999,tag:'Устойчивый AWD',drive:'AWD',power:280,mass:1360,grip:1.09,brakes:1.06,cooling:1.05,color:'#e34b43',price:60000,engine:'4G63T · 2.0 L · TURBO',description:'Полный привод помогает раньше разгоняться на мокром асфальте. Тяжелее AE86 и быстрее изнашивает шины.'},
  {id:'mx5',brand:'MAZDA',name:'Eunos Roadster NA6CE',year:1989,tag:'Лёгкий родстер',drive:'FR',power:120,mass:940,grip:1.04,brakes:1.0,cooling:1.04,color:'#3a9e6f',price:24000,engine:'B6-ZE · 1.6 L · NA',description:'Дешёвый лёгкий родстер: точные связки и умеренный расход шин. На длинной прямой не хватает мощности.'},
  {id:'s13',brand:'NISSAN',name:"Silvia K’s S13",year:1991,tag:'Сбалансированный турбо FR',drive:'FR',power:205,mass:1170,grip:1.03,brakes:1.0,cooling:.98,color:'#83b8b0',price:38000,engine:'SR20DET · 2.0 L · TURBO',description:'Промежуточная ступень между AE86 и мощными купе. Подходит для дрифта и наращивания турбонаддува.'},
  {id:'rx7',brand:'MAZDA',name:'RX-7 Type RS FD3S',year:1999,tag:'Роторное купе',drive:'FR',power:280,mass:1280,grip:1.08,brakes:1.05,cooling:.82,color:'#f2c64f',price:78000,engine:'13B-REW · 1.3 L · TWIN TURBO',description:'Быстрое лёгкое купе для дуг и дрифта. Роторный мотор требует особенно внимательного охлаждения.'},
  {id:'r32',brand:'NISSAN',name:'Skyline GT-R BNR32',year:1991,tag:'Тяжёлый AWD',drive:'AWD',power:280,mass:1430,grip:1.08,brakes:1.04,cooling:.98,color:'#74829a',price:82000,engine:'RB26DETT · 2.6 L · TWIN TURBO',description:'Уверенный старт и тяга в дождь. Масса и сложный полный привод увеличивают расход ресурса.'},
  {id:'supra',brand:'TOYOTA',name:'Supra RZ JZA80',year:1993,tag:'Турбо GT',drive:'FR',power:280,mass:1510,grip:1.02,brakes:1.03,cooling:1.03,color:'#d5dbe0',price:85000,engine:'2JZ-GTE · 3.0 L · TWIN TURBO',description:'Тяжёлое мощное GT с шестиступенчатой коробкой. Хорошая основа для дрэга, сложнее в тесных связках.'},
  {id:'ek9',brand:'HONDA',name:'Civic Type R EK9',year:1997,tag:'Высокооборотный FF',drive:'FF',power:185,mass:1070,grip:1.07,brakes:1.03,cooling:1.08,color:'#f0f0db',price:40000,engine:'B16B · 1.6 L · NA',description:'Лёгкий переднеприводный хэтчбек для Time Attack. Передние колёса совмещают поворот и тягу; устойчивый силовой дрифт даётся плохо.'},
- {id:'nsx',brand:'HONDA',name:'NSX NA1',year:1990,tag:'Среднемоторный MR',drive:'MR',power:280,mass:1350,grip:1.12,brakes:1.08,cooling:1.0,color:'#eb6547',price:110000,engine:'C30A · 3.0 L · NA',description:'Точная среднемоторная машина с сильным сцеплением. Быстрый отклик полезен в связках, но требует аккуратности на пределе.'},
+ {id:'nsx',brand:'HONDA',name:'NSX NA1',year:1990,tag:'Среднемоторное купе',drive:'MR',power:280,mass:1350,grip:1.12,brakes:1.08,cooling:1.0,color:'#eb6547',price:110000,engine:'C30A · 3.0 L · NA',description:'Точная среднемоторная машина с сильным сцеплением. Быстрый отклик полезен в связках, но требует аккуратности на пределе.'},
  {id:'r34',brand:'NISSAN',name:'Skyline GT-R BNR34',year:1999,tag:'Точный AWD',drive:'AWD',power:280,mass:1540,grip:1.11,brakes:1.08,cooling:1.02,color:'#346cbb',price:98000,engine:'RB26DETT · 2.6 L · TWIN TURBO',description:'Поздняя эволюция GT-R: точнее заходит в быстрые повороты и стабильнее тормозит, чем R32, но дополнительные килограммы требуют контроля шин и температуры.'}
 ];
 export const PILOTS = [
- {id:'ren',name:'Рэн Такахаси',title:'Точность прежде всего',trait:'Дисциплина',skill:.94,aggression:.9,focus:100,card:'apex',color:'#8dc9bd',description:'Меньше нагрузка на концентрацию. Умеет держать идеальную траекторию.'},
+ {id:'ren',name:'Рэн Такахаси',title:'Точность прежде всего',trait:'Дисциплина',skill:.94,aggression:.9,focus:100,card:'apex',color:'#8dc9bd',description:'Экономнее расходует фокус. Его особый приём помогает точно пройти апекс.'},
  {id:'aki',name:'Аки Мори',title:'Тормозить последним',trait:'Агрессия',skill:.88,aggression:1.18,focus:90,card:'dive',color:'#fa8657',description:'Сильнее атакует, но перегружает шины. Открывает решающий выпад при близком сопернике.'},
  {id:'yui',name:'Юи Накамура',title:'Чувствовать сцепление',trait:'Хладнокровие',skill:.98,aggression:.8,focus:110,card:'rain',color:'#b8a1e3',description:'Точно читает мокрый асфальт. Владеет дождевой траекторией.'}
 ];
 export const PARTS = [
  {id:'tires',slot:'tires',name:'Yokohama ADVAN A052',type:'Полуслик',price:14000,desc:'Сухое сцепление +12%; на мокром −7%; износ ×1.25.',effect:'grip'},
- {id:'brakes',name:'Brembo GT',type:'Тормозной комплект',price:18000,desc:'Эффективность торможения +18%, нагрев ×0.7. Меняет позднее торможение.',effect:'brakes'},
+ {id:'brakes',name:'Brembo GT',type:'Тормозной комплект',price:18000,desc:'Эффективность торможения +18%, нагрев тормозов ×0.7. Усиливает позднее торможение.',effect:'brakes'},
  {id:'cooling',name:'HKS Oil Cooler',type:'Охлаждение',price:9000,desc:'Теплоотвод +30%. Открывает карту «Тепловое окно».',effect:'cooling'},
  {id:'lsd',name:'CUSCO Type RS',type:'Дифференциал LSD',price:12000,desc:'Выход из поворота +5% тяги. Снижает риск силового выхода у FR.',effect:'traction'},
  {id:'suspension',name:'TEIN Flex Z',type:'Подвеска',price:15000,desc:'Сцепление +5%, масса +8 кг. Усиливает перенос веса.',effect:'balance'},
@@ -30,7 +30,7 @@ export const PARTS = [
  {id:'ecu',name:'HKS F-CON V Pro',type:'ЭБУ',price:16000,desc:'Мощность +8%; тепловая нагрузка +12%. Игровая настройка под конкретный мотор.',effect:'power'},
  {id:'turbo',turboOnly:true,name:'HKS GT III',type:'Турбокомплект',price:32000,desc:'Для турбомоторов: мощность +22%, масса +18 кг, нагрев ×1.35, износ ×1.15, расход фокуса +8%.',effect:'boost'},
  {id:'cams',naOnly:true,name:'TODA Racing Camshafts',type:'Распредвалы',price:22000,desc:'Для атмосферных моторов: пиковая мощность +12%, нагрев +15%; меньше тяги на низких оборотах.',effect:'cams'},
- {id:'shortFinal',slot:'final',name:'CUSCO Close Final Drive',type:'Короткая главная пара',price:13000,desc:'Передаточное отношение +12%: раньше переключения и выше обороты, меньше запас по отсечке. Заменяет длинную пару.',effect:'gearing'},
+ {id:'shortFinal',slot:'final',name:'CUSCO Close Final Drive',type:'Короткая главная пара',price:13000,desc:'Передаточное отношение +12%: выше обороты и раньше переключения. Ниже скорость на отсечке. Заменяет длинную пару.',effect:'gearing'},
  {id:'longFinal',slot:'final',name:'CUSCO High Speed Final Drive',type:'Длинная главная пара',price:13000,desc:'Передаточное отношение −12%: ниже обороты, хуже тяга на низкой скорости. Заменяет короткую пару.',effect:'gearing'},
  {id:'aero',name:'Voltex GT Wing',type:'Аэродинамика',price:17000,desc:'Сцепление растёт со скоростью до +10%; сопротивление воздуху +14%, масса +12 кг. На медленной дуге почти не помогает.',effect:'aero'},
  {id:'clutch',name:'EXEDY Hyper Single',type:'Сцепление',price:14000,desc:'Паузы переключений в дрэге −28%. Нагрев +8%, износ +6%: более резкая передача момента.',effect:'shift'},
@@ -73,10 +73,10 @@ export const TUNING_GROUPS = [
 ];
 export const CARDS = [
  {id:'balanced',name:'Чистый темп',en:'BALANCED PACE',icon:'↗',category:'Темп',desc:'Нейтральная линия без лишнего риска.',gain:0,focus:0,heat:0,wear:1,risk:0},
- {id:'attack',name:'Полная атака',en:'FULL ATTACK',icon:'⚡',category:'Темп',desc:'Потенциал ускорения на любом секторе. Повторы, нагрузка и скольжение могут съесть выигрыш.',gain:.045,focus:17,heat:14,wear:2.2,risk:.18},
- {id:'preserve',name:'Беречь шины',en:'TIRE PRESERVE',icon:'◎',category:'Ресурс',desc:'Небольшая потеря темпа, износ шин ×0.35.',gain:-.035,focus:-6,heat:-7,wear:.35,risk:-.12},
- {id:'cool',name:'Остудить тормоза',en:'COOL BRAKES',icon:'❄',category:'Ресурс',desc:'Уменьшает нагрев тормозов ценой темпа. Итог зависит от торможений, обдува и повторов.',gain:-.045,focus:-4,heat:-24,wear:.65,risk:-.12},
- {id:'breathe',name:'Собраться',en:'RESET FOCUS',icon:'◌',category:'Ресурс',desc:'Восстанавливает 24 концентрации. Спокойный темп.',gain:-.055,focus:-24,heat:-8,wear:.7,risk:-.14},
+ {id:'attack',name:'Полная атака',en:'FULL ATTACK',icon:'⚡',category:'Темп',desc:'Агрессивный темп на любом участке. Расходует фокус; при потере сцепления выигрыш может исчезнуть.',gain:.045,focus:17,heat:14,wear:2.2,risk:.18},
+ {id:'preserve',name:'Беречь шины',en:'TIRE PRESERVE',icon:'◎',category:'Ресурсы',desc:'Небольшая потеря темпа, износ шин ×0.35.',gain:-.035,focus:-6,heat:-7,wear:.35,risk:-.12},
+ {id:'cool',name:'Остудить тормоза',en:'COOL BRAKES',icon:'❄',category:'Ресурсы',desc:'Охлаждает тормоза ценой темпа. Итоговая температура зависит от торможений и обдува.',gain:-.045,focus:-4,heat:-24,wear:.65,risk:-.12},
+ {id:'breathe',name:'Собраться',en:'RESET FOCUS',icon:'◌',category:'Ресурсы',desc:'Базовое восстановление: 24 фокуса ценой темпа. Повтор восстанавливает меньше.',gain:-.055,focus:-24,heat:-8,wear:.7,risk:-.14},
  {id:'late',name:'Позднее торможение',en:'LATE BRAKING',icon:'↘',category:'Поворот',desc:'Поздний вход. Сильнее с Brembo, опаснее при перегреве.',gain:.045,focus:12,heat:19,wear:1.5,risk:.17,only:'corner'},
  {id:'safe',name:'Надёжный вход',en:'CONSERVATIVE ENTRY',icon:'⌁',category:'Поворот',desc:'Стабильный вход в поворот, особенно в дождь.',gain:-.015,focus:-4,heat:-8,wear:.65,risk:-.24,only:'corner'},
  {id:'apexEarly',name:'Ранний апекс',en:'EARLY APEX',icon:'⌃',category:'Поворот',desc:'Выгодно в тесной связке; хуже перед длинной прямой.',gain:.024,focus:7,heat:3,wear:1.1,risk:.05,only:'corner'},
@@ -88,7 +88,7 @@ export const CARDS = [
  {id:'apex',name:'Точный апекс',en:'PERFECT APEX',icon:'◇',category:'Характер',desc:'Дисциплина Рэна: чистая дуга без лишней нагрузки.',gain:.035,focus:7,heat:2,wear:.95,risk:-.08,only:'corner',pilot:'ren'},
  {id:'dive',name:'Решающий выпад',en:'COMMIT TO PASS',icon:'↯',category:'Характер',desc:'Атака Аки в повороте. Только в пределах 2.5 с от соперника.',gain:.065,focus:18,heat:16,wear:2,risk:.22,only:'corner',pilot:'aki',gap:'close'},
  {id:'rain',name:'Дождевая линия',en:'RAIN LINE',icon:'☂',category:'Характер',desc:'Юи использует сцепление вне отполированной траектории.',gain:.047,focus:7,heat:0,wear:.85,risk:-.2,only:'wet',pilot:'yui'},
- {id:'thermal',name:'Тепловое окно',en:'THERMAL WINDOW',icon:'≋',category:'Оборудование',desc:'HKS: сохранять тягу без дополнительного нагрева.',gain:.025,focus:6,heat:-12,wear:1,risk:0,part:'cooling'}
+ {id:'thermal',name:'Тепловое окно',en:'THERMAL WINDOW',icon:'≋',category:'Оборудование',desc:'Использует установленное охлаждение: сохраняет тягу и снижает тепловую нагрузку.',gain:.025,focus:6,heat:-12,wear:1,risk:0,part:'cooling'}
 ];
 export const SECTORS = [
  {name:'Старт у чайного дома',type:'straight',label:'Прямая',length:360,radius:0,slope:-.02,wet:.08,base:0},
@@ -104,7 +104,7 @@ export const SECTORS = [
 export const EVENTS = [
   {
     id:'yokohama',name:'Yokohama Quarter Mile',title:'Йокогама · 402 метра',region:'KANAGAWA',japanese:'横浜',
-    mode:'drag',theme:'dragstrip',description:'Закрытая клубная полоса. Прогрев, реакция, power band и последний рывок.',
+    mode:'drag',theme:'dragstrip',description:'Закрытая клубная полоса. Подготовка шин, реакция на старте, переключения и финишный рывок.',
     unlockStreet:0,unlockRaces:3,prize:20000,participation:6000,rivalCar:'chaser',rivalPilot:'aki',rivalParts:['lsd'],
     sectors:[
       {name:'Предстартовая подготовка',type:'straight',label:'Подготовка',phase:'prep',length:0,radius:0,slope:0,wet:.1},
@@ -167,11 +167,11 @@ EVENTS.push({
   unlockStreet:20,unlockRaces:0,prize:22000,participation:5500,rivalCar:'ae86',rivalPilot:'ren',rivalParts:[],
   medals:{gold:710,silver:620,bronze:480},
   sectors:[
-    {name:'Вход в южную дугу',type:'corner',label:'Инициация',phase:'init',clip:'Внешняя зона',length:110,radius:42,targetAngle:40,targetSpeed:68,direction:1,slope:0,wet:.12},
+    {name:'Вход в южную дугу',type:'corner',label:'Вход в занос',phase:'init',clip:'Внешняя зона',length:110,radius:42,targetAngle:40,targetSpeed:68,direction:1,slope:0,wet:.12},
     {name:'Удержание у ограждения',type:'corner',label:'Удержание',phase:'hold',clip:'Внешняя зона',length:150,radius:55,targetAngle:46,targetSpeed:74,direction:1,slope:0,wet:.18},
     {name:'Левый клип',type:'corner',label:'Перекладка',phase:'transition',clip:'Внутренний клип',length:110,radius:40,targetAngle:42,targetSpeed:65,direction:-1,slope:0,wet:.25},
     {name:'Выход к паддоку',type:'corner',label:'Выход',phase:'exit',clip:'Выходная зона',length:135,radius:70,targetAngle:18,targetSpeed:82,direction:-1,slope:0,wet:.08},
-    {name:'Вход в северную дугу',type:'corner',label:'Инициация',phase:'init',clip:'Внешняя зона',length:100,radius:38,targetAngle:54,targetSpeed:64,direction:-1,slope:0,wet:.25},
+    {name:'Вход в северную дугу',type:'corner',label:'Вход в занос',phase:'init',clip:'Внешняя зона',length:100,radius:38,targetAngle:54,targetSpeed:64,direction:-1,slope:0,wet:.25},
     {name:'Длинная скользящая дуга',type:'corner',label:'Удержание',phase:'hold',clip:'Внешняя зона',length:180,radius:65,targetAngle:60,targetSpeed:79,direction:-1,slope:0,wet:.35},
     {name:'Правая перекладка',type:'corner',label:'Перекладка',phase:'transition',clip:'Внутренний клип',length:115,radius:43,targetAngle:50,targetSpeed:68,direction:1,slope:0,wet:.2},
     {name:'Финишный клип',type:'corner',label:'Выход',phase:'exit',clip:'Выходная зона',length:140,radius:75,targetAngle:20,targetSpeed:86,direction:1,slope:0,wet:.1}
@@ -197,7 +197,7 @@ for(const spec of [
 // Expanded venues use authored, stylized layouts, never exact real-road replicas.
 const roadSector=(name,length,radius,slope,wet)=>({name,length,radius,slope,wet,type:radius?'corner':'straight',label:radius?(radius<35?'Шпилька':radius<70?'Техническая связка':'Быстрая дуга'):(slope>.02?'Подъём':'Прямая')});
 EVENTS.push(
- {id:'irohazaka',name:'Irohazaka Switchbacks',title:'Ирохадзака · каскад шпилек',region:'TOCHIGI',japanese:'いろは坂',mode:'duel',theme:'forest',unlockStreet:28,unlockRaces:5,prize:30000,participation:9500,rivalCar:'rx7',rivalPilot:'ren',rivalParts:['brakes','lsd'],description:'Тесный спуск: десять секторов, короткие разгоны и каскад торможений. Масса и запас тормозов важнее пиковой мощности.',
+ {id:'irohazaka',name:'Irohazaka Switchbacks',title:'Ирохадзака · каскад шпилек',region:'TOCHIGI',japanese:'いろは坂',mode:'duel',theme:'forest',unlockStreet:28,unlockRaces:5,prize:30000,participation:9500,rivalCar:'rx7',rivalPilot:'ren',rivalParts:['brakes','lsd'],description:'Тесный спуск: короткие разгоны и частые торможения. Масса и запас тормозов важнее пиковой мощности.',
   sectors:[roadSector('Точка обзора',260,0,-.025,.1),roadSector('Первая петля',180,23,-.06,.2),roadSector('Левая у стены',200,27,-.055,.3),roadSector('Разгон под кедрами',290,0,-.04,.12),roadSector('Двойной радиус',240,39,-.045,.4),roadSector('Узкий мостик',200,0,-.015,.5),roadSector('Моховая шпилька',190,21,-.065,.65),roadSector('Обратная петля',210,29,-.05,.3),roadSector('Выход из леса',280,55,-.03,.15),roadSector('Финиш у станции',330,0,-.02,.08)],
   anchors:[[0,0],[180,80],[220,190],[-180,230],[-230,340],[190,390],[240,510],[-190,560],[-240,680],[150,740],[190,860],[-120,930],[0,1050]]},
  {id:'hakone',name:'Hakone Skyline Run',title:'Хаконе · линия горизонта',region:'KANAGAWA',japanese:'箱根',mode:'duel',theme:'ridge',unlockStreet:36,unlockRaces:7,prize:32000,participation:10000,rivalCar:'nsx',rivalPilot:'yui',rivalParts:['aero','brakes'],description:'Быстрые открытые дуги, подъём к перевалу и разгрузка на спуске. Аэродинамика помогает, пока не мешает разгону.',
@@ -210,7 +210,7 @@ EVENTS.push(
   sectors:[roadSector('Пит-уолл',220,0,0,.05),roadSector('Первый разворот',150,29,0,.18),roadSector('Короткая связка',190,44,0,.15),roadSector('Задняя прямая',310,0,0,.08),roadSector('Скоростной правый',250,82,0,.25),roadSector('Тормозной карман',160,24,0,.2),roadSector('Обратный апекс',190,38,0,.3),roadSector('Финиш перед боксами',230,0,0,.05)],
   anchors:[[0,0],[300,0],[380,120],[260,240],[-70,220],[-240,330],[-220,520],[80,570],[270,450],[180,340],[0,420],[-50,650],[230,750]]},
  {id:'meihan',name:'Meihan Precision Drift',title:'Мэйхан · точность у стены',region:'NARA',japanese:'名阪',mode:'drift',theme:'driftpark',unlockStreet:32,unlockRaces:6,prize:27000,participation:8000,rivalCar:'s13',rivalPilot:'aki',rivalParts:['lsd'],description:'Две компактные дрифтовые связки: вход у стены, тесные перекладки и контроль скорости. Оценивается точность, а не максимальный угол.',medals:{gold:700,silver:610,bronze:470},
-  sectors:[['Стена первого входа','init',105,35,48,61,1,.1],['Внешняя зона','hold',140,48,52,68,1,.15],['Узкая перекладка','transition',95,32,44,58,-1,.2],['Выход к боксам','exit',120,58,20,72,-1,.08],['Второй вход у стены','init',100,33,50,60,-1,.18],['Длинный внешний клип','hold',155,52,55,72,-1,.3],['Обратная перекладка','transition',100,36,46,62,1,.2],['Чистый финиш','exit',130,62,18,76,1,.1]].map(([name,phase,length,radius,targetAngle,targetSpeed,direction,wet])=>({name,phase,length,radius,targetAngle,targetSpeed,direction,wet,type:'corner',slope:0,label:{init:'Инициация',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона'})),
+  sectors:[['Стена первого входа','init',105,35,48,61,1,.1],['Внешняя зона','hold',140,48,52,68,1,.15],['Узкая перекладка','transition',95,32,44,58,-1,.2],['Выход к боксам','exit',120,58,20,72,-1,.08],['Второй вход у стены','init',100,33,50,60,-1,.18],['Длинный внешний клип','hold',155,52,55,72,-1,.3],['Обратная перекладка','transition',100,36,46,62,1,.2],['Чистый финиш','exit',130,62,18,76,1,.1]].map(([name,phase,length,radius,targetAngle,targetSpeed,direction,wet])=>({name,phase,length,radius,targetAngle,targetSpeed,direction,wet,type:'corner',slope:0,label:{init:'Вход в занос',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона'})),
   anchors:[[0,0],[250,40],[280,220],[20,290],[-190,420],[-170,610],[90,680],[300,620],[350,830],[80,940],[-120,1090]]}
 );
 // Original stylized centerlines based on the official course guides; sector radii are game approximations.
@@ -228,7 +228,7 @@ for(const base of EVENTS.filter(e=>e.mode==='duel')){
  base.venueId=base.id;base.streetVenue=true;
  const total=base.sectors.reduce((n,s)=>n+s.length,0),corners=base.sectors.filter(s=>s.radius>0);
  EVENTS.push({...base,id:base.id+'-drift',venueId:base.id,name:base.name+' · Drift',title:base.title+' · дрифт',mode:'drift',prize:Math.round(base.prize*.85),participation:Math.round(base.participation*.85),medals:{gold:700,silver:600,bronze:460},description:'Дрифт на том же уличном маршруте. Восемь судейских зон: траектория, угол, скорость и связность. '+base.description,
- sectors:Array.from({length:8},(_,i)=>{const phase=['init','hold','transition','exit'][i%4],source=corners[i%corners.length],radius=Math.max(30,Math.min(85,source.radius)),direction=[1,1,-1,-1,-1,-1,1,1][i];return {name:'Зона '+(i+1)+' · '+source.name,type:'corner',label:{init:'Инициация',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],phase,clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона',length:total/8,radius,slope:source.slope,wet:source.wet,direction,targetAngle:phase==='exit'?20:phase==='hold'?50:42,targetSpeed:Math.round(Math.max(56,Math.min(84,Math.sqrt(radius*9.81)*3.6*.9))) };})});
+ sectors:Array.from({length:8},(_,i)=>{const phase=['init','hold','transition','exit'][i%4],source=corners[i%corners.length],radius=Math.max(30,Math.min(85,source.radius)),direction=[1,1,-1,-1,-1,-1,1,1][i];return {name:'Зона '+(i+1)+' · '+source.name,type:'corner',label:{init:'Вход в занос',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],phase,clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона',length:total/8,radius,slope:source.slope,wet:source.wet,direction,targetAngle:phase==='exit'?20:phase==='hold'?50:42,targetSpeed:Math.round(Math.max(56,Math.min(84,Math.sqrt(radius*9.81)*3.6*.9))) };})});
 }
 export const DISCIPLINES=[{id:'duel',name:'Тогу · дуэль'},{id:'drift',name:'Дрифт'},{id:'drag',name:'Дрэг'},{id:'timeattack',name:'Time Attack'}];
 const roadLayouts=new Map();

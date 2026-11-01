@@ -75,7 +75,7 @@ export function disabledReason(card,sector,state,config,gap=0){
  if(card.gap==='ahead'&&!(gap<0&&gap> -2.5))return 'Нужно лидерство до 2.5 с';
  if(card.gap==='close'&&Math.abs(gap)>2.5)return 'Соперник дальше 2.5 с';
  const cost=focusCost(config,state,card,sector);
- if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации с учётом повторов`;
+ if(cost>state.focus)return `Нужно ${Math.ceil(cost)} фокуса с учётом повторов`;
  if(card.id==='late'&&state.heat>155)return 'Тормоза перегреты (>155°C)';
  return '';
 }
@@ -143,7 +143,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
  if((state.strain||0)>2)reasons.push('Нагрузка на фокус: активные приёмы стоят дороже, прямого штрафа темпа нет');
  if(['late','apexEarly','power','defend'].includes(card.id))reasons.push('Траектория изменила скорость входа в следующий сектор');
- if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: цена фокуса ${Math.ceil(Math.abs(actionFocus))}; прямого штрафа темпа нет`);
+ if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: ${actionFocus>0?'расход фокуса':'восстановление фокуса'} ${Math.ceil(Math.abs(actionFocus))}; прямого штрафа темпа нет`);
  if(sector.wet>.35)reasons.push(`Мокрое покрытие ${Math.round(sector.wet*100)}%: сцепление снижено`);
  if(brakeFade<1)reasons.push(`Перегрев: эффективность тормозов ${Math.round(brakeFade*100)}%`);
  if(slip>.001)reasons.push(`Предел сцепления превышен: +${slip.toFixed(2)} с`);

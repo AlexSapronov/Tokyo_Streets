@@ -32,7 +32,7 @@ test('drag rejects road actions, wrong phases and insufficient focus without cha
  assert.throws(()=>resolveSector(race,'drag-soft'),/фазе/);
  assert.deepEqual(race,copy);
  assert.match(dragReason({id:'balanced'},phase(0),race.player),/не используется/);
- assert.throws(()=>simulateDrag(cfg,{...race.player,focus:0},phase(0),card('drag-warm')),/концентрации/);
+ assert.throws(()=>simulateDrag(cfg,{...race.player,focus:0},phase(0),card('drag-warm')),/фокуса/);
 });
 test('reaction is separate from ET and preparation never inflates timing',()=>{
  const race=finishRace(cfg,'dry','yokohama',recipe),d=race.player.drag;

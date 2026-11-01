@@ -201,9 +201,9 @@ export function writeSlot(storage,id,career,{replace=false}={}){
 }
 export function storeCareer(storage,career){try{writeSlot(storage,activeSlot(storage),career);return true;}catch{return false;}}
 export function slotList(storage){return Array.from({length:SLOT_COUNT},(_,i)=>{
- const id=i+1,state=readSlot(storage,id);let name='Карьера '+id,backup=false;
- try{name=storage.getItem(slotKey(id)+'-name')||name;const raw=storage.getItem(slotKey(id)+'-backup');if(raw){validateSave(JSON.parse(raw));backup=true;}}catch{}
- return {id,name:name.slice(0,40),status:state.status,career:state.status==='ok'?state.career:null,backup};
+ const id=i+1,state=readSlot(storage,id);let name='Карьера '+id,backup=false,customName=false;
+ try{const savedName=storage.getItem(slotKey(id)+'-name');customName=!!savedName;name=savedName||name;const raw=storage.getItem(slotKey(id)+'-backup');if(raw){validateSave(JSON.parse(raw));backup=true;}}catch{}
+ return {id,name:name.slice(0,40),customName,status:state.status,career:state.status==='ok'?state.career:null,backup};
 });}
 export function renameSlot(storage,id,name){const value=String(name).replace(/[\x00-\x1f]/g,'').trim().slice(0,40);if(!value)throw Error('Укажи название слота');storage.setItem(slotKey(id)+'-name',value);}
 export function activateSlot(storage,id){const state=readSlot(storage,id);if(state.status==='error')throw Error('Этот слот повреждён. Восстанови резервную копию или импортируй файл.');storage.setItem(ACTIVE_SLOT_KEY,String(id));return state.career;}

@@ -36,7 +36,7 @@ export function interpretOrder(race){
   const pilot=race.config.pilot,manager=race.manager;
   let requested=manager.order,trigger='none',reason='Базовый приказ менеджера';
   const rules=manager.plan.rules;
-  if(rules.focus&&state.focus<30){requested='conserve';trigger='focus';reason='План: концентрация ниже 30';}
+  if(rules.focus&&state.focus<30){requested='conserve';trigger='focus';reason='План: фокус ниже 30';}
   else if(rules.heat&&state.heat>130){requested='conserve';trigger='heat';reason='План: температура выше 130°C';}
   else if(rules.wet&&sector.wet>=.55){requested='safe';trigger='wet';reason='План: мокрый участок';}
   else if(rules.chase&&!race.opponent.dnf&&['duel','drag'].includes(race.mode)&&state.time-race.opponent.time>=2){requested='attack';trigger='chase';reason='План: нужно сокращать отставание';}

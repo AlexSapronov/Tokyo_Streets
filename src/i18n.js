@@ -1,121 +1,72 @@
-// UI localization runs after each render so existing game templates can stay unchanged.
-// Russian is the source language; never translate user-supplied names or simulation data.
+import {EN_COPY} from './locale-en.js';
 export const LANG_KEY='tokyo-streets-language';
-const ru={
- 'Заезд':'Заезд','Гараж':'Гараж','Тюнинг':'Тюнинг','Карьера':'Карьера','Чемпионаты':'Чемпионаты','Команда':'Команда'
-};
-const en={
- 'Игрок':'Player',
-
- 'Игрок / специализации':'Player / specializations','Твой стиль вождения':'Your driving style','Точность':'Precision','Контроль машины':'Car control','Выносливость':'Endurance','Гоночная борьба':'Racecraft',
- 'Камера: ближе':'Camera: close','Камера: трасса':'Camera: course','♫ Звук: вкл':'♫ Sound: on','♫ Звук: выкл':'♫ Sound: off','Громкость':'Volume','Громкость звука':'Sound volume',
- 'Перераспределить очки':'Redistribute points','Активировать':'Activate','Выключить':'Deactivate','Два направления уже активны':'Two specializations are already active','Максимальный ранг':'Maximum rank','К специализациям →':'Go to specializations →',
- 'ТВОЙ СТИЛЬ':'YOUR STYLE','Без активных специализаций':'No active specializations',
-
- 'Местные команды':'Local crews','Особые регламенты':'Special regulations','Испытательный стенд':'Test bench',
- 'Классическая':'Classic line','Поздний апекс':'Late apex','Короткая внутренняя':'Tight inside line','Широкая дуга':'Wide arc',
- 'Ровная дуга. Базовая длина и скорость выхода.':'Balanced arc with baseline distance and exit speed.',
- 'Дольше в повороте, быстрее выход. Полезно перед прямой; на мокром нужна тяга.':'More corner time, faster exit. Useful before straights; wet exits need traction.',
- 'Меньше путь, теснее дуга и медленнее выход. Полезна в тесной связке.':'Shorter distance, tighter radius and slower exit. Useful in tight sequences.',
- 'Больше радиус и путь, выше нагрузка на шины. Полезна в быстрых поворотах.':'Wider radius and longer distance, with more tire wear. Useful in fast corners.',
- 'СЕЙЧАС':'NOW','ДАЛЕЕ +1':'NEXT +1','ДАЛЕЕ +2':'NEXT +2',
- 'Вернуть установленную сборку':'Reset to installed build','Пробные детали':'Trial hardware','Пробные настройки':'Trial setup',
- 'Установлено → пробная сборка':'Installed → trial build','Пробная':'Trial','Показатель':'Metric','Разница':'Difference',
- 'Пробный мотор':'Trial engine','Трасса':'Course','Покрытие':'Conditions',
- 'Стенд доступен после завершения текущего заезда.':'The test bench is available after the current run ends.',
- 'Сравнение по участкам':'Sector comparison','К свободным заездам':'Back to free races','К местным командам →':'Back to local crews →',
-
- 'Заезд':'Race','Гараж':'Garage','Тюнинг':'Tuning','Карьера':'Career','Чемпионаты':'Championships','Команда':'Team',
- 'НОЧНАЯ СМЕНА':'NIGHT SHIFT','Основная навигация':'Main navigation','Как играть':'How to play',
- 'Загрузка Tokyo Streets…':'Loading Tokyo Streets…','Отладка':'Debug','Открыть всё':'Unlock all','Сбросить всё':'Reset progress',
- 'Локальная карьера в этом браузере':'Career saved in this browser',
- 'УПРАВЛЕНИЕ':'CONTROL','ДИСЦИПЛИНА':'DISCIPLINE','ТРАССА':'COURSE','ПОКРЫТИЕ':'CONDITIONS',
- 'Лично · карты':'Driver · cards','Менеджер · приказы':'Manager · orders',
- 'Переменная влажность':'Patchy damp','☂ Переменная влажность':'☂ Patchy damp','☾ Сухой асфальт':'☾ Dry asphalt','☂ Дождь':'☂ Rain',
- 'Сухо':'Dry','Дождь':'Rain','Сухой асфальт':'Dry asphalt',
- 'Твой лучший заезд':'Your best run','ЗАКРЫТЫЙ МАРШРУТ':'CLOSED COURSE','ПЕРЕД СТАРТОМ':'READY TO RACE',
- 'ФИНИШ':'FINISH','СХОД / DNF':'RETIRED / DNF','ПОВТОР РЕКОРДА':'BEST RUN REPLAY',
- 'Заезд окончен.':'Race complete.',
- 'Судейские клипы':'Judged clipping points','Фазы дрэга':'Drag stages','Разведка маршрута':'Course overview',
- 'Выбор соперника':'Choose your rival','ЛИЧНЫЙ РЕКОРД / ЭТА СБОРКА':'PERSONAL BEST / THIS BUILD',
- 'Рекорда пока нет.':'No record yet.','Показывать призрак':'Show ghost',
- '▶ Повтор рекорда':'▶ Replay best run','Завершить просмотр':'Exit replay','На старт ↗':'Start race ↗',
- 'На старт этапа ↗':'Start championship round ↗','Посмотреть результат ↓':'View results ↓',
- 'Покинуть заезд':'Leave race','Ⅱ Пауза':'Ⅱ Pause','Скорость':'Speed','На дорогу ↗':'Hit the road ↗',
- 'Выбор приёма':'Choose a move','ПРОСМОТР ПЕРЕД СТАРТОМ':'PRE-RACE PREVIEW','ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'PICK A CARD → RUN SECTOR',
- 'БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ':'NO RANDOM DRAWS','КАРТЫ':'CARDS','ПОЛНЫЙ НАБОР':'FULL DECK',
- 'Золото':'Gold','Серебро':'Silver','Бронза':'Bronze',
- 'ХРОНОМЕТР':'TIMING','ОДИНОЧНАЯ СЕССИЯ':'SOLO RUN','ТВОЁ ВРЕМЯ':'YOUR TIME',
- 'ТЫ ВПЕРЕДИ / СЕК':'YOU LEAD / SEC','ТЫ ПОЗАДИ / СЕК':'YOU TRAIL / SEC',
- 'НА ОДНОЙ ЛИНИИ':'NECK AND NECK','ПОВТОР БЕЗ НАГРАД':'REPLAY / NO REWARDS',
- 'БАЛЛЫ ЗА СЕССИЮ / МАКС. 800':'RUN SCORE / MAX 800',
- 'Машина допущена к старту':'Ready to race','Класс сборки:':'Build class:',
- 'Выплаты за повторение:':'Repeat payout:','Персонал за старт:':'Crew cost per race:',
- 'Нагрузка атак:':'Attack strain:','СЕКТОРОВ':'SECTORS','КЛИПОВ':'CLIPS','ФАЗЫ':'STAGES','ФАЗ':'STAGES',
- 'Пауза':'Pause','Возобновить':'Resume','Отмена':'Cancel','Закрыть':'Close',
- 'Сохранить настройки':'Save setup','Настройки сохранены':'Setup saved','Базовые настройки':'Reset setup',
- 'НАСТРОЙКИ МАШИНЫ':'CAR SETUP','Подстрой под трассу':'Dial in your setup',
- 'Все':'All','В гараж':'Garage','Ещё одна связка ↗':'Run it again ↗','▶ Повтор заезда':'▶ Watch replay',
- 'Протокол JSON ↓':'Export JSON ↓','Судейский протокол':'Judge report',
- 'Последний клип':'Last clip','Связка / максимум':'Combo / best','Чистые серии':'Clean chains',
- 'Разрывы / развороты':'Breaks / spins','Температура шин':'Tire temperature',
- 'Сохранить название':'Save team name','Название команды':'Team name',
- 'Основать команду':'Found team','Назначить пилота':'Assign driver','Назначен на текущую машину':'Assigned to current car',
- 'Базовый приказ':'Default order','Сохранить план':'Save plan',
- 'ПУТЬ К СВОЕЙ КОМАНДЕ':'BUILD YOUR OWN TEAM','ШТАБ ОТКРЫТ':'TEAM HQ OPEN',
- 'Приказы пилоту':'Team radio','Ответ пилота:':'Driver response:',
- 'Передать сектор пилоту ↗':'Send driver into sector ↗',
- 'Остановить после участка':'Stop after this sector','Авто до финиша':'Auto-run to finish',
- 'Настройки сохранены':'Setup saved','Сбросить всё?':'Reset all progress?'
-};
-Object.assign(en,{
- 'К выбору заездов':'Choose a race',
- 'Всего зачислено':'Total credited','Отключён в школе':'Disabled in school','Только доступные':'Available only','Фокус':'Focus','Риск':'Risk','Выход':'Exit','Высокий':'High','Умеренный':'Moderate','Низкий':'Low','Разгон на выходе':'Accelerating on exit','Снижение скорости':'Losing speed','Скорость почти прежняя':'Similar exit speed','Без штрафа повтора':'No repetition penalty','Текущий выбор':'Current choice','Прогресс и состояние машины':'Progress and car condition','Подробный разбор по участкам':'Detailed sector breakdown','Сравнить с установленным':'Compare with installed parts','Если снять деталь':'If removed','Показатель':'Metric','Сейчас':'Now','После':'After','Мощность':'Power','Масса':'Mass','Сухое сцепление':'Dry grip','Мокрое сцепление':'Wet grip','Тормозной потенциал':'Braking potential','Охлаждение':'Cooling','Нагрузка нагрева мотора':'Engine heat load','Нагрузка износа шин':'Tire wear load','Сопротивление воздуху':'Air resistance','Точность дрифта':'Drift precision','Отклик заноса':'Drift response','Зачислено призовых':'Prize credited','Полный сервис сейчас':'Full service now','До сервиса не хватает':'Shortfall for service','На счету после такого сервиса':'Balance after this service','Сервис ещё не оплачен. Его цена включает весь текущий износ машины.':'Service has not been paid. The quote covers all current wear.','Открыть сервис':'Open service','К следующему этапу':'Next stage','Повторить трассу':'Retry course','Разные атакующие карты тоже накапливают общую нагрузку.':'Alternating attack cards still builds overall strain.','Повышает только расход фокуса у активных приёмов. Спокойные и ресурсные ходы снижают нагрузку.':'Strain only raises focus costs for active tactics. Calm and recovery actions reduce it.'
-});
+const en={...EN_COPY};
+for(const [key,value] of Object.entries(en)){if(key.length<120){en[key.toUpperCase()]??=value.toUpperCase();en[key.toLowerCase()]??=value.charAt(0).toLowerCase()+value.slice(1);}}
 let language='ru';
-try{language=localStorage.getItem(LANG_KEY)==='en'?'en':'ru';}catch{}
+try{language=globalThis.localStorage?.getItem(LANG_KEY)==='en'?'en':'ru';}catch{}
 export const getLanguage=()=>language;
-export const translate=(text)=>language==='en'?(en[text]??text):(ru[text]??text);
+const originals=new WeakMap(),attributes=new WeakMap();
+const letters='А-Яа-яЁё';
+const escapeRE=text=>text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const phrases=Object.keys(en).filter(key=>key&&/[А-Яа-яЁё]/.test(key)).sort((a,b)=>b.length-a.length);
+const phraseRE=new RegExp('(?<!['+letters+'])('+phrases.map(escapeRE).join('|')+')(?!['+letters+'])','g');
+// Translate presentation strings only. Never write translated values into game data.
+export function englishText(text){
+ if(typeof text!=='string'||!/[А-Яа-яЁё]/.test(text))return text;
+ const trimmed=text.trim(),exact=en[trimmed];
+ if(exact!==undefined)return text.replace(trimmed,exact);
+ // This sentence contains an ordinal and needs English word order.
+ const value=text.replace(/Повтор приёма: (\d+)-е применение с учётом предыдущих (\d+) решений\. Меняется только расход или восстановление фокуса; прямого штрафа темпа нет\./g,(_,use,window)=>`Repeated move: use #${use}, counting the previous ${window} decisions. Only focus cost or recovery changes; no direct pace penalty.`);
+ return value.replace(phraseRE,key=>en[key]);
+}
+export const translate=text=>language==='en'?englishText(text):text;
 export function setLanguage(next){
  language=next==='en'?'en':'ru';
- try{localStorage.setItem(LANG_KEY,language);}catch{}
- document.documentElement.lang=language;
- document.title=language==='en'?'Tokyo Streets | Tactical Racing':'Tokyo Streets | Тактические гонки';
-}
-function translateText(text){
- if(!text?.trim())return text;
- const trimmed=text.trim();
- const exact=en[trimmed];
- if(exact!==undefined)return text.replace(trimmed,exact);
- // Whole-word expressions in generated status labels, not free-form replacement of save data.
- const replacements=[
-  [/кг\/л\.с\./g,'kg/hp'],[/л\.с\./g,'hp'],[/км\/ч/g,'km/h'],
-  [/кг/g,'kg'],[/ПЕРЕД СТАРТОМ/g,'READY TO RACE'],
-  [/СЕКТОР\s+(\d+)/g,'SECTOR $1']
- ];
- let value=text;
- for(const [pattern,replacement] of replacements)value=value.replace(pattern,replacement);
- return value;
-}
-export function localize(root=document){
- document.documentElement.lang=language;
- const selected=root.querySelector?.('#language-select');
- if(selected)selected.value=language;
- if(language==='ru')return;
- const skip='script,style,textarea,pre,code,[contenteditable],input,option[value^="custom"]';
- const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
- const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
- for(const node of nodes){
-  const parent=node.parentElement;
-  if(!parent||parent.closest(skip))continue;
-  const translated=translateText(node.nodeValue);
-  if(translated!==node.nodeValue)node.nodeValue=translated;
+ try{globalThis.localStorage?.setItem(LANG_KEY,language);}catch{}
+ if(typeof document!=='undefined'){
+  document.documentElement.lang=language;
+  document.title=language==='en'?'Tokyo Streets | Tactical Racing':'Tokyo Streets | Тактические гонки';
  }
- for(const element of root.querySelectorAll('[aria-label],[title],[placeholder]')){
+}
+const skip='script,style,textarea,pre,code,[contenteditable],input,option[value^="custom"],[translate="no"],[data-no-i18n]';
+function localizeNode(node){
+ if(node.nodeType===3){
+  if(!node.parentElement||node.parentElement.closest(skip))return;
+  const old=originals.get(node),current=node.nodeValue;
+  const source=old&&current===old.output?old.source:current;
+  const output=translate(source);originals.set(node,{source,output});
+  if(current!==output)node.nodeValue=output;
+  return;
+ }
+ if(node.nodeType===1&&node.closest(skip)&&!node.matches('input'))return;
+ if(node.nodeType===1&&!node.closest('[translate="no"],[data-no-i18n]')){
+  const saved=attributes.get(node)||{};
   for(const attr of ['aria-label','title','placeholder']){
-   const value=element.getAttribute(attr);
-   if(value)element.setAttribute(attr,translateText(value));
+   const current=node.getAttribute(attr);if(current===null)continue;
+   const old=saved[attr],source=old&&current===old.output?old.source:current,output=translate(source);
+   saved[attr]={source,output};if(output!==current)node.setAttribute(attr,output);
   }
+  attributes.set(node,saved);
  }
+ for(const child of node.childNodes||[])localizeNode(child);
+}
+export function localize(root=globalThis.document){
+ if(!root)return;
+ if(typeof document!=='undefined')document.documentElement.lang=language;
+ localizeNode(root);
+ const selected=root.querySelector?.('#language-select');if(selected)selected.value=language;
+}
+// Dashboard, replay, map controls, toasts and errors also change between renders.
+export function observeLocalization(root=globalThis.document){
+ if(!root||typeof MutationObserver==='undefined')return ()=>{};
+ const observer=new MutationObserver(records=>{
+  for(const record of records){
+   if(record.type==='childList')for(const node of record.addedNodes)localizeNode(node);
+   else localizeNode(record.target);
+  }
+  observer.takeRecords();
+ });
+ observer.observe(root,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['aria-label','title','placeholder']});
+ localize(root);return ()=>observer.disconnect();
 }
 setLanguage(language);

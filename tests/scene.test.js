@@ -2,6 +2,7 @@
 // engine. They exercise lifecycle and playback without a preview service.
 import test,{beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
+import {setLanguage} from '../src/i18n.js';
 import {Scene,playbackDuration} from '../src/scene.js';
 import {EVENTS} from '../src/data.js';
 import {configuration,createRace,resolveSector} from '../src/engine.js';
@@ -202,4 +203,12 @@ test('speed selected between sectors applies to the next execution and replay, i
 
 test('previewing an upcoming sector frames its actual boundaries without changing the race or replay clock',()=>{
  const r=createRace({...configuration('ae86','ren'),routeVersion:3},'dry','haruna',null,42),snapshot=structuredClone(r),scene=new Scene(canvas(),r),elapsed=scene.elapsed;scene.focusSector(1);assert.equal(scene.previewSector,1);assert.equal(scene.follow,false);for(const value of Object.values(scene.cameraState))assert.ok(Number.isFinite(value));const view=structuredClone(scene.cameraState);scene.focusSector(99);assert.deepEqual(scene.cameraState,view);calls=[];scene.draw();assert.ok(calls.some(c=>c[0]==='fillText'&&c[1]==='ВХОД 2'));assert.ok(calls.some(c=>c[0]==='fillText'&&c[1]==='ВЫХОД 2'));assert.equal(scene.elapsed,elapsed);assert.deepEqual(r,snapshot);scene.animateSector(resolveSector(r,'balanced'),null,1000);assert.equal(scene.previewSector,null);scene.focusSector(2);assert.equal(scene.previewSector,null);scene.destroy();
+});
+
+test('map canvas labels use the selected language without changing checkpoint positions',()=>{
+ document.documentElement={};const scene=new Scene(canvas(),race());scene.focusSector(0);
+ try{
+  setLanguage('ru');calls=[];scene.drawDecisionGuide(0);const ru=calls.filter(c=>c[0]==='fillText'&&/ВХОД|ВЫХОД/.test(c[1]));assert.equal(ru.length,2);
+  setLanguage('en');calls=[];scene.drawDecisionGuide(0);const en=calls.filter(c=>c[0]==='fillText'&&/ENTRY|EXIT/.test(c[1]));assert.equal(en.length,2);assert.deepEqual(en.map(c=>c.slice(2)),ru.map(c=>c.slice(2)));assert.ok(calls.filter(c=>c[0]==='fillText').every(c=>!/[А-Яа-яЁё]/.test(c[1])));
+ }finally{setLanguage('ru');scene.destroy();}
 });

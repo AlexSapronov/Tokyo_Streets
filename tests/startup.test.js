@@ -42,3 +42,12 @@ test('failed import displays a readable startup error without clearing the caree
  await Promise.resolve();assert.ok(app.innerHTML.includes('role="alert"'));assert.equal(fields['#startup-error'].textContent,'Missing module recoveryService');assert.equal(saved,'existing-career');
  fields['#startup-retry'].onclick();assert.equal(reloaded,true);
 });
+
+test('startup recovery remains readable in English when the translation module cannot load',async()=>{
+ const source=html.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
+ const fields={'#startup-error':{},'#startup-retry':{}},app={innerHTML:'',querySelector:key=>fields[key]},document={querySelector:()=>app};
+ const code=source.replace(/import\('[^']+'\)/,"Promise.reject(new Error('Module unavailable'))");
+ const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
+ await new AsyncFunction('document','location','console','localStorage',code)(document,{reload(){}},{error(){}},{getItem:key=>key==='tokyo-streets-language'?'en':null});
+ await Promise.resolve();assert.match(app.innerHTML,/Could not start the game/);assert.ok(!/[А-Яа-яЁё]/.test(app.innerHTML));assert.equal(fields['#startup-error'].textContent,'Module unavailable');assert.equal(typeof fields['#startup-retry'].onclick,'function');
+});

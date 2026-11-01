@@ -1,4 +1,5 @@
 // Real HTML parsing and DOM interaction through linkedom; no browser layout engine.
+import {setLanguage,localize} from '../src/i18n.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
@@ -318,4 +319,30 @@ test('past decision, next action and compact finish report stay distinct and ins
 });
 test('tuning comparison shows replacement, price and deltas without installing or spending',async t=>{
  const {document:d,values}=await boot(t),q=s=>d.querySelector(s);q('[data-view=tuning]').click();q('[data-pane=installation]').click();q('[data-pane=tuning-tires]').click();const part=q('[data-part=slicks]').closest('.part'),before=values.get(SAVE_KEY);assert.ok(part.querySelector('.part-comparison'));part.querySelector('details').setAttribute('open','');assert.match(part.textContent,/К оплате/);assert.match(part.textContent,/Мокрое сцепление/);assert.equal(values.get(SAVE_KEY),before);
+});
+
+test('English app covers navigation, dialogs, workshop and finish; switching back restores Russian',async t=>{
+ setLanguage('en');t.after(()=>setLanguage('ru'));
+ const {document:d,frames,values}=await boot(t),q=s=>d.querySelector(s);
+ const check=label=>{localize(d);const pending=[];const walk=node=>{if(node.nodeType===3&&node.parentElement&&!node.parentElement.closest('script,style,textarea,pre,code,input,[translate="no"]')&&/[А-Яа-яЁё]/.test(node.nodeValue))pending.push(node.nodeValue.trim());for(const child of node.childNodes||[])walk(child);};walk(q('#app'));for(const e of d.querySelectorAll('[aria-label],[title],[placeholder]'))if(!e.closest('[translate="no"]'))for(const key of ['aria-label','title','placeholder'])if(/[А-Яа-яЁё]/.test(e.getAttribute(key)||''))pending.push(key+': '+e.getAttribute(key));assert.deepEqual(pending,[],label);};
+ check('race preview');const initial=values.get(SAVE_KEY);
+ q('#help').click();localize(d);assert.ok(!/[А-Яа-яЁё]/.test(q('#modal-content').textContent));q('[data-close]').click();
+ q('#saves').click();localize(d);assert.ok(!/[А-Яа-яЁё]/.test([...q('#modal-content').querySelectorAll('h2,p,button,label,.badge')].map(n=>n.textContent).join(' ')));q('[data-close]').click();
+ for(const page of ['garage','tuning','world','seasons','player','race']){q('[data-view='+page+']').click();check(page);}
+ assert.equal(values.get(SAVE_KEY),initial,'reading English pages must not modify saves');
+ q('#start').click();let turns=0;
+ while(q('#execute')&&turns++<40){q('[data-card=balanced]')?.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);check('race step '+turns);}
+ assert.ok(q('.report'));check('finish');assert.match(q('#report-routes').textContent,/Choose a race/);
+ setLanguage('ru');localize(d);assert.match(q('[data-view=garage]').textContent,/Гараж/);assert.match(q('#report-routes').textContent,/К выбору заездов/);
+});
+
+test('English drag, drift and Time Attack previews, decisions and reports have no untranslated UI',async t=>{
+ setLanguage('en');t.after(()=>setLanguage('ru'));
+ const {document:d,frames}=await boot(t),q=s=>d.querySelector(s);
+ const check=label=>{localize(d);const text=[];const walk=node=>{if(node.nodeType===3&&node.parentElement&&!node.parentElement.closest('script,style,textarea,pre,code,input,[translate="no"]')&&/[А-Яа-яЁё]/.test(node.nodeValue))text.push(node.nodeValue.trim());for(const child of node.childNodes||[])walk(child);};walk(q('#app'));assert.deepEqual(text,[],label);};
+ for(const mode of ['drag','drift','timeattack']){
+  q('[data-view=race]').click();q('#discipline-select').onchange({target:{value:mode}});check(mode+' preview');q('#start').click();let turns=0;
+  while(q('#execute')&&turns++<40){const card=q('[data-card=balanced]:not(:disabled)')||q('[data-card=drift-reset]:not(:disabled)')||q('.card:not(:disabled)');assert.ok(card,mode+' available move');card.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);check(mode+' decision '+turns);}
+  assert.ok(q('.report'),mode+' finished');check(mode+' report');q('#report-routes').click();
+ }
 });
