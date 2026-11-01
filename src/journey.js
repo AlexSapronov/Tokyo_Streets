@@ -51,7 +51,7 @@ export function settleJourney(career,race,outcome){
  const next=structuredClone(career),report={stamps:[],milestones:[],bonus:0,debtPaid:0};
  next.journey??=normalizeJourney(null,career);
  const valid=!race.player.dnf&&!race.player.drag?.falseStart;
- const event=getEvent(race.eventId),before=next.journey.routes[event.id]||0;
+ const event=getEvent(race.eventId,race.routeVersion),before=next.journey.routes[event.id]||0;
  const level=valid?routeLevel(event,{...outcome,weather:race.weather,reaction:race.player.drag?.reaction}):0;
  for(let i=before;i<level;i++){report.stamps.push({level:i+1,name:STAMP_NAMES[i],reward:STAMP_REWARDS[i]});report.bonus+=STAMP_REWARDS[i];}
  if(valid)next.journey.routes[event.id]=Math.max(before,level);

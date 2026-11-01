@@ -15,11 +15,11 @@ export function normalizeBenchDraft(career,raw){
  return {carId:career.car,engineId,parts,setup:normalizeSetup(parts,draft.setup),eventId:EVENTS.some(e=>e.id===draft.eventId)?draft.eventId:career.eventId,weather:['dry','mixed','rain'].includes(draft.weather)?draft.weather:career.weather};
 }
 export function benchmark(config,eventId,weather){
- const event=EVENTS.find(e=>e.id===eventId);if(!event||!['dry','mixed','rain'].includes(weather))throw new Error('Выбери трассу и покрытие');
+ const event=EVENTS.some(e=>e.id===eventId)?getEvent(eventId,config.routeVersion):null;if(!event||!['dry','mixed','rain'].includes(weather))throw new Error('Выбери трассу и покрытие');
  let state=event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config);
  let peakHeat=state.heat,cornerTime=0,straightTime=0;const sectors=[];
  for(let i=0;i<event.sectors.length;i++){
-  const sector=sectorAt(i,weather,eventId);
+  const sector=sectorAt(i,weather,eventId,config.routeVersion);
   // Identical neutral road pace; drag/drift use the same deterministic planner, with no execution RNG.
   const card=['duel','timeattack'].includes(event.mode)?CARDS[0]:chooseAI(config,state,sector,Infinity).card;
   const result=simulate(config,state,sector,card);state=result.next;
@@ -32,6 +32,7 @@ export function compareBench(career,raw){
  const draft=normalizeBenchDraft(career,raw);
  const baseline=playerConfiguration(configuration(career.car,'ren',career.builds[career.car],100,career.setups[career.car],installedEngineId(career)),career.player);
  const trial=playerConfiguration(configuration(career.car,'ren',draft.parts,100,draft.setup,draft.engineId),career.player);
+ baseline.routeVersion=2;trial.routeVersion=2;
  const before=benchmark(baseline,draft.eventId,draft.weather),after=benchmark(trial,draft.eventId,draft.weather),notes=[];
  if(after.profile.power!==before.profile.power)notes.push(after.profile.power>before.profile.power?'Мощность выросла: больше потенциал разгона, но проверь сцепление и температуру.':'Мощность снизилась: меньше потенциал разгона.');
  if(after.profile.mass!==before.profile.mass)notes.push(after.profile.mass<before.profile.mass?'Меньше масса: легче разгон и смена направления.':'Масса выросла: разгон и торможение требуют больше ресурса.');

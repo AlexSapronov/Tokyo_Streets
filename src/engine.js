@@ -21,12 +21,12 @@ export function configuration(carId,pilotId,parts=[],condition=100,rawSetup={},e
  return {car:tunedCar(wornCar(engineCar(car,motor),wear),installed,setup,wear),engineId:motor,wear,tireCondition:wear[tireKey(installed)],setup,pilot,parts:installed,condition:clamp(Number.isFinite(condition)?condition:100,35,100)};
 }
 // Ratings use the healthy installed build, so deliberate wear cannot buy easier opposition.
-export function nominalConfiguration(config){return configuration(config.car.id,'ren',config.parts,100,config.setup,config.engineId);}
+export function nominalConfiguration(config){return {...configuration(config.car.id,'ren',config.parts,100,config.setup,config.engineId),...(config.routeVersion?{routeVersion:config.routeVersion}:{})};}
 export function performanceProfile(config,eventId='haruna',weather='dry'){
- const event=getEvent(eventId),mass=config.car.mass-(hasPart(config.parts,'weight')?65:0)+(hasPart(config.parts,'suspension')?8:0);
+ const event=getEvent(eventId,config.routeVersion),mass=config.car.mass-(hasPart(config.parts,'weight')?65:0)+(hasPart(config.parts,'suspension')?8:0);
  let grip=0,length=0;
  for(let i=0;i<event.sectors.length;i++){
-  const sector=sectorAt(i,weather,eventId),wet=sector.wet;
+  const sector=sectorAt(i,weather,eventId,config.routeVersion),wet=sector.wet;
   const effective=config.car.grip*tireFactor(config,wet,true,event.mode==='drag'?'drag':'road')*(hasPart(config.parts,'suspension')?1.05:1)*aeroGrip(config,sector.type==='corner'?30:55);
   grip+=effective*sector.length;length+=sector.length;
  }
@@ -37,10 +37,11 @@ export function performanceProfile(config,eventId='haruna',weather='dry'){
 export const RIVAL_LEVELS=[{id:'easy',name:'Учебный',factor:.8,reward:.7},{id:'equal',name:'На равных',factor:1,reward:1},{id:'hard',name:'Сильнее',factor:1.2,reward:1.35}];
 const rivalsCache=new Map();
 export function freeRivalOptions(config,eventId,weather='dry'){
- const player=nominalConfiguration(config),profile=performanceProfile(player,eventId,weather),event=getEvent(eventId);
- const key=JSON.stringify([player.car,player.parts,player.setup,eventId,weather]);
+ const player=nominalConfiguration(config),profile=performanceProfile(player,eventId,weather),event=getEvent(eventId,config.routeVersion);
+ const key=JSON.stringify([player.car,player.parts,player.setup,eventId,weather,config.routeVersion]);
  if(rivalsCache.has(key))return structuredClone(rivalsCache.get(key));
  const candidates=CARS.flatMap(car=>[[],['streetTires','lsd'],['ecu','exhaust','cooling','tires','lsd','brakes'],['ecu','turbo','cams','exhaust','intercooler','suspension','slicks','brakes']].map(parts=>configuration(car.id,event.rivalPilot,parts)));
+ if(config.routeVersion)for(const candidate of candidates)candidate.routeVersion=config.routeVersion;
  const options=RIVAL_LEVELS.map(level=>{
   const target=profile.rating*level.factor;
   const fits=candidates.map(rival=>({rival,profile:performanceProfile(rival,eventId,weather)})).filter(c=>level.id==='easy'?c.profile.rating<profile.rating*.9:level.id==='hard'?c.profile.rating>profile.rating*1.1:Math.abs(c.profile.rating/profile.rating-1)<.08);
@@ -50,6 +51,7 @@ export function freeRivalOptions(config,eventId,weather='dry'){
   else{
    // At the extremes of the catalogue, show a prepared variant with explicit power.
    rival=configuration(player.car.id,event.rivalPilot,player.parts,100,player.setup,player.engineId);
+   if(config.routeVersion)rival.routeVersion=config.routeVersion;
    const current=performanceProfile(rival,eventId,weather).rating;
    rival.car.power=Math.max(1,Math.round(rival.car.power*(target/current)**(1/(event.mode==='drag'?.9:.65))));prepared=true;
   }
@@ -72,7 +74,7 @@ export function disabledReason(card,sector,state,config,gap=0){
  if(card.gap==='ahead'&&!(gap<0&&gap> -2.5))return 'Нужно лидерство до 2.5 с';
  if(card.gap==='close'&&Math.abs(gap)>2.5)return 'Соперник дальше 2.5 с';
  if((state.cooldowns[card.id]||0)>0)return `Откат: ${state.cooldowns[card.id]} сектор`;
- const cost=focusCost(config,state,card);
+ const cost=focusCost(config,state,card,sector);
  if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации с учётом повторов`;
  if(card.id==='late'&&state.heat>155)return 'Тормоза перегреты (>155°C)';
  return '';
@@ -125,13 +127,13 @@ function simulateRaw(config,state,sector,card,execution=null){
  // heat, including under attack; longer and faster straights cool more.
  const brakingLoad=corner?8*Math.min(sector.length/300,1.6)+Math.min(12,Math.max(0,state.velocity**2-cornerSpeed**2)/240):0;
  const brakeHardware=(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1);
- const heatInput=corner?(brakingLoad+Math.max(0,card.heat)+Math.min(12,card.heat>=0?repeat.heatExtra:0))*(mass/1100)*brakeHardware:0;
- const recovery=Math.min(0,card.heat)*repeat.recoveryFactor;
+ const heatInput=corner?(brakingLoad+(Math.max(0,card.heat)+Math.min(12,card.heat>=0?repeat.heatExtra:0))*(sector.decisionScale||1))*(mass/1100)*brakeHardware:0;
+ const recovery=Math.min(0,card.heat)*repeat.recoveryFactor*(sector.decisionScale||1);
  const coolingRate=(.012+Math.min(80,average)*.0002)*(corner?.65:1)*car.cooling*(car.brakeCooling||1);
  const coolingFraction=1-Math.exp(-time*coolingRate);
  const airCooling=Math.max(0,state.heat-35)*coolingFraction;
  const cooled=heatInput*(1-coolingFraction*.5)+recovery-airCooling;
- const actionFocus=focusCost(config,state,card);
+ const actionFocus=focusCost(config,state,card,sector);
  const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
  if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;
  const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit*(card.id==='skill-release'?1.08:1))*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
@@ -202,17 +204,18 @@ export function chooseRacingLine(config,state,sector,card,nextSector,style=null)
  }).sort((a,b)=>a.score-b.score)[0];
 }
 export function futureSectors(race) {
-  return getEvent(race.eventId).sectors.slice(race.index + 1, race.index + 3)
-    .map((_, offset) => sectorAt(race.index + offset + 1, race.weather, race.eventId));
+  return getEvent(race.eventId,race.routeVersion).sectors.slice(race.index + 1, race.index + 3)
+    .map((_, offset) => sectorAt(race.index + offset + 1, race.weather, race.eventId,race.routeVersion));
 }
 export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null,rivalLevel=null) {
-  const event = getEvent(eventId);
+  const event = getEvent(eventId,config.routeVersion);
   const category=raceClass(config);
   const offer=rivalLevel&&['duel','drag'].includes(event.mode)?freeRivalOptions(config,eventId,weather).find(o=>o.id===rivalLevel):null;
   if(rivalLevel&&!RIVAL_LEVELS.some(o=>o.id===rivalLevel))throw new Error('Неизвестный уровень соперника');
   if(offer)config={...config,rivalLevel:offer.id};
   const rival=offer?.rival||configuration(event.rivalCar,event.rivalPilot,event.rivalParts,100);
-  return {config, rival, category,...(offer?{rivalLevel:offer.id,difficultyReward:offer.reward,rivalName:offer.name+' · '+offer.rival.pilot.name}:{}),...(event.mode==='timeattack'?{targets:medalTargets(eventId,weather,config)}:{}),rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
+  if(config.routeVersion)rival.routeVersion=config.routeVersion;
+  return {config, rival, category,...(config.routeVersion?{routeVersion:config.routeVersion}:{}),...(offer?{rivalLevel:offer.id,difficultyReward:offer.reward,rivalName:offer.name+' · '+offer.rival.pilot.name}:{}),...(event.mode==='timeattack'?{targets:medalTargets(eventId,weather,config)}:{}),rewardScale:1, weather,runId, seed:Number.isInteger(seed)?seed>>>0:runId?hashSeed(runId):newSeed(), eventId: event.id, mode: event.mode, index: 0,
     player: event.mode==='drag'?freshDragState(config):event.mode==='drift'?freshDriftState(config):freshState(config), opponent: event.mode==='drag'?freshDragState(rival):freshState(rival), history: [], finished: false, awarded: false};
 }
 // A learning rival uses the same physics and resources, but basic lines and a simple plan.
@@ -223,8 +226,8 @@ function chooseLearningRival(config,state,sector,gap){
 }
 export function resolveSector(race, cardId, lineId='neutral') {
   if (race.finished) throw new Error('Заезд уже завершён');
-  const event = getEvent(race.eventId);
-  const sector = sectorAt(race.index, race.weather, race.eventId);
+  const event = getEvent(race.eventId,race.routeVersion);
+  const sector = sectorAt(race.index, race.weather, race.eventId,race.routeVersion);
   const baseCard = availableCards(race.config,race.mode,race.eventId).find(card => card.id === cardId);
   const card=baseCard?lineCard(baseCard,lineId):null;
   if (!card) throw new Error('Карта недоступна');
@@ -273,12 +276,12 @@ export function isRaceFinished(player,opponent,index,sectorCount){
 const targetCache=new Map();
 export function medalTargets(eventId,weather,build='expert'){
  const config=typeof build==='string'?configuration(build==='club'?'ae86':build==='sport'?'chaser':'evo','ren'):nominalConfiguration(build);
- const key=JSON.stringify([eventId,weather,config.car,config.parts,config.setup]);
+ const key=JSON.stringify([eventId,weather,config.car,config.parts,config.setup,config.routeVersion]);
  if(targetCache.has(key))return {...targetCache.get(key)};
  let state=freshState(config),classic=freshState(config);
- const event=getEvent(eventId);
+ const event=getEvent(eventId,config.routeVersion);
  for(let i=0;i<event.sectors.length;i++){
-  const sector=sectorAt(i,weather,eventId),next=i+1<event.sectors.length?sectorAt(i+1,weather,eventId):null;
+  const sector=sectorAt(i,weather,eventId,config.routeVersion),next=i+1<event.sectors.length?sectorAt(i+1,weather,eventId,config.routeVersion):null;
   const card=chooseRacingLine(config,state,sector,CARDS[0],next).card;
   state=simulate(config,state,sector,card).next;
   classic=simulate(config,classic,sector,CARDS[0]).next;
@@ -287,7 +290,7 @@ export function medalTargets(eventId,weather,build='expert'){
  const targets={gold,silver,bronze};if(targetCache.size>=256)targetCache.clear();targetCache.set(key,targets);return {...targets};
 }
 function baseOutcome(race) {
-  const event = getEvent(race.eventId);
+  const event = getEvent(race.eventId,race.routeVersion);
   if(race.player.dnf)return {won:false,medal:null,label:'Сход · вылет с трассы',reward:0,street:0,official:0};
   if (race.mode === 'duel' || race.mode === 'drag') {
     const won = !race.player.drag?.falseStart && (!!race.opponent.dnf || race.opponent.drag?.falseStart || race.player.time < race.opponent.time);
@@ -310,4 +313,11 @@ function baseOutcome(race) {
 export function raceOutcome(race){
  const outcome=baseOutcome(race);
  return {...outcome,reward:Math.round(outcome.reward*rewardFactor(race.config,race.mode)*(race.rewardScale??1)*(race.season?1:race.difficultyReward??1))};
+}
+
+export function modernRoadRace(race){
+ if(!['duel','timeattack'].includes(race.mode)||race.routeVersion===2)return race;
+ if(race.index)throw Error('Нельзя менять отсечки посреди заезда');
+ const fresh=createRace({...race.config,routeVersion:2},race.weather,race.eventId,race.runId,race.seed,race.rivalLevel);
+ return {...race,...fresh,rival:{...race.rival,routeVersion:2},opponent:structuredClone(race.opponent),rivalName:race.rivalName,rewardScale:race.rewardScale};
 }

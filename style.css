@@ -210,8 +210,8 @@
 @media(min-width:1250px) and (min-height:900px) and (max-height:999px){
  #app[data-page=race] .race-layout>section{height:calc(var(--race-room)*.28)}#app[data-page=race] .scene-wrap{min-height:60px}
  #app[data-page=race]>.cards-area{height:calc(var(--race-room)*.72)}
- #app[data-page=race] .upcoming-sectors>div{flex-direction:row;align-items:center;gap:7px;min-width:0}
- #app[data-page=race] .upcoming-sectors>div>span:not(.micro){display:none}#app[data-page=race] .upcoming-sectors strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #app[data-page=race] .upcoming-sectors>div{flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 7px;min-width:0}
+ #app[data-page=race] .upcoming-sectors>div>span:not(.micro){display:block}#app[data-page=race] .upcoming-sectors strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  #app[data-page=race] .forecast-main{max-height:60px;overflow:auto}#app[data-page=race] .line-explanation{display:none}
  #app[data-race-panel=track] .race-layout>section{height:var(--race-room)}
 }
@@ -226,3 +226,8 @@
 .race-focus .session-context{margin:0;font-size:10px}.race-focus #app{padding-top:6px}.race-focus .logo small{display:none}
 @media(max-width:1500px){#map-instructions{display:none}}
 #scene:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+.school-lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.school-panel>p{color:var(--muted);line-height:1.6}.school-coach{display:flex;flex-wrap:wrap;gap:6px 16px;padding:10px 14px;margin-bottom:8px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--panel)}.school-coach strong{color:var(--accent)}.school-coach span{flex:1 1 60%;font-size:12px;line-height:1.5}.school-coach small{color:var(--muted);font-size:9px}.school-report li{margin:10px 0}
+#app[data-lesson]>.context-bar,#app[data-lesson] .ghost-panel,#app[data-lesson] .sidebar>.notice,#app[data-lesson] .active-skills{display:none}
+#app[data-lesson="0"] .line-options,#app[data-lesson="0"] #filters{display:none}
+@media(min-width:1250px){#app[data-lesson]>.school-coach{grid-column:1/-1;grid-row:4}#app[data-lesson]{grid-template-areas:'context context' 'journey journey' 'heading heading' 'guide guide' 'track instruments' 'actions instruments' 'report report' 'debug debug'}}

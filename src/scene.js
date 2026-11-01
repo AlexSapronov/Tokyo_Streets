@@ -11,9 +11,9 @@ export class Scene {
   constructor(canvas, race, ghost = null, showGhost = true, sound = null) {
     this.canvas = canvas;this.sound=sound;this.follow=false;this.cameraState=null;this.pointer=null;this.inputHandlers=[];
     this.ctx = canvas.getContext('2d');
-    this.event = getEvent(race.eventId);
+    this.event = getEvent(race.eventId,race.routeVersion);
     this.geometry=trackGeometry(this.event);this.route=this.geometry.route;
-    this.checkpoints = checkpointFractions(this.event.id);
+    this.checkpoints = checkpointFractions(this.event.id,race.routeVersion);
     this.race = race;
     this.ghost = ghost;
     this.showGhost = showGhost;
@@ -50,7 +50,7 @@ export class Scene {
     this.cameraState={zoom:z,x:this.w/2-p[0]*z,y:this.h/2-p[1]*z};this.pendingView=null;
   }
   ensureCamera(){
-    if(!this.cameraState){const record=this.replayRecord||presentationRecord(this.race),progress=progressAtTime(record.sectorTimes,this.elapsed,this.event.id);this.cameraState=sectionCamera(this.route.map(p=>this.project(...p)),this.checkpoints,0,this.w,this.h,this.scale,progress);}
+    if(!this.cameraState){const record=this.replayRecord||presentationRecord(this.race),progress=progressAtTime(record.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion);this.cameraState=sectionCamera(this.route.map(p=>this.project(...p)),this.checkpoints,0,this.w,this.h,this.scale,progress);}
     return this.cameraState;
   }
   zoomBy(direction,x=this.w/2,y=this.h/2){
@@ -236,7 +236,7 @@ export class Scene {
   }
   draw() {
     const c=this.ctx,w=this.w,h=this.h;
-    const cameraRecord=this.replayRecord||presentationRecord(this.race),cameraProgress=progressAtTime(cameraRecord.sectorTimes,this.elapsed,this.event.id);
+    const cameraRecord=this.replayRecord||presentationRecord(this.race),cameraProgress=progressAtTime(cameraRecord.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion);
     const points=this.route.map(p=>this.project(...p));
     const index=this.replayRecord?presentationFrame(this.replayRecord,this.elapsed,this.event.id).index:Math.min(this.event.sectors.length-1,Math.max(0,this.race.index-(this.motion?1:0)));
     const target=this.follow||!this.cameraState?sectionCamera(points,this.checkpoints,index||0,w,h,this.scale,cameraProgress):this.cameraState;
@@ -277,21 +277,21 @@ export class Scene {
       this.path(c,trace,'#ffb477bb',Math.max(1.3/(this.cameraState?.zoom||1),2*this.scale),[6*this.scale,4*this.scale]);
     }
     if(this.replayRecord){
-      const progress=progressAtTime(visualRecord.sectorTimes,this.elapsed,this.event.id),sign=direction(progress);
+      const progress=progressAtTime(visualRecord.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion),sign=direction(progress);
       this.drawCar(progress,-4,this.replayRecord.carId,'REPLAY',false,frame.yaw*(this.event.mode==='drift'?1:sign),racingLane(-4,frame,sign,this.event.mode)+4,frame);
     }else{
       const playerTimes=visualRecord.sectorTimes;
       if(this.ghost&&this.showGhost){
-        const progress=progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id),ghost=presentationFrame(this.ghost,this.elapsed,this.event.id);
+        const progress=progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id,this.ghost.routeVersion),ghost=presentationFrame(this.ghost,this.elapsed,this.event.id);
         this.drawCar(progress,0,this.ghost.carId,'BEST',true,ghost.yaw*(this.event.mode==='drift'?1:direction(progress)),racingLane(0,ghost,direction(progress),this.event.mode));
       }
       if(['duel','drag'].includes(this.race.mode)){
         const aiRecord=presentationRecord(this.race,true),aiTimes=aiRecord.sectorTimes;
-        let progress=progressAtTime(aiTimes,this.elapsed,this.event.id);
+        let progress=progressAtTime(aiTimes,this.elapsed,this.event.id,this.race.routeVersion);
         const ai=presentationFrame(aiRecord,this.elapsed,this.event.id);
         this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':this.event.mode==='duel'&&aiTimes.length?'RIVAL · '+aiTimes.at(-1).toFixed(2)+' с':'RIVAL',false,this.race.opponent.dnf?.7:ai.yaw*direction(progress),this.race.opponent.dnf?0:racingLane(9,ai,direction(progress),this.event.mode)-9,ai);
       }
-      const progress=Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id));
+      const progress=Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id,this.race.routeVersion));
       this.drawCar(progress,this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':['duel','timeattack'].includes(this.event.mode)&&playerTimes.length?'YOU · '+playerTimes.at(-1).toFixed(2)+' с':'YOU',false,this.race.player.dnf?.7:frame.yaw*(this.event.mode==='drift'?1:direction(progress)),this.race.player.dnf?0:racingLane(-9,frame,direction(progress),this.event.mode)+9,frame);
     }
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
@@ -313,7 +313,7 @@ export class Scene {
     this.path(c,points.slice(start,end+1),'#ffab78',3);
     const dot=(fraction,color)=>{const p=points[Math.max(0,Math.min(800,Math.floor(fraction*800)))];c.fillStyle=color;c.beginPath();c.arc(p[0],p[1],3,0,7);c.fill();};
     dot(1,'#9dc6ac');dot(progress,'#ffab78');
-    if(!this.replayRecord&&['duel','drag'].includes(this.race.mode))dot(progressAtTime(this.race.history.map(r=>r.aiTime).filter(t=>t!==null),this.elapsed,this.event.id),'#b9a1df');
+    if(!this.replayRecord&&['duel','drag'].includes(this.race.mode))dot(progressAtTime(this.race.history.map(r=>r.aiTime).filter(t=>t!==null),this.elapsed,this.event.id,this.race.routeVersion),'#b9a1df');
     if(this.cameraState){
       const camera=this.cameraState,convert=(px,py)=>[x+w/2+(px-this.layout.center[0])/this.scale*scale,y+h/2+7+(py-this.layout.center[1])/this.scale*scale];
       const a=convert(-camera.x/camera.zoom,-camera.y/camera.zoom),b=convert((this.w-camera.x)/camera.zoom,(this.h-camera.y)/camera.zoom);

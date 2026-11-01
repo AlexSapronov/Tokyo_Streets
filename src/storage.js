@@ -1,3 +1,4 @@
+import {emptySchool,normalizeSchool} from './driving-school.js';
 import {WORKSHOP_PRESETS} from './workshop.js';
 import {emptyPlayer,normalizePlayer,SKILL_CARDS,validTraining,withTraining} from './player.js';
 import {emptyRivals,normalizeRivals,getChallenge} from './rivals.js';
@@ -24,7 +25,7 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {lastWorkshop:null,streetPeak:0,player:emptyPlayer(),rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
+  return {school:emptySchool(),lastWorkshop:null,streetPeak:0,player:emptyPlayer(),rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
@@ -41,9 +42,10 @@ const unique = values => [...new Set(values)];
 function validateRecord(record) {
   if (!record || record.dnf || !validEvent(record.eventId) || !validCar(record.carId)
       || !validPilot(record.pilotId) || !validWeather(record.weather)) return null;
-  const count = getEvent(record.eventId).sectors.length;
+  if(record.routeVersion!==undefined&&![1,2].includes(record.routeVersion))return null;
+  const count = getEvent(record.eventId,record.routeVersion).sectors.length;
   if (!Array.isArray(record.sectorTimes) || record.sectorTimes.length !== count
-      || record.sectorTimes.some((time,i) => !finite(time) || time < 0 || (time===0&&getEvent(record.eventId).sectors[i].phase!=='prep') || time > 1000)) return null;
+      || record.sectorTimes.some((time,i) => !finite(time) || time < 0 || (time===0&&getEvent(record.eventId,record.routeVersion).sectors[i].phase!=='prep') || time > 1000)) return null;
   if (!Array.isArray(record.actions) || record.actions.length !== count
       || record.actions.some(id => ![...CARDS,...DRAG_CARDS,...DRIFT_CARDS,...SKILL_CARDS].some(card => card.id === id))) return null;
   const total = record.sectorTimes.reduce((sum, time) => sum + time, 0);
@@ -53,11 +55,12 @@ function validateRecord(record) {
   if(parts.some(id=>partReason(record.carId,id,record.engineId))||normalizeBuild(record.carId,parts,record.engineId).length!==parts.length)return null;
   if(record.setup!==undefined&&!validSetup(parts,record.setup))return null;
   let config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup,record.engineId,record.wear);
+  if(record.routeVersion===2)config.routeVersion=2;
   if(record.training!==undefined){if(!validTraining(record.training))return null;config=withTraining(config,record.training);}
   if(record.slips!==undefined&&(!Array.isArray(record.slips)||record.slips.length!==count||record.slips.some(n=>!finite(n)||n<0||n>50)))return null;
   if(['easy','equal','hard'].includes(record.rivalLevel))config.rivalLevel=record.rivalLevel;
   if(record.challengeId!==undefined){if(!getChallenge(record.challengeId))return null;config.challengeId=record.challengeId;}
-  const event=getEvent(record.eventId);
+  const event=getEvent(record.eventId,record.routeVersion);
   const cards=availableCards(config,event.mode,event.id);
   if(record.actions.some((id,i)=>!cards.some(card=>card.id===id&&(!card.phase||card.phase==='any'||card.phase===event.sectors[i].phase))))return null;
   if(event.mode==='drag'&&(!record.drag||record.drag.falseStart||!['reaction','sixty','et','trap'].every(key=>finite(record.drag[key])&&record.drag[key]>=0)))return null;
@@ -71,7 +74,7 @@ function validateRecord(record) {
   const key=oldLearning||legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key,...(record.training?{training:{...config.training}}:{}),...(record.slips?{slips:[...record.slips]}:{}),...(config.challengeId?{challengeId:config.challengeId}:{}),...(record.lines?{lines:[...record.lines]}:{}),...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {key,...(record.routeVersion?{routeVersion:record.routeVersion}:{}),...(record.training?{training:{...config.training}}:{}),...(record.slips?{slips:[...record.slips]}:{}),...(config.challengeId?{challengeId:config.challengeId}:{}),...(record.lines?{lines:[...record.lines]}:{}),...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -109,7 +112,7 @@ function validDriftRecord(drift,event){
 }
 export function validateSave(raw) {
   if (!raw || ![1, 2].includes(raw.version)) throw new Error('Неподдерживаемое сохранение');
-  const out = newCareer();
+  const out = newCareer();out.school=normalizeSchool(raw.school);
   out.money = finite(raw.money) ? Math.max(0, Math.min(1e9, raw.money)) : START_MONEY;
   out.ownedCars=unique(list(raw.ownedCars).filter(validCar));if(!out.ownedCars.length)out.ownedCars=['ae86'];
   out.car=out.ownedCars.includes(raw.car)?raw.car:out.ownedCars[0];
@@ -162,7 +165,7 @@ export function validateSave(raw) {
       time: record.time, won: record.won, eventId: validEvent(record.eventId) ? record.eventId : 'haruna',
       weather: validWeather(record.weather) ? record.weather : 'mixed',
       medal: ['gold', 'silver', 'bronze'].includes(record.medal) ? record.medal : null,...(record.dnf===true?{dnf:true}:{}),
-      ...(getEvent(record.eventId).mode==='drag'?{falseStart:record.falseStart===true}:getEvent(record.eventId).mode==='drift'?{score:finite(record.score)?Math.max(0,Math.min(800,record.score)):0}:{})}));
+      ...(getEvent(record.eventId,record.routeVersion).mode==='drag'?{falseStart:record.falseStart===true}:getEvent(record.eventId,record.routeVersion).mode==='drift'?{score:finite(record.score)?Math.max(0,Math.min(800,record.score)):0}:{})}));
   // v1 records have no trace. Keep their history, but do not invent ghosts.
   const valid = list(raw.bests).slice(0, 120).map(validateRecord).filter(Boolean);
   const bestByKey = new Map();

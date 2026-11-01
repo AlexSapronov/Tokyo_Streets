@@ -8,13 +8,13 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const actions=[...CARDS,...ALL_DRAG_CARDS,...DRIFT_CARDS,...SKILL_CARDS];
 export function presentationRecord(race,opponent=false){
  const rows=opponent?race.history.filter(row=>row.aiTime!==null):race.history;
- return {sectorTimes:rows.map(row=>opponent?row.aiTime:row.playerTime),actions:rows.map(row=>opponent?row.aiCardId:row.cardId),lines:rows.map(row=>opponent?row.aiLineId:row.lineId),slips:rows.map(row=>opponent?row.aiSlip:row.slip),telemetry:opponent?null:rows.map(row=>row.telemetry),drift:opponent?null:race.player.drift};
+ return {routeVersion:race.routeVersion,sectorTimes:rows.map(row=>opponent?row.aiTime:row.playerTime),actions:rows.map(row=>opponent?row.aiCardId:row.cardId),lines:rows.map(row=>opponent?row.aiLineId:row.lineId),slips:rows.map(row=>opponent?row.aiSlip:row.slip),telemetry:opponent?null:rows.map(row=>row.telemetry),drift:opponent?null:race.player.drift};
 }
 // Read recorded outcomes only. Presentation never calls physics or chooses an action.
 export function presentationFrame(record,elapsed,eventId){
  const idle={offset:0,lineOffset:0,position:0,yaw:0,braking:false,smoke:0,marks:0,throttle:0,rpm:900,gear:0,cue:'',actionName:'',lineName:''};
  if(!record?.sectorTimes?.length)return idle;
- const index=replayIndex(record.sectorTimes,elapsed),sector=getEvent(eventId).sectors[index];if(!sector)return idle;
+ const index=replayIndex(record.sectorTimes,elapsed),sector=getEvent(eventId,record.routeVersion).sectors[index];if(!sector)return idle;
  const start=record.sectorTimes.slice(0,index).reduce((n,t)=>n+t,0),fraction=clamp((elapsed-start)/Math.max(.001,record.sectorTimes[index]),0,1),phase=Math.sin(Math.PI*fraction);
  const card=actions.find(c=>c.id===record.actions?.[index]),id=card?.id||'',line=lineFrame(record,elapsed),drift=driftFrame(record,elapsed);
  const slip=record.slips?.[index]||0,to=record.telemetry?.[index],from=record.telemetry?.[Math.max(0,index-1)];
