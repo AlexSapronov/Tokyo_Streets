@@ -30,7 +30,7 @@ export function newCareer() {
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
-    engines:emptyEngines(),wear:emptyWear(),organizer:{series:[]},operations:emptyOperations(),championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true};
+    engines:emptyEngines(),wear:emptyWear(),organizer:{series:[]},operations:emptyOperations(),championships:emptyChampionship(),presets:emptyPresets(),setups:Object.fromEntries(CARS.map(c=>[c.id,defaultSetup()])),eventCompletions:{},repairDebt:0,control:'personal',team:emptyTeam(),helpSeen: false,awardedRuns:[], records: [], bests: [], ghostEnabled: true,raceIntent:null};
 }
 const validCar = id => CARS.some(car => car.id === id);
 const validPart = id => PARTS.some(part => part.id === id);
@@ -142,6 +142,8 @@ export function validateSave(raw) {
   out.organizer=normalizeOrganizer(raw.organizer);
   out.championships=normalizeChampionship(raw.championships);
   if(out.championships.active&&!out.ownedCars.includes(out.championships.active.carId))out.championships.active=null;
+  const intent=raw.raceIntent,activeCup=out.championships.active;
+  if(intent?.kind==='cup'&&activeCup&&intent.cupId===activeCup.cupId&&intent.attempt===activeCup.attempt&&intent.stage===activeCup.stage)out.raceIntent={kind:'cup',cupId:activeCup.cupId,attempt:activeCup.attempt,stage:activeCup.stage};
   out.control=raw.control==='manager'&&out.team.founded&&out.team.contracts.some(contract=>contract.pilotId===out.pilot)?'manager':'personal';
   for (const car of CARS) {
     out.purchased[car.id] = unique(list(raw.purchased?.[car.id]).filter(id=>validPart(id)&&!partReason(car.id,id,installedEngineId(out,car.id))));

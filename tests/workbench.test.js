@@ -358,3 +358,38 @@ test('Official Rep is required even with high Street Cred and reward car cannot 
  const c=newCareer();c.street=1000;c.races=20;c.money=1000000;
  const {document:d}=await boot(t,c),q=s=>d.querySelector(s);q('#discipline-select').onchange({target:{value:'circuit'}});assert.equal(q('#start').disabled,true);assert.match(q('.sidebar').textContent,/Official Rep 120/);q('[data-view=garage]').click();q('[data-garage-preview=supraGT4]').click();assert.equal(q('[data-car=supraGT4]').disabled,true);assert.match(q('[data-car=supraGT4]').textContent,/Приз/);assert.equal(q('#trade-in'),null);
 });
+
+test('first championship continues after time attack, across reloads, through all four stages',async t=>{
+ const c=unlockEverything(newCareer());c.car='ae86';c.builds.ae86=[];
+ let ui=await boot(t,c),q=s=>ui.document.querySelector(s),saved=()=>JSON.parse(ui.values.get(SAVE_KEY));
+ q('[data-view=seasons]').click();q('[data-cup-enter=club]').click();q('#season-prepare').click();
+ const attempt=saved().championships.active.attempt;
+ for(let stage=0;stage<4;stage++){
+  const values=new Map(ui.values);ui=await boot(t,undefined,{values});
+  assert.ok(q('#season-practice'),'reload must restore championship preview');
+  assert.equal(saved().championships.active.stage,stage);
+  assert.equal(saved().championships.active.attempt,attempt);
+  q('#start').click();
+  if(stage===1){ui=await boot(t,undefined,{values:new Map(ui.values)});assert.ok(q('#season-practice'));q('#start').click();}
+  let turns=0;
+  while(q('#execute')&&turns++<60){const balanced=q('[data-card=balanced]');if(balanced&&!balanced.disabled)balanced.click();q('#execute').click();const callbacks=[...ui.frames.values()];ui.frames.clear();for(const cb of callbacks)cb(performance.now()+20000);}
+  assert.ok(q('.report'));assert.ok(turns<60);
+  if(stage<3){
+   assert.equal(saved().championships.active.stage,stage+1);
+   assert.equal(saved().championships.active.results.length,stage+1);
+   assert.ok(q('#report-cup-next'));q('#report-cup-next').click();
+   assert.equal(saved().raceIntent.stage,stage+1);
+   assert.equal(saved().eventId,['haruna','tsukuba','yokohama-half','akagi'][stage+1]);
+  }else{assert.equal(saved().championships.active,null);assert.equal(q('#report-cup-next'),null);assert.equal(saved().championships.history.length,1);}
+ }
+});
+
+test('leaving a prepared cup for practice preserves results and exposes resume',async t=>{
+ const {enterCup,prepareStage}=await import('../src/championship.js');
+ const c=unlockEverything(newCareer());c.car='ae86';c.builds.ae86=[];
+ const prepared=prepareStage(enterCup(c,'club','resume-practice'));
+ const {document:d,values}=await boot(t,prepared),q=s=>d.querySelector(s);
+ q('#season-practice').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).raceIntent,null);
+ assert.ok(q('#resume-cup'));q('#resume-cup').click();assert.ok(q('#season-practice'));
+ assert.deepEqual(JSON.parse(values.get(SAVE_KEY)).championships,prepared.championships);
+});

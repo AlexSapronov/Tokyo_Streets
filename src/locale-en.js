@@ -1885,7 +1885,7 @@ export const EN_COPY = {
  "Для игры требуется JavaScript. Включи его для этой страницы.": "This game requires JavaScript. Enable it for this page.",
  "Позиция в пелотоне": "Position in the field",
  "Приз за победу в Club Trophy": "Club Trophy victory prize",
- "Укажи версию 0.31, трассу и шаги для повторения.": "Include version 0.31, the course and steps to reproduce.",
+ "Укажи версию 0.31.1, трассу и шаги для повторения.": "Include version 0.31.1, the course and steps to reproduce.",
  "Призовой GT4": "Exclusive GT4",
  "Гоночная машина GT4: развитая аэродинамика, тормоза и охлаждение. Только за первую победу в Tsukuba Club Trophy. Параметры сцепления и тормозов — игровые.": "A GT4 race car with dedicated aero, brakes and cooling. Awarded for the first Tsukuba Club Trophy win only. Grip and braking ratings are game abstractions.",
  "Цукуба · Club Trophy": "Tsukuba · Club Trophy",
@@ -1922,5 +1922,8 @@ export const EN_COPY = {
  "Стартовый интервал:": "Starting grid gap:",
  "Стартовый интервал": "Starting grid gap",
  "Пит-стоп": "Pit stop",
- "Трафик": "Traffic"
+ "Трафик": "Traffic",
+  "Завершено этапов:": "Stages completed:",
+  "Продолжить чемпионат ↗": "Resume championship \u2197",
+  "К следующей гонке чемпионата ↗": "Next championship race \u2197"
 };
