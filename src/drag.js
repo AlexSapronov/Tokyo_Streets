@@ -15,7 +15,7 @@ export function dragReason(card,sector,state,config=null) {
   if(card.phase!==sector.phase)return 'Доступно в фазе: '+({prep:'Подготовка',launch:'Старт',shifts:'Переключения',finish:'Финиш',pull:'Длинный разгон'})[card.phase];
   if(card.minSpeed&&state.velocity*3.6<card.minSpeed)return `Нужна скорость от ${card.minSpeed} км/ч`;
   const cost=config?focusCost(config,state,card):card.focus;
-  if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации`;
+  if(cost>state.focus)return `Нужно ${Math.ceil(cost)} фокуса`;
   return '';
 }
 function reactionFor(config,card,error=0) {
@@ -108,7 +108,7 @@ export function simulateDrag(config,state,sector,card,execution=null) {
       reasons.push(`Температура мотора: пик ${result.peakHeat.toFixed(1)}°C / выход ${result.engineHeat.toFixed(1)}°C`);
       if(result.minFade<.999)reasons.push(`Перегрев ограничил доступную мощность до ${Math.round(result.minFade*100)}%`);
       if(result.limiterTime>.01)reasons.push(`Отсечка ограничивала тягу ${result.limiterTime.toFixed(2)} с`);
-      if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: растёт только расход концентрации`);
+      if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: меняется только расход или восстановление фокуса`);
       for(const split of result.splits)reasons.push(`Отсечка ${split.distance.toFixed(3)} м: ET ${split.et.toFixed(3)} с / ${split.speed.toFixed(1)} км/ч`);
     }
     if(state.heat>105)reasons.push('Перегрев мотора снижает доступную мощность');

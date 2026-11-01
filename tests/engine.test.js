@@ -40,7 +40,7 @@ test('attack costs resources and can be repeated immediately while focus is suff
  const second=simulate(cfg,a.next,sectorAt(1),card('balanced'));assert.equal(disabledReason(card('attack'),sectorAt(2),second.next,cfg),'');
 });
 test('low focus and brake overheating block costly actions',()=>{
- const state={...freshState(cfg),focus:2,heat:160};assert.match(disabledReason(card('late'),sectorAt(2),state,cfg),/концентрации/);
+ const state={...freshState(cfg),focus:2,heat:160};assert.match(disabledReason(card('late'),sectorAt(2),state,cfg),/фокуса/);
  state.focus=100;assert.match(disabledReason(card('late'),sectorAt(2),state,cfg),/перегреты/);
 });
 test('brake upgrade affects performance and heat, not horsepower',()=>{

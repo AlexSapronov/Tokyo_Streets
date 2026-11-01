@@ -14,7 +14,7 @@ export function driftReason(card,sector,state,config){
   if(card.phase!=='any'&&card.phase!==sector.phase)return 'Доступно в фазе: '+({init:'Инициация',hold:'Удержание',transition:'Перекладка',exit:'Выход'})[card.phase];
   if(card.requiresDrift&&!state.drift.active)return 'Нет устойчивого заноса: скорректируй линию или стабилизируй машину';
   const cost=focusCost(config,state,card);
-  if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации с учётом повторов`;
+  if(cost>state.focus)return `Нужно ${Math.ceil(cost)} фокуса с учётом повторов`;
   return '';
 }
 export function simulateDrift(config,state,sector,card,execution=null){
@@ -69,7 +69,7 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const reasons=[`Клип: ${sector.clip} · целевой угол ${targetAngle}°`,
     `Линия ${clip.line.toFixed(1)} / угол ${clip.angle.toFixed(1)} / скорость ${clip.speed.toFixed(1)} / связность ${clip.continuity.toFixed(1)}`];
   if(spin)reasons.push('Разворот: угол и нагрузка превысили управляемый предел. Клип — 0 баллов');
-  else if(card.reset)reasons.push('Машина стабилизирована: концентрация восстановлена, связка прервана. Клип — 0 баллов');
+  else if(card.reset)reasons.push('Машина стабилизирована: фокус восстановлен, связка прервана. Клип — 0 баллов');
   else if(!linked&&phase!=='init')reasons.push('Связность потеряна: предыдущий занос не поддержан');
   if(card.recover&&!previous.active)reasons.push('Возврат в занос: оценка снижена за разрыв связки');
   if(Math.abs(angle-targetAngle)>15)reasons.push('Больше угол не значит лучше: требуется точность попадания в задание');

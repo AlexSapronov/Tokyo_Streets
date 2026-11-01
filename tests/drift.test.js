@@ -24,7 +24,7 @@ test('foreign actions, wrong phases and costly actions are rejected without chan
  assert.throws(()=>resolveSector(race,'balanced'),/недоступна/);assert.throws(()=>resolveSector(race,'drag-warm'),/недоступна/);
  assert.throws(()=>resolveSector(race,'drift-smooth'),/фазе/);assert.deepEqual(race,copy);
  assert.match(driftReason({id:'attack'},sector(0),race.player,cfg),/не используется/);
- assert.throws(()=>simulateDrift(cfg,{...race.player,focus:0},sector(0),card('drift-clutch')),/концентрации/);
+ assert.throws(()=>simulateDrift(cfg,{...race.player,focus:0},sector(0),card('drift-clutch')),/фокуса/);
 });
 test('holding and transitions require a real drift; stabilization remains available at zero focus',()=>{
  const state=freshDriftState(cfg);

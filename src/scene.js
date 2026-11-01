@@ -1,3 +1,4 @@
+import {translate} from './i18n.js';
 import {driftVisualYaw} from './drift-pose.js';
 import {trackGeometry} from './track-geometry.js';
 import {sectionCamera,sceneryClear,nextZoom,zoomAround,ZOOM_STEPS} from './scene-camera.js';
@@ -76,7 +77,7 @@ export class Scene {
     for(let offset=0;offset<3&&index+offset<this.event.sectors.length;offset++){
       const n=index+offset,start=this.checkpoints[n],end=this.checkpoints[n+1],points=Array.from({length:49},(_,j)=>this.project(...this.geometry.at(start+(end-start)*j/48))),color=SECTOR_COLORS[offset];
       this.path(c,points,color,Math.max(2/zoom,(this.previewSector===n?5:3)*this.scale));
-      for(const [f,label] of [[start,'ВХОД '+(n+1)],[end,'ВЫХОД '+(n+1)]]){const p=this.project(...this.geometry.at(f));c.strokeStyle=color;c.lineWidth=1.5/zoom;c.beginPath();c.arc(p[0],p[1],5/zoom,0,Math.PI*2);c.stroke();if(this.previewSector===n){c.font='bold '+10/zoom+'px monospace';c.fillStyle=color;c.fillText(label,p[0]+8/zoom,p[1]-10/zoom);}}
+      for(const [f,label] of [[start,'ВХОД '+(n+1)],[end,'ВЫХОД '+(n+1)]]){const p=this.project(...this.geometry.at(f));c.strokeStyle=color;c.lineWidth=1.5/zoom;c.beginPath();c.arc(p[0],p[1],5/zoom,0,Math.PI*2);c.stroke();if(this.previewSector===n){c.font='bold '+10/zoom+'px monospace';c.fillStyle=color;c.fillText(translate(label),p[0]+8/zoom,p[1]-10/zoom);}}
       const a=points[19],b=points[25],d=Math.atan2(b[1]-a[1],b[0]-a[0]),size=7/zoom;
       this.path(c,[[b[0]-Math.cos(d-.6)*size,b[1]-Math.sin(d-.6)*size],b,[b[0]-Math.cos(d+.6)*size,b[1]-Math.sin(d+.6)*size]],color,1.8/zoom);
       const p=points[24];c.font='bold '+11/zoom+'px monospace';c.fillStyle=color;c.fillText(String(n+1),p[0]+9/zoom,p[1]-7/zoom);
@@ -255,7 +256,7 @@ export class Scene {
         c.fillStyle='#b1c3ba50';for(let i=0;i<3;i++){c.globalAlpha=(1-i*.25)*effects.smoke;c.beginPath();c.ellipse((-30-i*12)*s,Math.sin((effects.fraction||0)*5+i)*4*s,(10+i*3)*s,(5+i*2)*s,0,0,7);c.fill();}c.globalAlpha=1;
       }
     }
-    c.restore();c.save();c.font='bold '+(12/(this.cameraState?.zoom||1))+'px monospace';c.fillStyle=ghost?'#b0e1d5':label.startsWith('YOU')?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(label,point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s-(ghost?35:24)*s);c.restore();
+    c.restore();c.save();c.font='bold '+(12/(this.cameraState?.zoom||1))+'px monospace';c.fillStyle=ghost?'#b0e1d5':label.startsWith('YOU')?'#ffe0b0':'#cab1e8';c.textAlign='center';c.fillText(translate(label),point[0]-Math.sin(a)*lane*s,point[1]+Math.cos(a)*lane*s-(ghost?35:24)*s);c.restore();
   }
   draw() {
     const c=this.ctx,w=this.w,h=this.h;

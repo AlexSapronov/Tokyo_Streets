@@ -48,7 +48,7 @@ export function mountWorkbench(root,view,career,race){
   const installation=root.ownerDocument.createElement('div'),settings=root.ownerDocument.createElement('div');
   installation.className=settings.className='tuning-subspace';let activate;
   tabs(installation,'tuning-installation',[...pick('.tuning-group').map(n=>({id:n.id,label:n.querySelector('h3').textContent,nodes:[n]})),{id:'engines',label:'Моторы / свапы',nodes:pick('.powertrain-panel')},{id:'maintenance',label:'Сервис узлов',nodes:pick('.maintenance-panel')}],{paneView:'tuning',label:'Категории деталей',onSelect:()=>activate?.('installation')});
-  tabs(settings,'tuning-settings',[{id:'setup',label:'Ручная настройка',nodes:pick('.setup-panel')},{id:'workshop',label:'Настроить под режим',nodes:pick('.workshop-panel')},{id:'presets',label:'Мои пресеты',nodes:pick('.preset-panel')},{id:'bench',label:'Испытательный стенд',nodes:pick('.bench-panel')}],{paneView:'tuning',label:'Виды настройки',onSelect:()=>activate?.('settings')});
+  tabs(settings,'tuning-settings',[{id:'setup',label:'Ручная настройка',nodes:pick('.setup-panel')},{id:'workshop',label:'Платная настройка',nodes:pick('.workshop-panel')},{id:'presets',label:'Мои сборки',nodes:pick('.preset-panel')},{id:'bench',label:'Испытательный стенд',nodes:pick('.bench-panel')}],{paneView:'tuning',label:'Виды настройки',onSelect:()=>activate?.('settings')});
   activate=tabs(root,view,[{id:'installation',label:'Детали и установка',nodes:[installation]},{id:'settings',label:'Настройка машины',nodes:[settings]}],{label:'Разделы тюнинга'});
  }else if(view==='seasons'){
   const attempt=career.championships.active?.attempt;if(attempt&&attempt!==lastSeasonAttempt)selectedTabs.set(view,'current');lastSeasonAttempt=attempt;

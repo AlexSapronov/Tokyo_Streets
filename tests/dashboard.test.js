@@ -98,7 +98,7 @@ test('telemetry validator requires finite bounded values and integral gears',()=
 });
 test('focus has a visible full-width meter with accessible value and escalating low-focus messages',()=>{
  const root=fakeRoot(),update=bindDashboard(root,cfg),base=readTelemetry(cfg,createRace(cfg).player,'duel');
- for(const [focus,width,text] of [[100,'100%','Стабильное'],[60,'60%','Повышенный'],[30,'30%','НИЗКИЙ'],[10,'10%','КРИТИЧНО']]){
+ for(const [focus,width,text] of [[100,'100%','Малый разброс'],[60,'60%','Повышенный'],[30,'30%','НИЗКИЙ'],[10,'10%','КРИТИЧНО']]){
   update({...base,focus});assert.equal(root.values.focusFill.style.width,width);assert.equal(root.values.focusTrack.attributes['aria-valuenow'],focus);assert.ok(root.values.focusStatus.textContent.includes(text));
   assert.equal(root.values.focusTrack.classes.has('low'),focus<40);assert.equal(root.values.focusTrack.classes.has('critical'),focus<20);
  }
