@@ -48,7 +48,7 @@ export function resetPlayer(career,locked=false){const next=editable(career,lock
 export function settlePlayer(career,race,outcome){
  const next=structuredClone(career);next.player=normalizePlayer(next.player,next);const before=next.player.xp,level=playerLevel(before);
  const eligible=race.finished&&!race.manager&&!race.player.dnf&&!race.player.drag?.falseStart;
- const event=getEvent(race.eventId),complete=race.history.length===event.sectors.length;
+ const event=getEvent(race.eventId,race.routeVersion),complete=race.history.length===event.sectors.length;
  let earned=0;
  if(eligible){earned=Math.round(Math.min(60,20+eventLength(event)/1000*5)*race.history.length/event.sectors.length)+(outcome.won||outcome.medal?10:0);
   if(complete&&!next.player.seenEvents.includes(event.id)){earned+=20;next.player.seenEvents.push(event.id);}

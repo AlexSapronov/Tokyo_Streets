@@ -1,3 +1,4 @@
+import {segmentRoad} from './road-segments.js';
 export const CARS = [
  {id:'ae86',brand:'TOYOTA',name:'Sprinter Trueno AE86',year:1986,tag:'Лёгкий FR',drive:'FR',power:130,mass:940,grip:1.02,brakes:1.0,cooling:1.0,color:'#eee8d9',price:18000,engine:'4A-GE · 1.6 L · NA',description:'Лёгкий кузов и точная смена направления. Прощает меньше ошибок на мокром выходе, зато бережёт тормоза.'},
  {id:'chaser',brand:'TOYOTA',name:'Chaser Tourer V JZX100',year:1996,tag:'Мощный FR',drive:'FR',power:280,mass:1470,grip:1.0,brakes:.96,cooling:.9,color:'#944fff',price:45000,engine:'1JZ-GTE · 2.5 L · TURBO',description:'Тяга турбошестёрки решает на прямых. Масса нагружает тормоза, а мокрые шпильки требуют терпения.'},
@@ -229,15 +230,18 @@ for(const base of EVENTS.filter(e=>e.mode==='duel')){
  sectors:Array.from({length:8},(_,i)=>{const phase=['init','hold','transition','exit'][i%4],source=corners[i%corners.length],radius=Math.max(30,Math.min(85,source.radius)),direction=[1,1,-1,-1,-1,-1,1,1][i];return {name:'Зона '+(i+1)+' · '+source.name,type:'corner',label:{init:'Инициация',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],phase,clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона',length:total/8,radius,slope:source.slope,wet:source.wet,direction,targetAngle:phase==='exit'?20:phase==='hold'?50:42,targetSpeed:Math.round(Math.max(56,Math.min(84,Math.sqrt(radius*9.81)*3.6*.9))) };})});
 }
 export const DISCIPLINES=[{id:'duel',name:'Тогу · дуэль'},{id:'drift',name:'Дрифт'},{id:'drag',name:'Дрэг'},{id:'timeattack',name:'Time Attack'}];
-export function getEvent(id = 'haruna') {
-  return EVENTS.find(event => event.id === id) || EVENTS[0];
+const roadLayouts=new Map();
+export function getEvent(id = 'haruna',routeVersion=1) {
+ const event=EVENTS.find(event=>event.id===id)||EVENTS[0];
+ if(routeVersion!==2||!['duel','timeattack'].includes(event.mode))return event;
+ if(!roadLayouts.has(event.id))roadLayouts.set(event.id,segmentRoad(event));return roadLayouts.get(event.id);
 }
-export function sectorAt(index, weather = 'mixed', eventId = 'haruna') {
-  const original = getEvent(eventId).sectors[index];
+export function sectorAt(index, weather = 'mixed', eventId = 'haruna',routeVersion=1) {
+  const original = getEvent(eventId,routeVersion).sectors[index];
   if (!original) throw new Error('Сектор отсутствует');
   const sector = {...original};
   sector.wet = weather === 'dry' ? 0 : weather === 'rain' ? Math.min(1, sector.wet + .55) : sector.wet;
-  sector.mode = getEvent(eventId).mode;
+  sector.mode = getEvent(eventId,routeVersion).mode;
   return sector;
 }
 export function eventLength(event) {

@@ -23,12 +23,12 @@ export function repetitionEffect(state,card) {
 export function rememberAction(state,card) {
   return [...(state.recentActions||[]),card.id].slice(-HABIT_WINDOW);
 }
-export function focusCost(config,state,card) {
+export function focusCost(config,state,card,sector=null) {
   const effect=repetitionEffect(state,card);
   const driver=config.pilot.id==='ren'&&card.focus>0?.88:1;
   const equipment=(config.parts.includes('weight')?1.1:1)*(config.car.focusFactor||1);
   const training=card.focus>0?(1-(config.training?.endurance||0)*.05)*(card.gap?1-(config.training?.racecraft||0)*.08:1):1;
-  return card.focus*driver*equipment*training*(card.focus>0?effect.focusFactor*strainEffect(state,card).focusFactor:effect.recoveryFactor);
+  return (sector?.decisionScale||1)*card.focus*driver*equipment*training*(card.focus>0?effect.focusFactor*strainEffect(state,card).focusFactor:effect.recoveryFactor);
 }
 export function qualitativeForecast(config,state,sector,card,prediction) {
   const effect=repetitionEffect(state,card);

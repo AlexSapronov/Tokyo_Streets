@@ -24,7 +24,8 @@ export function trackGeometry(event){
  if(event.mode==='drift'&&event.streetVenue)return trackGeometry(getEvent(event.venueId));
  if(cache.has(event))return cache.get(event);
  let at,pieces=[];
- if(!['duel','timeattack'].includes(event.mode))at=legacy(event.anchors);
+ if(event.visualSegments){pieces=event.visualSegments.map(p=>({...p,at:sampler(p.points)}));at=f=>{const p=pieces.find(p=>clamp(f)<p.end-1e-12)||pieces.at(-1);return p.at((clamp(f)-p.start)/(p.end-p.start));};}
+ else if(!['duel','timeattack'].includes(event.mode))at=legacy(event.anchors);
  else{
   const anchors=event.anchors,bounds=SECTOR_ANCHORS[event.id]||event.sectors.map((_,i)=>i*(anchors.length-1)/event.sectors.length).concat(anchors.length-1);
   const anchor=i=>{const lo=Math.floor(i);return lerp(anchors[lo],anchors[Math.min(anchors.length-1,lo+1)],i-lo);};

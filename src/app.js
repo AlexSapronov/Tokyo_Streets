@@ -1,3 +1,5 @@
+import {createLesson,resolveLesson,settleLesson,schoolCards} from './driving-school.js';
+import {schoolHomeHTML,schoolCoachHTML,schoolReportHTML} from './driving-school-view.js';
 import {ZOOM_STEPS} from './scene-camera.js';
 import {sectorFeedbackHTML,sectorDetailsHTML} from './sector-feedback.js';
 import {savesHTML,beginnerHTML,welcomeHTML} from './release-view.js';
@@ -40,7 +42,7 @@ import {qualitativeForecast,focusCost} from './tactics.js';
 import {ALL_DRAG_CARDS as DRAG_CARDS} from './drag-data.js';
 import {selectCar,togglePart,serviceCar,serviceCost,tradeInQuote,tradeInCar,recoveryService,setCarSetup,repairComponent,recoveryNeeded} from './garage.js';
 import {CARS, PARTS, TUNING_GROUPS, DISCIPLINES, EVENTS, CARDS, getEvent, sectorAt, eventLength} from './data.js';
-import {configuration, freeRivalOptions,performanceProfile,nominalConfiguration,availableCards, disabledReason, simulate, createRace, resolveSector, medalTargets, raceOutcome} from './engine.js';
+import {configuration, modernRoadRace,freeRivalOptions,performanceProfile,nominalConfiguration,availableCards, disabledReason, simulate, createRace, resolveSector, medalTargets, raceOutcome} from './engine.js';
 import {readSlot,storeCareer,newCareer,activeSlot,slotKey,slotList,renameSlot,activateSlot,writeSlot,restoreSlot,exportCareer,importCareer,SAVE_FILE_LIMIT} from './storage.js';
 import {awardRace, bestFor, unlocked, unlockText, cumulativeTimes, raceRecord} from './progress.js';
 import {garageArtworkHTML,garageCarsByPrice} from './garage-art.js';
@@ -55,7 +57,7 @@ const sound=new RaceAudio(storage);
 let sessionSlot=activeSlot(storage),initialSave=readSlot(storage,sessionSlot),expectedRaw=initialSave.raw;
 let career=initialSave.career,saveState=initialSave.status==='error'?'error':'ok',unreadableSlot=initialSave.status==='error';
 const debugEnabled=new URLSearchParams(window.location?.search||'').get('debug')==='1';
-let raceStart=null;
+let raceStart=null,schoolIntent=null;
 // A single playable driver for now; preserve legacy pilots and team contracts in the save for future updates.
 career.pilot='ren';career.control='personal';
 if (!unlocked(getEvent(career.eventId),career)) career.eventId = 'haruna';
@@ -73,15 +75,17 @@ const score=value=>(value||0).toFixed(1);
 const signed = value => (value >= 0 ? '+' : '−') + Math.abs(value).toFixed(2);
 const weatherName = value => ({dry:'Сухо',mixed:'Переменная влажность',rain:'Дождь'})[value];
 const car = () => CARS.find(car => car.id === career.car);
-function config() { return {...playerConfiguration(configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]),career.player),...(!seasonIntent?{rivalLevel:career.rivalLevel}:{})}; }
+function config() { return {routeVersion:2,...playerConfiguration(configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]),career.player),...(!seasonIntent?{rivalLevel:career.rivalLevel}:{})}; }
 function previewRace() {
   if(replayRecord){
     const saved=withTraining(configuration(replayRecord.carId,replayRecord.pilotId,replayRecord.parts,replayRecord.condition,replayRecord.setup,replayRecord.engineId,replayRecord.wear),replayRecord.training||{});
+    if(replayRecord.routeVersion)saved.routeVersion=replayRecord.routeVersion;
     saved.pilot={...saved.pilot,focus:saved.pilot.focus+(replayRecord.manager?.level||0)};
     return createRace(saved,replayRecord.weather,replayRecord.eventId);
   }
   if(race)return race;
-  if(challengeIntent)return previewChallenge(config(),challengeIntent);
+  if(schoolIntent!==null)return createLesson(career,schoolIntent);
+  if(challengeIntent)return modernRoadRace(previewChallenge(config(),challengeIntent));
   const preview=createRace(config(),career.weather,career.eventId,null,null,seasonIntent?null:career.rivalLevel);
   const opponent=seasonIntent?previewCupOpponent(career):null;
   if(opponent){preview.rival=opponent.rival;preview.rivalName=opponent.name;preview.opponent=createRace(opponent.rival,career.weather,career.eventId).player;if(opponent.dns)preview.opponent.dnf={reason:'Технический недопуск',damage:0,speed:0};}
@@ -113,15 +117,16 @@ function render() {
   document.querySelectorAll('[data-view]').forEach(button=>{
     button.classList.toggle('active',button.dataset.view===view);button.disabled=busy;
   });
-  if(view==='garage')renderGarage();else if(view==='tuning')renderTuning();else if(view==='seasons')renderSeasons();else if(view==='world'||view==='player')renderWorld();else renderRace();
-  if(view==='player')selectWorkspaceTab('world','player');
-  mountWorkbench(app,view==='player'?'world':view,career,race);
-  if(!replayRecord)app.querySelector('.context-bar').insertAdjacentHTML('afterend',journeyFocusHTML(career,busy||!!race&&!race.finished));
-  document.querySelectorAll('[data-journey-event]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;career.eventId=button.dataset.journeyEvent;race=null;seasonIntent=false;challengeIntent=null;view='race';save();render();});
+  delete app.dataset.lesson;
+  if(view==='player')renderPlayer();else if(view==='garage')renderGarage();else if(view==='tuning')renderTuning();else if(view==='seasons')renderSeasons();else if(view==='world')renderWorld();else renderRace();
+  mountWorkbench(app,view,career,race);
+  if(!replayRecord&&schoolIntent===null&&!race?.school)app.querySelector('.context-bar').insertAdjacentHTML('afterend',journeyFocusHTML(career,busy||!!race&&!race.finished));
+  document.querySelectorAll('[data-journey-event]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;career.eventId=button.dataset.journeyEvent;schoolIntent=null;race=null;seasonIntent=false;challengeIntent=null;view='race';save();render();});
   document.querySelectorAll('[data-journey-view]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;race=null;view=button.dataset.journeyView;if(view==='world')selectWorkspaceTab('world','events');render();});
   if(debugEnabled)app.insertAdjacentHTML('beforeend',`<details class="debug-drawer"><summary>Отладка</summary><aside class="debug-tools"><strong>DEBUG</strong><button id="debug-unlock" class="secondary" ${busy?'disabled':''}>Открыть всё</button><button id="debug-reset" class="secondary" ${busy?'disabled':''}>Сбросить всё</button><span>Локальная карьера в этом браузере</span></aside></details>`);
   if($('#debug-unlock'))$('#debug-unlock').onclick=()=>{stopDebugRun();career=unlockEverything(career);save();render();toast('Открыты все события, машины и детали. На счету ¥1 000 000.');};
   if($('#debug-reset'))$('#debug-reset').onclick=()=>openModal('<h2>Сбросить всё?</h2><p>Будут удалены деньги, покупки, история и повторы. Начнётся новая карьера с ¥18 000.</p><div class="inline-actions"><button class="primary" id="debug-reset-confirm">Сбросить всё</button><button class="secondary" data-close>Отмена</button></div>',()=>{$('#debug-reset-confirm').onclick=()=>{stopDebugRun();career=newCareer();save();$('#modal').close();render();};});
+  document.querySelectorAll('[data-school-start]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;schoolIntent=Number(button.dataset.schoolStart);race=null;seasonIntent=false;challengeIntent=null;view='race';render();});
   localize(document);
   fitWorkspace(app);
   updateWallet();updateSaveStatus();updateRaceFocus();
@@ -132,9 +137,9 @@ function updateRaceFocus(){
  const button=$('#race-menu-toggle');if(button)button.textContent=focusRace?'Показать меню':'Скрыть меню';
  fitWorkspace(app);
 }
-function stopDebugRun(){scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';garagePreview=null;seriesDraft=defaultSeries();seriesEditingId=null;seasonIntent=false;challengeIntent=null;selectedLine='neutral';}
+function stopDebugRun(){schoolIntent=null;scene?.destroy();scene=null;race=null;replayRecord=null;busy=false;paused=false;selected='balanced';filter='Все';garageDrive='all';garagePreview=null;seriesDraft=defaultSeries();seriesEditingId=null;seasonIntent=false;challengeIntent=null;selectedLine='neutral';}
 function sectorDescription(s) {
-  return `${s.label}${s.mode==='drift'?' · '+s.clip+' · угол '+s.targetAngle+'° · '+s.targetSpeed+' км/ч':''} · ${s.length} м${s.radius?' · радиус '+s.radius+' м':''} · уклон ${Math.round(s.slope*100)}% · влажность ${Math.round(s.wet*100)}%`;
+  return `${s.label}${s.mode==='drift'?' · '+s.clip+' · угол '+s.targetAngle+'° · '+s.targetSpeed+' км/ч':''} · ${Math.round(s.length)} м${s.radius?' · радиус '+s.radius+' м':''} · уклон ${Math.round(s.slope*100)}% · влажность ${Math.round(s.wet*100)}%`;
 }
 function medalHTML(eventId,weather,r=previewRace()) {
   const targets=r.targets||medalTargets(eventId,weather,r.config);
@@ -143,42 +148,45 @@ function medalHTML(eventId,weather,r=previewRace()) {
     <span>● Серебро <strong>${time(targets.silver)}</strong></span><span>● Бронза <strong>${time(targets.bronze)}</strong></span></div>`;
 }
 function duelOptions(r){
- if(!['duel','drag'].includes(r.mode)||race||replayRecord||seasonIntent||challengeIntent||r.season||r.challenge)return '';
+ if(r.school||!['duel','drag'].includes(r.mode)||race||replayRecord||seasonIntent||challengeIntent||r.season||r.challenge)return '';
  return `<fieldset class="rival-options"><legend>Выбор соперника</legend>${freeRivalOptions(r.config,r.eventId,r.weather).map(o=>`<button class="secondary ${career.rivalLevel===o.id?'selected':''}" data-rival-level="${o.id}" aria-pressed="${career.rivalLevel===o.id}" ${race?'disabled':''}><strong>${o.name} · ${o.rival.car.name}</strong><span>${o.profile.power} л.с. / ${Math.round(o.profile.mass)} кг · рейтинг ${Math.round(o.profile.rating)} / твой ${Math.round(o.playerRating)}${o.prepared?' · подготовленный автомобиль':''} · приз ×${o.reward}</span></button>`).join('')}<p class="micro">${r.mode==='duel'?'Учебный соперник едет по базовой линии и использует простой план. «На равных» и «Сильнее» планируют на три сектора и подбирают траектории.':'Сила машины соперника зависит от мощности, массы и сцепления. Приёмы дрэга используют прежнее планирование.'} Рекорды разделены по уровню соперника.</p></fieldset>`;
 }
 function renderRace() {
-  const r=previewRace(),event=getEvent(r.eventId),count=event.sectors.length;
-  const offers=duelOptions(r),startReason=!seasonIntent&&!unlocked(getEvent(r.eventId),career)?unlockText(getEvent(r.eventId)):admissionReason(career,r.eventId);
-  const s=sectorAt(Math.min(r.index,count-1),r.weather,event.id),duel=['duel','drag'].includes(r.mode),isDrag=r.mode==='drag',isDrift=r.mode==='drift';
+  const r=previewRace(),event=getEvent(r.eventId,r.routeVersion),count=event.sectors.length;
+  const isSchool=!!r.school;
+  const offers=duelOptions(r),startReason=isSchool?'':!seasonIntent&&!unlocked(getEvent(r.eventId,r.routeVersion),career)?unlockText(getEvent(r.eventId,r.routeVersion)):admissionReason(career,r.eventId);
+  const s=sectorAt(Math.min(r.index,count-1),r.weather,event.id,r.routeVersion),duel=['duel','drag'].includes(r.mode),isDrag=r.mode==='drag',isDrift=r.mode==='drift';
   const gap=r.opponent.dnf?Infinity:r.player.time-r.opponent.time,ghost=ghostFor(r),isReplay=!!replayRecord;
   app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">JAPAN / ${event.region}</div>
       <h1>${isReplay?'Твой лучший заезд':event.title}</h1></div><div class="event-controls ${race||isReplay?'session-active':''}">
-      <label><span class="micro">ДИСЦИПЛИНА</span><select id="discipline-select" ${race||isReplay||seasonIntent||challengeIntent?'disabled':''}>${DISCIPLINES.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}</select></label><label><span class="micro">ТРАССА</span><select id="event-select" ${race||isReplay||seasonIntent||challengeIntent?'disabled':''}>
+      <label><span class="micro">ДИСЦИПЛИНА</span><select id="discipline-select" ${race||isReplay||seasonIntent||challengeIntent||isSchool?'disabled':''}>${DISCIPLINES.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}</select></label><label><span class="micro">ТРАССА</span><select id="event-select" ${race||isReplay||seasonIntent||challengeIntent||isSchool?'disabled':''}>
       ${EVENTS.filter(item=>item.mode===r.mode).map(item=>`<option value="${item.id}" ${!unlocked(item,career)?'disabled':''}>${item.title}${!unlocked(item,career)?' · '+unlockText(item):''}</option>`).join('')}</select></label>
-      <label><span class="micro">ПОКРЫТИЕ</span><select id="weather" ${race||isReplay||seasonIntent||challengeIntent?'disabled':''}><option value="mixed">☂ Переменная влажность</option><option value="dry">☾ Сухой асфальт</option><option value="rain">☂ Дождь</option></select></label></div>
+      <label><span class="micro">ПОКРЫТИЕ</span><select id="weather" ${race||isReplay||seasonIntent||challengeIntent||isSchool?'disabled':''}><option value="mixed">☂ Переменная влажность</option><option value="dry">☾ Сухой асфальт</option><option value="rain">☂ Дождь</option></select></label></div>
     ${race||isReplay?'<div class="session-context"><span>ЗА РУЛЁМ: ТЫ</span><strong>'+escapeHTML(event.title)+'</strong><span>'+weatherName(r.weather)+'</span></div>':''}</div>
-    ${!isReplay?beginnerHTML(career,race):''}<div class="race-layout"><section><div class="scene-wrap"><canvas id="scene" tabindex="0" aria-describedby="map-instructions" aria-label="Изометрическая трасса ${event.title}"></canvas>
+    ${isSchool?schoolCoachHTML(r):!isReplay?beginnerHTML(career,race):''}<div class="race-layout"><section><div class="scene-wrap"><canvas id="scene" tabindex="0" aria-describedby="map-instructions" aria-label="Изометрическая трасса ${event.title}"></canvas>
       <div class="scene-top"><div><div class="eyebrow">${event.japanese} · ${event.name.toUpperCase()}</div><h2>${event.title}</h2><span class="badge">${isDrift?'DRIFT / JUDGED RUN':isDrag?(event.id==='yokohama-mile'?'DRAG / STANDING MILE':event.longDrag?'DRAG / HALF MILE':'DRAG / QUARTER MILE'):duel?'TOUGE / DUEL':'OFFICIAL / TIME ATTACK'}</span></div>
       <div class="route-stats">${(eventLength(event)/1000).toFixed(2)} KM<br>${count} ${isDrift?'КЛИПОВ':isDrag?(count===4?'ФАЗЫ':'ФАЗ'):'СЕКТОРОВ'}<br>${event.theme==='circuit'?'18:20':'23:48'} / 12°C<br>ЗАКРЫТЫЙ МАРШРУТ</div></div>
       <div class="scene-caption"><div class="stamp" id="scene-status">${isReplay?'ПОВТОР РЕКОРДА':isDrag&&!race?count+(count===4?' ФАЗЫ':' ФАЗ')+' / ET + РЕАКЦИЯ':r.finished?(r.player.dnf?'СХОД / DNF':r.opponent.dnf?'ПОБЕДА · СОХОД СОПЕРНИКА':'ФИНИШ'):race?'СЕКТОР '+String(r.index+1).padStart(2,'0')+' · '+(s.type==='corner'?'ПОВОРОТ':'ПРЯМАЯ'):'ПЕРЕД СТАРТОМ'}</div>
       <h3 id="scene-sector">${r.finished?'Заезд окончен.':s.name}</h3>
       <p id="scene-description">${isReplay?'Сохранённые решения и время. Повтор не приносит наград.':race?sectorDescription(s):event.description}</p></div>
       <div id="scene-tactic" class="scene-tactic" aria-live="off"></div><div class="scene-tools"><button id="map-zoom-out" aria-label="Отдалить карту">−</button><output id="map-zoom" aria-label="Масштаб карты" aria-live="off">100%</output><button id="map-zoom-in" aria-label="Приблизить карту">+</button><button id="camera-toggle">Вся трасса</button><button id="camera-focus">К машине</button><button id="camera-follow" aria-pressed="${closeCamera}">${closeCamera?'Слежение: вкл':'Слежение: выкл'}</button><span id="map-instructions">Колёсико — масштаб · тянуть — сдвиг</span>${race&&!race.finished||isReplay?'<button id="race-menu-toggle">Показать меню</button>':''}<button id="sound-toggle" aria-pressed="${sound.enabled}">${sound.enabled?'♫ Звук: вкл':'♫ Звук: выкл'}</button><label class="sound-volume">Громкость<input id="sound-volume" type="range" min="0" max="0.6" step="0.05" value="${sound.volume}" aria-label="Громкость звука"></label><button id="pause" ${!isReplay?'disabled':''}>Ⅱ Пауза</button><button id="speed">${fast?'2×':'1×'} Скорость</button></div></div>
-      <div class="sector-strip">${event.sectors.map((sector,i)=>`<div class="sector-node ${i<r.index?'done':i===r.index?'current':''}" title="${sector.name} · ${sector.length} м">${String(i+1).padStart(2,'0')} ${sector.type==='corner'?'⌁':'—'}</div>`).join('')}</div>
-      <details class="route-brief"><summary>${isDrift?'Судейские клипы':isDrag?'Фазы дрэга':'Информация о трассе'} · ${count}</summary><div class="route-list">${event.sectors.map((_,i)=>{const sector=sectorAt(i,r.weather,event.id);return `<div class="${i===r.index?'current':''}"><span class="micro">${String(i+1).padStart(2,'0')}</span><strong>${sector.name}</strong><span>${sectorDescription(sector)}</span></div>`;}).join('')}</div></details></section>
+      <div class="sector-strip">${event.sectors.map((sector,i)=>`<div class="sector-node ${i<r.index?'done':i===r.index?'current':''}" title="${sector.name} · ${Math.round(sector.length)} м">${String(i+1).padStart(2,'0')} ${sector.type==='corner'?'⌁':'—'}</div>`).join('')}</div>
+      <details class="route-brief"><summary>${isDrift?'Судейские клипы':isDrag?'Фазы дрэга':'Информация о трассе'} · ${count}</summary><div class="route-list">${event.sectors.map((_,i)=>{const sector=sectorAt(i,r.weather,event.id,r.routeVersion);return `<div class="${i===r.index?'current':''}"><span class="micro">${String(i+1).padStart(2,'0')}</span><strong>${sector.name}</strong><span>${sectorDescription(sector)}</span></div>`;}).join('')}</div></details></section>
       <aside class="sidebar">${challengeIntent&&!race&&!isReplay?'<div class="notice">Вызов: '+getChallenge(challengeIntent).name+'<br>'+getChallenge(challengeIntent).tell+'<button id="challenge-cancel" class="secondary">К свободным заездам</button></div>':''}${seasonIntent&&career.championships.active?'<div class="notice">Этап кубка: '+escapeHTML(activeCup(career.championships.active).name)+'<button id="season-practice" class="secondary">Перейти к свободному заезду</button></div>':''}${offers}${activeSkillsHTML(r.config)}${dashboardHTML(r.config)}<div class="notice">Класс сборки: <strong>${raceClass(r.config).name}</strong><br>${!seasonIntent&&!unlocked(event,career)?'Доступ: '+unlockText(event):admissionReason(career,r.eventId)||'Машина допущена к старту'}<br>${routeMasteryHTML(career,event)}Выплаты за повторение: ${Math.round(payoutScale(career,r.eventId)*100)}%<br>Нагрузка атак: ${(r.player.strain||0).toFixed(1)} / 6</div>
       <div class="panel race-session"><div class="eyebrow">${isReplay?'ХРОНОМЕТР':duel?(r.rivalLevel==='easy'&&r.mode==='duel'?'УЧЕБНЫЙ СОПЕРНИК · БАЗОВАЯ ЛИНИЯ':'СОПЕРНИК / AI · ПЛАН НА 3 СЕКТОРА'):'ОДИНОЧНАЯ СЕССИЯ'}</div>
       ${duel&&!isReplay?`<div class="entry"><div class="car-swatch" style="--car:${r.rival.car.color}"></div><div><strong>${r.rival.car.name}</strong><span>${r.rivalName||r.rival.pilot.name} / ${r.rival.pilot.trait}</span></div></div>`:''}
       <div class="gap ${isDrag&&r.player.drag.falseStart?'negative':duel&&gap<=0?'positive':duel?'negative':''}" id="live-clock">${isReplay?time(r.player.time):isDrift?score(r.player.drift.score):!duel?time(r.player.time):isDrag&&r.player.drag.falseStart?'RED LIGHT':r.opponent.dnf?'СОПЕРНИК СОШЁЛ':signed(gap)}
       <small>${isReplay?'ПОВТОР БЕЗ НАГРАД':isDrift?'БАЛЛЫ ЗА СЕССИЮ / МАКС. 800':!duel?'ТВОЁ ВРЕМЯ':r.opponent.dnf?'ПОБЕДА · СОПЕРНИК СОШЁЛ':gap===0?'НА ОДНОЙ ЛИНИИ':gap<0?'ТЫ ВПЕРЕДИ / СЕК':'ТЫ ПОЗАДИ / СЕК'}</small></div>
       ${r.challenge?.target!==null&&r.challenge?.target!==undefined?'<p class="notice">Цель соперника: <strong>'+r.challenge.target+' баллов</strong></p>':''}${isDrift?driftMedals(event)+(isReplay?'<p class="micro">ИТОГ ЗАПИСАННОГО ЗАЕЗДА</p>':'')+driftMetrics(isReplay&&replayRecord.drift?replayRecord.drift:r.player.drift):!duel?medalHTML(event.id,r.weather):isDrag?dragMetrics(isReplay&&replayRecord.drag?replayRecord.drag:r.player.drag):''}
-      ${isReplay?'<button id="stop-replay" class="secondary wide">Завершить просмотр</button>':!race?'<button id="start" class="primary wide" '+(startReason?'disabled':'')+'>'+(seasonIntent?'На старт этапа ↗':'1. Начать заезд ↗')+'</button>'+(startReason?'<p class="negative">'+escapeHTML(startReason)+'</p>'+(unlocked(event,career)?'<button id="race-maintenance" class="secondary wide">Открыть сервис узлов</button>':'<button id="race-career" class="secondary wide">Выбрать доступный маршрут</button>'):''):r.finished?'<button id="show-report" class="primary wide">Посмотреть результат ↓</button>':'<button id="restart" class="secondary wide">Начать заново</button><button id="abandon" class="secondary wide">Покинуть заезд</button>'}</div>
+      ${isReplay?'<button id="stop-replay" class="secondary wide">Завершить просмотр</button>':!race?'<button id="start" class="primary wide" '+(startReason?'disabled':'')+'>'+(isSchool?'Начать учебный заезд ↗':seasonIntent?'На старт этапа ↗':'1. Начать заезд ↗')+'</button>'+(startReason?'<p class="negative">'+escapeHTML(startReason)+'</p>'+(unlocked(event,career)?'<button id="race-maintenance" class="secondary wide">Открыть сервис узлов</button>':'<button id="race-career" class="secondary wide">Выбрать доступный маршрут</button>'):''):r.finished?'<button id="show-report" class="primary wide">Посмотреть результат ↓</button>':'<button id="restart" class="secondary wide">Начать заново</button><button id="abandon" class="secondary wide">Покинуть заезд</button>'}</div>
       ${!isReplay?`<div class="panel ghost-panel"><div class="eyebrow">ЛИЧНЫЙ РЕКОРД / ЭТА СБОРКА</div><div class="record-time">${ghost?ghost.drift?score(ghost.drift.score)+' Б':time(ghost.time):'Рекорда пока нет.'}</div>
       <p>${ghost?'Та же трасса, погода, машина, детали и уровень соперника. Состояние в рекорде: '+ghost.condition.toFixed(0)+'%.':'Заверши заезд — появятся рекорд, призрак и повтор.'}</p>
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
-    ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>2. Выбери приём <span>ПОЛНЫЙ НАБОР · ${availableCards(r.config,r.mode,r.eventId).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PUBLIC ALPHA 0.25</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>2. Выбери приём <span>ПОЛНЫЙ НАБОР · ${schoolCards(r).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div><div id="forecast"></div></section>`}
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PUBLIC ALPHA 0.26</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+  if(isSchool)app.dataset.lesson=String(r.school.step);
+  if($('#school-leave'))$('#school-leave').onclick=()=>{schoolIntent=null;race=null;render();};
   $('.sidebar')?.prepend($('.race-session'));
   document.querySelectorAll('[data-rival-level]').forEach(button=>button.onclick=()=>{if(race||replayRecord||seasonIntent)return;career.rivalLevel=button.dataset.rivalLevel;save();render();});
   $('#discipline-select').value=r.mode;$('#discipline-select').onchange=e=>{const routes=EVENTS.filter(item=>item.mode===e.target.value);const next=routes.find(item=>unlocked(item,career))||routes[0];career.eventId=next.id;race=null;save();render();};
@@ -224,7 +232,7 @@ function renderRace() {
       if(isDrift){const pose=driftFrame(replayRecord,elapsed);$('#live-clock').innerHTML=score(pose.score)+'<small>ПОВТОР · БАЛЛЫ ЗА ЗАВЕРШЁННЫЕ КЛИПЫ</small>';}
       $('#scene-sector').textContent=event.sectors[index].name;
       const action=[...CARDS,...DRAG_CARDS,...DRIFT_CARDS,...SKILL_CARDS].find(card=>card.id===replayRecord.actions[index]);
-      $('#scene-description').textContent=action.name+(replayRecord.lines?' / '+lineName(replayRecord.lines[index]):'')+' · '+sectorDescription(sectorAt(index,r.weather,event.id))+(replayRecord.manager?' · '+orderName(replayRecord.manager.log[index].effective):'')+(!replayRecord.telemetry?' · телеметрия старого повтора недоступна':'');
+      $('#scene-description').textContent=action.name+(replayRecord.lines?' / '+lineName(replayRecord.lines[index]):'')+' · '+sectorDescription(sectorAt(index,r.weather,event.id,r.routeVersion))+(replayRecord.manager?' · '+orderName(replayRecord.manager.log[index].effective):'')+(!replayRecord.telemetry?' · телеметрия старого повтора недоступна':'');
       document.querySelectorAll('.sector-node').forEach((node,i)=>{node.classList.toggle('current',i===index);node.classList.toggle('done',i<index);});
     };
     scene.onComplete=()=>{stopReplay();toast('Повтор завершён. Время и награды карьеры не изменились.');};
@@ -237,12 +245,12 @@ function renderRace() {
   }
 }
 function renderCards() {
-  const r=previewRace(),sector=sectorAt(r.index,r.weather,r.eventId),gap=r.opponent.dnf?Infinity:r.player.time-r.opponent.time;
+  const r=previewRace(),sector=sectorAt(r.index,r.weather,r.eventId,r.routeVersion),gap=r.opponent.dnf?Infinity:r.player.time-r.opponent.time;
   if(lineReason(selectedLine,sector))selectedLine='neutral';
   if(scene)scene.previewLine=selectedLine;
   $('#racing-plan').innerHTML=racingLinesHTML(r,selectedLine,busy);
   document.querySelectorAll('[data-line]').forEach(button=>button.onclick=()=>{if(busy)return;selectedLine=button.dataset.line;renderCards();localize(document);});
-  const cards=availableCards(r.config,r.mode,r.eventId),categories=['Все',...new Set(cards.map(card=>card.category))];
+  const cards=schoolCards(r),categories=['Все',...new Set(cards.map(card=>card.category))];
   if(!categories.includes(filter))filter='Все';
   $('#filters').innerHTML=categories.map(category=>`<button class="filter ${filter===category?'active':''}" data-filter="${category}">${category}</button>`).join('');
   $('#filters').querySelectorAll('button').forEach(button=>button.onclick=()=>{if(busy)return;filter=button.dataset.filter;renderCards();});
@@ -250,10 +258,10 @@ function renderCards() {
   const cardScroll=$('#cards').scrollTop;
   $('#cards').innerHTML=cards.filter(card=>filter==='Все'||filter===card.category).map(card=>{
     const disabled=disabledReason(card,sector,r.player,r.config,gap),reason=disabled==='Нужен поворот'?'Сейчас прямая · нужен сектор-поворот':disabled;
-    const cost=focusCost(r.config,r.player,card);
+    const cost=focusCost(r.config,r.player,card,sector);
     return `<button class="card ${selected===card.id?'selected':''}" data-card="${card.id}" title="${escapeHTML(card.desc+(reason?' · '+reason:''))}" ${reason||busy?'disabled':''} aria-pressed="${selected===card.id}">
       <div class="card-top"><span class="card-icon">${card.icon}</span><span class="card-type">${card.category}</span></div><strong>${card.name}</strong><span class="en">${card.en}</span><p>${card.desc}</p>
-      <div class="card-cost"><span>${cost>0?'−'+Math.ceil(cost):'+'+Math.floor(Math.abs(cost))} ФОКУС</span><span>${card.heat>0?'+':''}${card.heat}°C</span></div>${reason?`<span class="reason">${reason}</span>`:''}</button>`;
+      <div class="card-cost"><span>${cost>0?'−'+Math.ceil(cost):'+'+Math.floor(Math.abs(cost))} ФОКУС</span><span>${isFinite(card.heat)?'Тепловая нагрузка '+(card.heat>0?'+':'')+card.heat:''}</span></div>${reason?`<span class="reason">${reason}</span>`:''}</button>`;
   }).join('');
   $('#cards').scrollTop=cardScroll;
   $('#cards').querySelectorAll('button').forEach(button=>button.onclick=()=>{if(busy)return;selected=button.dataset.card;renderCards();});
@@ -276,12 +284,13 @@ function setBusy(value) {
 }
 function startRace() {
   if(sound.enabled)void sound.unlock();
-  if(!seasonIntent&&!unlocked(getEvent(career.eventId),career))return;
+  if(schoolIntent===null&&!seasonIntent&&!unlocked(getEvent(career.eventId),career))return;
   const runId=globalThis.crypto?.randomUUID?.()||Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
   try{
-    const blocked=admissionReason(career,career.eventId);if(blocked)throw new Error(blocked);
-    if(challengeIntent){const start=bookChallenge(career,challengeIntent,runId);career=start.career;race=start.race;save();}
-    else if(seasonIntent){const start=bookCupRace(career,runId);career=start.career;race=start.race;seasonIntent=false;save();}
+    const blocked=schoolIntent===null?admissionReason(career,career.eventId):'';if(blocked)throw new Error(blocked);
+    if(schoolIntent!==null){race=createLesson(career,schoolIntent,runId);}
+    else if(challengeIntent){const start=bookChallenge(career,challengeIntent,runId);career=start.career;race=modernRoadRace(start.race);save();}
+    else if(seasonIntent){const start=bookCupRace(career,runId);career=start.career;race=modernRoadRace(start.race);seasonIntent=false;save();}
     else{
       const nextRace=createRace(config(),career.weather,career.eventId,runId,null,career.rivalLevel);
       race=nextRace;save();
@@ -296,7 +305,7 @@ function execute() {
   if(sound.enabled)void sound.unlock();
   if(!race||busy||race.finished)return;
   try {
-    const next=resolveSector(race,selected,selectedLine);
+    const next=resolveLesson(race,selected,selectedLine);
     setBusy(true);paused=false;$('#pause').disabled=false;
     scene.animateSector(next,race.ghost,fast?900:1800);
     race=next;$('#execute').textContent='Исполнение…';
@@ -309,7 +318,7 @@ function finishAnimation() {
   if(['drag','drift'].includes(race.mode))filter='Все';
   if(race.finished){
     const before=EVENTS.filter(event=>unlocked(event,career)).map(event=>event.id);
-    const award=awardRace(career,race);career=award.career;race=award.race;save();
+    const award=race.school?settleLesson(career,race):awardRace(career,race);career=award.career;race=award.race;save();
     const opened=EVENTS.filter(event=>unlocked(event,career)&&!before.includes(event.id));
     if(opened.length)toast('Открыто: '+opened.map(event=>event.title).join(', '));
   }
@@ -336,8 +345,9 @@ function damageHTML(r){
   return r.player.dnf?`<p class="negative"><strong>ВЫЛЕТ С ТРАССЫ · DNF</strong><br>Заезд остановлен. Повреждения: −${r.player.dnf.damage} п.п. состояния, с нижним пределом 35%. Состояние после заезда: ${Math.round(career.condition[r.config.car.id])}%. Награды и рекорда нет; требуется сервис.</p>`:r.opponent.dnf?'<p class="negative">Соперник сошёл после вылета с трассы.</p>':'';
 }
 function renderReport() {
+  if(race.school){renderSchoolReport();return;}
   if(race.mode==='drift'){renderDriftReport();return;}
-  const event=getEvent(race.eventId),outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
+  const event=getEvent(race.eventId,race.routeVersion),outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
   const previous=ghost?cumulativeTimes(ghost.sectorTimes):null;
   let elapsed=0;
   $('#report').innerHTML=`<section class="report">${playerReportHTML(race.playerReport)}${challengeReportHTML(race.challengeReport)}${seasonReportHTML(race.seasonReport)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ ЛИЧНЫЙ РЕКОРД':'РЕЗУЛЬТАТ'}</div>
@@ -356,14 +366,14 @@ function renderReport() {
   bindReportActions();
 }
 function bindReportActions(){
-  if($('#report-player'))$('#report-player').onclick=()=>{race=null;view='world';selectWorkspaceTab('world','player');render();};
+  if($('#report-player'))$('#report-player').onclick=()=>{race=null;view='player';selectWorkspaceTab('player','skills');render();};
   if($('#return-rivals'))$('#return-rivals').onclick=()=>{race=null;challengeIntent=null;view='world';selectWorkspaceTab('world','rivals');render();};
   if($('#season-return'))$('#season-return').onclick=()=>{race=null;view='seasons';render();};
   $('#retry').textContent=race.season||race.challenge?'Свободный заезд на этой трассе ↗':'Начать следующий заезд ↗';
   $('#retry').onclick=()=>{if(busy)return;race=null;seasonIntent=false;challengeIntent=null;startRace();};
   $('#report-maintenance').onclick=()=>{race=null;selectWorkspaceTab('tuning','maintenance');view='tuning';render();};
   $('#report-garage').onclick=()=>{race=null;view='garage';render();};
-  const shortRun=race.history.length<getEvent(race.eventId).sectors.length;
+  const shortRun=race.history.length<getEvent(race.eventId,race.routeVersion).sectors.length;
   $('#replay-run').disabled=!!race.player.dnf||shortRun;
   if(race.player.dnf||shortRun)$('#replay-run').textContent=shortRun?'Повтор досрочного финиша недоступен':'Повтор схода недоступен';
   $('#replay-run').onclick=()=>playReplay(raceRecord(race));
@@ -440,6 +450,19 @@ function routeMap(event) {
   const points=event.anchors.map(([x,y])=>[35+(x-minX)/width*200,20+(y-minY)/height*110].join(',')).join(' ');
   return `<svg viewBox="0 0 270 150" aria-hidden="true"><polyline points="${points}" stroke="#657a6a" stroke-width="11" fill="none" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${points}" stroke="#ffab78" stroke-width="2" fill="none" stroke-dasharray="3 5"/></svg>`;
 }
+function renderPlayer(){
+ const locked=!!race&&!race.finished;app.innerHTML='<div class="page-heading"><h1>Игрок · обучение и специализации</h1></div>'+schoolHomeHTML(career,locked)+playerHTML(career,locked);
+ document.querySelectorAll('[data-player-train]').forEach(button=>button.onclick=()=>playerAction(()=>trainPlayer(career,button.dataset.playerTrain,locked)));
+ document.querySelectorAll('[data-player-active]').forEach(button=>button.onclick=()=>playerAction(()=>togglePlayerSkill(career,button.dataset.playerActive,locked)));
+ $('#player-reset').onclick=()=>playerAction(()=>resetPlayer(career,locked));
+}
+function renderSchoolReport(){
+ $('#report').innerHTML=schoolReportHTML(race,career.school);
+ $('#school-retry').onclick=()=>{schoolIntent=race.school.step;race=null;startRace();};
+ if($('#school-next'))$('#school-next').onclick=()=>{schoolIntent=career.school.step;race=null;render();};
+ $('#school-home').onclick=()=>{race=null;schoolIntent=null;view='player';selectWorkspaceTab('player','school');render();};
+ $('#school-free').onclick=()=>{race=null;schoolIntent=null;render();};
+}
 function renderWorld() {
   const currentBest=bestFor(career,config(),career.eventId,career.weather);
   app.innerHTML=`<div class="page-heading"><div><div class="eyebrow">CLUB SEASON / 次の一歩</div><h1>Две сцены. Одно имя.</h1></div><label>Дисциплина <select id="world-discipline" ${race&&!race.finished?'disabled':''}>${DISCIPLINES.map(d=>`<option value="${d.id}" ${d.id===getEvent(career.eventId).mode?'selected':''}>${d.name}</option>`).join('')}</select></label></div>
@@ -447,8 +470,8 @@ function renderWorld() {
     <div class="panel"><div class="eyebrow">Official Reputation</div><div class="big-number">${career.official}</div><span class="micro">КЛУБНАЯ СЕССИЯ В ЦУКУБЕ</span></div>
     <div class="panel"><div class="eyebrow">Победы в дуэлях / Заезды</div><div class="big-number">${career.wins}<span style="font-size:20px;color:var(--muted)"> / ${career.races}</span></div><span class="micro">ВСЕ ЗАВЕРШЁННЫЕ СЕССИИ</span></div>
     <div class="panel"><div class="eyebrow">Рекорд выбранной сборки</div><div class="big-number">${currentBest?currentBest.drift?score(currentBest.drift.score)+' Б':time(currentBest.time):'—'}</div><span class="micro">${getEvent(career.eventId).title} / ${weatherName(career.weather)}</span></div></div>
-    ${journeyHTML(career)}${playerHTML(career,!!race&&!race.finished)}<p class="micro">Указаны призовые до ремонта. Повторные выплаты на одном маршруте постепенно снижаются до 50%; разовые отметки и карьерные премии начисляются отдельно.</p><div class="event-grid">${EVENTS.filter(event=>event.mode===getEvent(career.eventId).mode).map((event,index)=>{
-      const open=unlocked(event,career);
+    ${journeyHTML(career)}<p class="micro">Указаны призовые до ремонта. Повторные выплаты на одном маршруте постепенно снижаются до 50%; разовые отметки и карьерные премии начисляются отдельно.</p><div class="event-grid">${EVENTS.filter(event=>event.mode===getEvent(career.eventId).mode).map((event,index)=>{
+      event=getEvent(event.id,2);const open=unlocked(event,career);
       return `<article class="event-card ${open?'':'locked'}"><div class="event-card-head"><span class="eyebrow">${event.region} / ${event.mode==='drift'?'DRIFT / JUDGED RUN':event.mode==='drag'?(event.id==='yokohama-mile'?'DRAG / 1 MILE':event.longDrag?'DRAG / 804 M':'DRAG / 402 M'):event.mode==='duel'?'TOUGE DUEL':'OFFICIAL TIME ATTACK'}</span><span class="event-num">${String(index+1).padStart(2,'0')}</span></div>
         <div class="route-art">${routeMap(event)}</div><h2>${event.title}</h2><p>${event.description}</p><div class="micro">${event.sectors.length} СЕКТОРОВ · ${(eventLength(event)/1000).toFixed(2)} КМ · БЕЗ ВЗНОСА<br>ДО ${money(event.prize*rewardFactor(config(),event.mode)*payoutScale(career,event.id)*(['duel','drag'].includes(event.mode)?1.35:1))} / УЧАСТИЕ ${money(event.participation*rewardFactor(config(),event.mode)*payoutScale(career,event.id))}</div>
         ${['duel','drag'].includes(event.mode)?'<div class="event-rival">Свободный заезд: выбор из трёх соперников</div>':'<div class="event-rival">Медали: золото / серебро / бронза</div>'}
@@ -460,9 +483,6 @@ function renderWorld() {
     ${career.bests.length?`<div class="table-wrap"><table><thead><tr><th>Событие</th><th>Погода</th><th>Машина / детали</th><th>Стартовое состояние</th><th>Результат</th><th>Повтор</th></tr></thead><tbody>${career.bests.map((best,index)=>`<tr><td>${getEvent(best.eventId).title}${(['2','3','4','drag-1','drift-1'].includes(best.key.split('|')[0])||best.rivalLevel==='easy'&&getEvent(best.eventId).mode==='duel'&&!best.key.endsWith(';opponent=learning-1'))?'<small>Архив прежней модели</small>':''}</td><td>${weatherName(best.weather)}</td><td>${CARS.find(car=>car.id===best.carId).name}<small>${best.parts.map(id=>PARTS.find(part=>part.id===id).name).join(', ')||'Сток'}</small>${best.setup?'<small>'+best.setup.pressure+' бар · пара ×'+best.setup.finalDrive+' · пружины '+best.setup.springRate+'% · баланс '+best.setup.brakeBias+'%</small>':''}</td><td>${Math.round(best.condition)}%</td><td class="positive">${best.drift?score(best.drift.score)+' Б':time(best.time)}</td><td><button class="secondary" data-replay="${index}" ${race&&!race.finished?'disabled':''}>▶ Смотреть</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Первый финиш сохранит твой ориентир и повтор.</div>'}
     <h2 style="margin-top:30px">История заездов</h2>${career.records.length?`<div class="table-wrap"><table><thead><tr><th>Событие / условия</th><th>Машина</th><th>Баллы / время</th><th>Результат</th></tr></thead><tbody>${career.records.map(record=>`<tr><td>${getEvent(record.eventId).title}<small>${weatherName(record.weather)}</small></td><td>${record.car}</td><td>${getEvent(record.eventId).mode==='drift'?score(record.score)+' Б':time(record.time)}</td><td>${record.dnf?'Сход · вылет с трассы':record.medal?{gold:'Золото',silver:'Серебро',bronze:'Бронза'}[record.medal]:['timeattack','drift'].includes(getEvent(record.eventId).mode)?'Сессия завершена':record.falseStart?'Фальстарт':record.won?'Победа':'Без победы'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Ночь ещё только начинается.</div>'}
     <div class="section-title"><span class="micro">АВТОСОХРАНЕНИЕ В АКТИВНЫЙ СЛОТ · ФАЙЛ ДЛЯ ПЕРЕНОСА В «СОХРАНЕНИЯХ»</span><button id="reset" class="secondary">Новая карьера</button></div>`;
-  document.querySelectorAll('[data-player-train]').forEach(button=>button.onclick=()=>playerAction(()=>trainPlayer(career,button.dataset.playerTrain,!!race&&!race.finished)));
-  document.querySelectorAll('[data-player-active]').forEach(button=>button.onclick=()=>playerAction(()=>togglePlayerSkill(career,button.dataset.playerActive,!!race&&!race.finished)));
-  $('#player-reset').onclick=()=>playerAction(()=>resetPlayer(career,!!race&&!race.finished));
   document.querySelectorAll('[data-challenge]').forEach(button=>button.onclick=()=>{if(busy||race&&!race.finished)return;const id=button.dataset.challenge;if(challengeReason(career,id))return;const c=getChallenge(id);challengeIntent=id;seasonIntent=false;career.eventId=c.eventId;career.weather=c.weather;race=null;view='race';save();render();});
   $('#world-discipline').onchange=e=>{const next=EVENTS.find(item=>item.mode===e.target.value&&unlocked(item,career))||EVENTS.find(item=>item.mode===e.target.value);if(race&&!race.finished)return;career.eventId=next.id;save();render();};
   document.querySelectorAll('[data-event]').forEach(button=>button.onclick=()=>{
@@ -504,7 +524,7 @@ function openModal(html,setup) {
   setup?.();$('#modal').showModal();
 }
 function help() {
-  openModal(`<div class="eyebrow">TOKYO STREETS / PUBLIC ALPHA 0.25</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии, открывай тюнинг репутацией и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь гонщика».</p><ol>
+  openModal(`<div class="eyebrow">TOKYO STREETS / PUBLIC ALPHA 0.26</div><h2>Найди свою линию.</h2><p>Следующая цель карьеры видна над игровым экраном. Осваивай трассы, получай разовые премии, открывай тюнинг репутацией и выйди на подиум Japan Masters. Полный путь — «Карьера → Путь гонщика».</p><ol>
     <li><strong>Гараж.</strong> Выбери машину и проведи сервис. За рулём всегда ты. В «Тюнинг → Детали и установка» покупай и устанавливай детали. В «Настройка машины» меняй регулировки, покупай настройку под режим и работай с пресетами. Регулировки коробки, подвески и антикрыла требуют соответствующих деталей; настройки у каждой машины свои.</li>
     <li><strong>Событие.</strong> Харуна доступна сразу. Для Акаги нужно 12 Street Cred. После двух завершённых сессий открывается клубный Time Attack в Цукубе.</li>
     <li><strong>Тактика.</strong> Базовые приёмы доступны без случайной раздачи; оборудование и специализации добавляют новые карты. Повтор активного приёма в последних шести решениях увеличивает нагрузку и потерю темпа. В тогу и Time Attack износ зависит от километража и нагрузки; повтор бережного приёма не умножает расход шин. Один промежуточный ход не сбрасывает штраф. Разнообразные действия постепенно выводят его из памяти. Базовый «Чистый темп» всегда остаётся без штрафа. Серые объясняют ограничения. Читай разведку маршрута, прогноз, шины, тормоза и концентрацию. Тормоза охлаждаются обдувом: на длинной быстрой прямой сильнее, чем в повороте. Их температура — условный игровой показатель, порог потери эффективности 105°C.</li>
@@ -512,11 +532,11 @@ function help() {
     <li><strong>Ресурсы.</strong> Разные атакующие карты накапливают общую нагрузку. Скорость выхода влияет на следующий сектор. Соперники зависят от класса сборки; выплаты снижаются при повторении события до 50%. Для старта нужно 45% состояния в дуэли и 55% в официальных дисциплинах. Аварийный ремонт до 60% доступен в счёт будущих призовых.</li><li><strong>Дуэль.</strong> Соперник планирует на три сектора по тем же правилам. Защита и слипстрим требуют реального окна.</li>
     <li><strong>Time Attack.</strong> Соперника нет; карты дуэли недоступны. Пороги медалей видны до старта. Завершённая сессия приносит Official Reputation.</li>
     <li><strong>Свапы и ресурс.</strong> В тюнинге есть «Моторы / свапы» и «Сервис узлов». Двигатели обмениваются вместе с моторными деталями и износом. Ресурс шин, тормозов и мотора сохраняется между заездами; переустановка детали не заменяет ремонт. Каждый узел оплачивается отдельно; износ шин повторно не списывается через общее состояние. Масло и вода при перегреве снижают мощность мотора, охлаждение помогает сохранять темп.</li><li><strong>Дрэг.</strong> После трёх финишей откроется 402 м, после четырёх — 804 м, после пяти — стоячая миля. На длинной дистанции есть выбор главной пары и давления перед стартом, затем управление высшей передачей, рабочим диапазоном и тепловой нагрузкой. Прогрев не входит во время. Выбирай старт, режим переключений и финиш. Победу определяет реакция + ET; фальстарт проигрывает даже с лучшим ET.</li><li><strong>Дрифт.</strong> Сначала выбери дисциплину, затем трассу. Уличные дороги доступны и для тогу, и для дрифта. Эбису открывается при 20 Street Cred, Мэйхан — при 32; в дрифте две связки по четыре клипа. Важны линия, заданный угол, скорость и непрерывность, а не минимальное время. Стабилизация доступна всегда, но обрывает связку.</li><li><strong>Мастерская.</strong> Детали открываются по лучшей достигнутой Street или Official репутации. Готовые настройки под сухую трассу, дождь, дрэг и дрифт применяются за деньги и текущую Street Cred с качеством 85–100% от целевого пресета. Ручные настройки бесплатны; уже купленные детали доступны всегда.</li><li><strong>Повтор.</strong> Лучший заезд сохраняет решения и время секторов. В следующем заезде с той же сборкой можно включить призрак или посмотреть полный повтор.</li>
-    </ol><p><a href="https://github.com/AlexSapronov/Tokyo_Streets/issues/new" target="_blank" rel="noopener noreferrer">Сообщить об ошибке</a> · Укажи версию 0.25, трассу и шаги для повторения.</p><p class="micro">НАГРУЗКА — ИНДЕКС ПРЕДЕЛА, НЕ ВЕРОЯТНОСТЬ. КАРЬЕРА СОХРАНЯЕТСЯ В БРАУЗЕРЕ. НЕЗАВЕРШЁННЫЙ ЗАЕЗД ПРИ ПЕРЕЗАГРУЗКЕ СБРАСЫВАЕТСЯ. ПОВТОРЫ НЕ ПРИНОСЯТ НАГРАД.</p><button class="primary" data-close>На дорогу ↗</button>`);
+    </ol><p><a href="https://github.com/AlexSapronov/Tokyo_Streets/issues/new" target="_blank" rel="noopener noreferrer">Сообщить об ошибке</a> · Укажи версию 0.26, трассу и шаги для повторения.</p><p class="micro">НАГРУЗКА — ИНДЕКС ПРЕДЕЛА, НЕ ВЕРОЯТНОСТЬ. КАРЬЕРА СОХРАНЯЕТСЯ В БРАУЗЕРЕ. НЕЗАВЕРШЁННЫЙ ЗАЕЗД ПРИ ПЕРЕЗАГРУЗКЕ СБРАСЫВАЕТСЯ. ПОВТОРЫ НЕ ПРИНОСЯТ НАГРАД.</p><button class="primary" data-close>На дорогу ↗</button>`);
 }
 function welcome(){
  openModal(welcomeHTML(),()=>{
-  const complete=quick=>{if(quick){career.eventId='haruna';career.weather='dry';career.rivalLevel='easy';}career.helpSeen=true;save();$('#modal').close();render();};
+  const complete=quick=>{if(quick){seasonIntent=false;challengeIntent=null;schoolIntent=Math.min(3,career.school.step);view='race';}career.helpSeen=true;save();$('#modal').close();render();};
   $('#welcome-drive').onclick=()=>complete(true);$('#welcome-continue').onclick=()=>complete(false);
  });
 }
@@ -548,7 +568,7 @@ function driftMetrics(drift){
     <span>Разрывы / развороты<strong>${drift.breaks} / ${drift.spins}</strong></span><span>Температура шин<strong>${Math.round(drift.temperature)}°C</strong></span></div>`;
 }
 function renderDriftReport(){
-  const event=getEvent(race.eventId),d= race.player.drift,outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
+  const event=getEvent(race.eventId,race.routeVersion),d= race.player.drift,outcome=race.outcome||raceOutcome(race),ghost=race.ghost;
   $('#report').innerHTML=`<section class="report">${playerReportHTML(race.playerReport)}${challengeReportHTML(race.challengeReport)}${seasonReportHTML(race.seasonReport)}${journeyReportHTML(race.journeyReport,race.eventId)}${wearSummaryHTML(career,race)}<div class="report-hero"><div><div class="eyebrow">${event.name.toUpperCase()} / ${race.isBest?'НОВЫЙ РЕКОРД ПО БАЛЛАМ':'СУДЕЙСКИЙ ПРОТОКОЛ'}</div>
     <h2>${outcome.label} · ${score(d.score)} / 800</h2><p>+${money(outcome.reward)} · Official Rep +${outcome.official}${race.debtPaid?' · удержано за ремонт '+money(race.debtPaid):''} · ${weatherName(race.weather)}
     ${ghost&&race.history.length===event.sectors.length&&!race.player.dnf?'<br>К прошлому рекорду: '+signed(d.score-ghost.drift.score)+' баллов':''}</p>${damageHTML(race)}<span class="micro">ЛИНИЯ 35% · УГОЛ 25% · СКОРОСТЬ 20% · СВЯЗНОСТЬ 20%<br>ВРЕМЯ ${time(race.player.time)} — ДЛЯ ПОВТОРА; ОЦЕНКА ОПРЕДЕЛЯЕТ РЕЗУЛЬТАТ</span></div>
@@ -579,7 +599,7 @@ function bindBench(locked){
  document.querySelectorAll('[data-bench-setup]').forEach(input=>input.onchange=()=>{trialBuild.setup[input.dataset.benchSetup]=Number(input.value);trialBuild=normalizeBenchDraft(career,trialBuild);refresh();});
 }
 
-function playerAction(action){try{career=action();race=null;save();selectWorkspaceTab('world','player');render();}catch(error){toast(error.message);}}
+function playerAction(action){try{career=action();race=null;view='player';save();selectWorkspaceTab('player','skills');render();}catch(error){toast(error.message);}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){sound.stop();if(busy&&!paused&&scene){paused=true;scene.setPaused(true);if($('#pause'))$('#pause').textContent='▶ Продолжить';}}});
 window.addEventListener('pagehide',()=>sound.dispose());
 
@@ -588,7 +608,7 @@ function openSaves(){
  openModal(savesHTML(slotList(storage),sessionSlot,locked),()=>{
   const fail=error=>{const node=$('#save-error');if(node)node.textContent=error.message;else toast(error.message);};
   const guarded=action=>{try{if(busy||race&&!race.finished||replayRecord)throw Error('Сначала заверши текущую сессию');action();}catch(error){fail(error);}};
-  const select=id=>{career=activateSlot(storage,id);sessionSlot=id;expectedRaw=storage.getItem(slotKey(id));saveState='ok';unreadableSlot=false;stopDebugRun();raceStart=null;trialBuild=null;motorSelection={};view='race';$('#modal').close();render();if(!career.helpSeen)welcome();};
+  const select=id=>{career=activateSlot(storage,id);sessionSlot=id;expectedRaw=storage.getItem(slotKey(id));schoolIntent=null;saveState='ok';unreadableSlot=false;stopDebugRun();raceStart=null;trialBuild=null;motorSelection={};view='race';$('#modal').close();render();if(!career.helpSeen)welcome();};
   const confirm=(id,title,description,action)=>openModal(`<h2>${title}</h2><p>${description} Слот ${id}. Другие слоты сохранятся.</p><div class="inline-actions"><button id="slot-confirm" class="primary">Подтвердить</button><button class="secondary" data-close>Отмена</button></div>`,()=>{$('#slot-confirm').onclick=()=>guarded(()=>{action();if(id===sessionSlot)select(id);else openSaves();});});
   document.querySelectorAll('[data-slot-rename]').forEach(button=>button.onclick=()=>guarded(()=>{renameSlot(storage,Number(button.dataset.slotRename),$('[data-slot-name="'+button.dataset.slotRename+'"]').value);openSaves();}));
   document.querySelectorAll('[data-slot-load]').forEach(button=>button.onclick=()=>guarded(()=>{

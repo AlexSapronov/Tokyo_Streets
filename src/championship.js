@@ -93,9 +93,9 @@ export function bookCupRace(career,runId){
  return {career:next,race};
 }
 function finishNpc(config,state,eventId,weather,seed,side,index,style){
- const event=getEvent(eventId);
+ const event=getEvent(eventId,config.routeVersion);
  for(let i=index;i<event.sectors.length&&!state.dnf;i++){
-  const sector=sectorAt(i,weather,eventId),upcoming=event.sectors.slice(i+1,i+3).map((_,j)=>sectorAt(i+j+1,weather,eventId));
+  const sector=sectorAt(i,weather,eventId,config.routeVersion),upcoming=event.sectors.slice(i+1,i+3).map((_,j)=>sectorAt(i+j+1,weather,eventId,config.routeVersion));
   const action=chooseAI(config,state,sector,Infinity,upcoming,orderPolicy(style));
   const card=['duel','timeattack'].includes(event.mode)?chooseRacingLine(config,state,sector,action.card,upcoming[0],style).card:action.card;
   const result=simulate(config,state,sector,card,executionRoll(seed,i,side,state.focus));
@@ -114,6 +114,7 @@ export function settleCup(career,race){
  const rows=[summarize('player',race.player)];
  for(const opponent of entrants(cup).slice(1)){
   const original=season.npcs.find(n=>n.id===opponent.id),npc=repairedNpc(original),config=configuration(opponent.carId,opponent.pilotId,opponent.parts,npc.condition,{},opponent.engineId);
+  if(race.routeVersion)config.routeVersion=race.routeVersion;
   let result;
   if(npc.condition<minimumCondition(race.eventId))result={time:0,tires:100,dnf:{reason:'Технический недопуск',damage:0}};
   else if(opponent.id===tag.featuredId&&['duel','drag'].includes(race.mode))result=finishNpc(config,{...race.opponent,seasonSlip:race.history.reduce((n,row)=>n+(row.aiSlip||0),0)},race.eventId,race.weather,race.seed,'opponent',race.index,opponent.style);

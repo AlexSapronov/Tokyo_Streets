@@ -60,7 +60,7 @@ export function bookSupport(career,eventId,runId){
 }
 function successReason(career,race,s){
  if(race.player.dnf||race.player.drag?.falseStart)return 'Сход или фальстарт';
- if(race.index!==getEvent(race.eventId).sectors.length)return 'Нет полного зачётного финиша';
+ if(race.index!==getEvent(race.eventId,race.routeVersion).sectors.length)return 'Нет полного зачётного финиша';
  const condition=career.condition[race.config.car.id];
  if(condition<(s.id==='hks'?60:55))return 'Не сохранено требуемое состояние машины';
  if(s.id==='yokohama'&&race.player.tires<70)return 'Остаток шин ниже 70%';

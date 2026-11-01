@@ -5,8 +5,11 @@ const rootArg=process.argv.indexOf('--root');
 const root=rootArg<0?resolve(dirname(fileURLToPath(import.meta.url)),'..'):resolve(process.argv[rootArg+1]);
 const mod=name=>import(pathToFileURL(join(root,'src',name+'.js')));
 const [data,engine,progress,storage,garage,balance,player]=await Promise.all(['data','engine','progress','storage','garage','balance','player'].map(mod));
-const {CARS,PILOTS,EVENTS,sectorAt}=data;
-const {configuration,createRace,chooseAI,chooseRacingLine,resolveSector,futureSectors,raceOutcome}=engine;
+const {CARS,PILOTS,EVENTS}=data;
+const {configuration:baseConfiguration,createRace,chooseAI,chooseRacingLine,resolveSector,futureSectors,raceOutcome}=engine;
+const modern=process.argv.includes('--modern');
+const configuration=(...args)=>({...baseConfiguration(...args),...(modern?{routeVersion:2}:{})});
+const sectorAt=(index,weather,id)=>data.sectorAt(index,weather,id,modern?2:1);
 const seeds=[42,173],rows=[];
 function drive(config,eventId,weather,seed,level=null,runId=null){
  let race=createRace(config,weather,eventId,runId,seed,level);
@@ -56,5 +59,5 @@ for(const pilot of PILOTS){
 const summarize=a=>({runs:a.length,wins:a.filter(r=>r.won).length,gold:a.filter(r=>r.medal==='gold').length,dnf:a.filter(r=>r.dnf).length,meanPrize:Math.round(a.reduce((n,r)=>n+r.prize,0)/a.length),meanFullService:Math.round(a.reduce((n,r)=>n+r.cost,0)/a.length),meanRepeatNet:Math.round(a.reduce((n,r)=>n+r.repeatNet,0)/a.length)});
 const catalog=EVENTS.map(e=>({event:e.id,...summarize(rows.filter(r=>r.group==='catalog'&&r.event===e.id))}));
 const difficulty=['easy','equal','hard'].map(level=>({level,...summarize(rows.filter(r=>r.group==='difficulty'&&r.level===level))}));
-const output={scope:'All catalog cars/pilots, dry/rain, seeds 42/173, two-sector planner plus road line selection. Costs are actual complete service of all installed nodes plus body condition. Repeat net uses the 50% payout floor, no one-time bonuses ; campaigns include actual awards, wear, purchases and reloads. Small paired deterministic sample, not a statistical win-rate estimate.',totalRuns:rows.length,catalog,difficulty,campaigns,rows};
+const output={routeVersion:modern?2:1,scope:'All catalog cars/pilots, dry/rain, seeds 42/173, two-sector planner plus road line selection. Costs are actual complete service of all installed nodes plus body condition. Repeat net uses the 50% payout floor, no one-time bonuses ; campaigns include actual awards, wear, purchases and reloads. Small paired deterministic sample, not a statistical win-rate estimate.',totalRuns:rows.length,catalog,difficulty,campaigns,rows};
 if(process.argv.includes('--json'))console.log(JSON.stringify(output));else{console.table(catalog);console.table(difficulty);console.table(campaigns.map(({steps,...c})=>c));console.log(`${rows.length} seeded races + 90 campaign starts. --json includes every run; --root PATH selects a comparison checkout.`);}
