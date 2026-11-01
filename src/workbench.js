@@ -28,7 +28,16 @@ function tabs(root,view,groups,{paneView=view,onSelect=()=>{},label='Разде�
 }
 export function fitWorkspace(root){
  const track=root.dataset.page==='race'?root.querySelector('.race-layout>section'):null;
- if(track&&Number.isFinite(globalThis.window?.innerHeight)){const top=track.getBoundingClientRect().top;if(Number.isFinite(top))root.style.setProperty('--race-room',Math.max(320,Math.floor(window.innerHeight-top-18))+'px');}
+ if(track&&root.dataset.racePanel!=='report'&&Number.isFinite(globalThis.window?.innerHeight)){
+  const top=track.getBoundingClientRect().top;
+  if(Number.isFinite(top)){
+   const room=Math.max(320,Math.floor(window.innerHeight-top-18));root.style.setProperty('--race-room',room+'px');
+   // The deck keeps its content height. Give every remaining pixel to the map,
+   // including the space recovered when career navigation is hidden.
+   const actions=root.querySelector('.cards-area'),height=actions?.getBoundingClientRect().height||0;
+   root.style.setProperty('--race-track-height',Math.max(180,room-Math.ceil(height))+'px');
+  }
+ }
  const body=root.querySelector('.workspace-body');if(!body)return;
  const top=body.getBoundingClientRect().top;if(Number.isFinite(top))body.style.setProperty('--workspace-top',Math.max(0,Math.round(top))+'px');
 }
