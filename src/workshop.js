@@ -1,5 +1,5 @@
 import {getEvent} from './data.js';
-import {getEngine} from './engine-data.js';
+import {getEngine,installedEngineId} from './engine-data.js';
 import {SETUP_FIELDS,normalizeSetup} from './setup.js';
 export const earnedStreet=career=>Math.max(career.streetPeak||0,career.street||0);
 export const tuningReputation=career=>Math.max(earnedStreet(career),career.official||0);
@@ -44,5 +44,5 @@ export function applyWorkshopPreset(career,id,active=false,rng=randomUnit){
   values[field.key]+=(draw()*2-1)*(1-quality)*(field.max-field.min);
  }
  next.setups[next.car]=normalizeSetup(parts,values);
- next.lastWorkshop={carId:next.car,profile:id,quality};return next;
+ next.lastWorkshop={carId:next.car,profile:id,quality,detailVersion:1,engineId:installedEngineId(next),parts:[...parts],before:normalizeSetup(parts,career.setups[career.car]),after:{...next.setups[next.car]},paidMoney:quote.money,paidStreet:quote.street};return next;
 }

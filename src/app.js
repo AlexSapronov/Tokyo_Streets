@@ -1,5 +1,5 @@
 import {orderName} from './team.js'; // Archived manager replays only.
-import {applyWorkshopPreset,partAccessReason} from './workshop.js';
+import {applyWorkshopPreset,partAccessReason,WORKSHOP_PRESETS} from './workshop.js';
 import {workshopHTML} from './workshop-view.js';
 import {RaceAudio} from './race-audio.js';
 import {playerConfiguration,withTraining,SKILL_CARDS,trainPlayer,togglePlayerSkill,resetPlayer} from './player.js';
@@ -363,14 +363,18 @@ function renderTuning(){
   const field=SETUP_FIELDS.find(f=>f.key===input.dataset.setup);$('#setup-output-'+field.key).textContent=input.value+' '+field.unit;$('#setup-state').textContent='Есть несохранённые изменения';
  });
  $('#setup-save').onclick=()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-setup]')].map(input=>[input.dataset.setup,Number(input.value)]));garageAction(()=>setCarSetup(career,values,locked));};
- document.querySelectorAll('[data-workshop-preset]').forEach(button=>button.onclick=()=>garageAction(()=>applyWorkshopPreset(career,button.dataset.workshopPreset,locked)));
+ document.querySelectorAll('[data-workshop-preset]').forEach(button=>button.onclick=()=>{
+  const profile=WORKSHOP_PRESETS.find(p=>p.id===button.dataset.workshopPreset);
+  if(garageAction(()=>applyWorkshopPreset(career,profile.id,locked)))toast(profile.name+': настройка выполнена · '+money(career.lastWorkshop.paidMoney)+' и −'+career.lastWorkshop.paidStreet+' Street Cred');
+ });
+ const openSetup=$('[data-workshop-open-setup]');if(openSetup)openSetup.onclick=()=>{selectWorkspaceTab('tuning','setup');render();};
  $('#setup-defaults').onclick=()=>garageAction(()=>setCarSetup(career,defaultSetup(),locked));
  $('#preset-save').onclick=()=>{const values=Object.fromEntries([...document.querySelectorAll('[data-setup]')].map(input=>[input.dataset.setup,Number(input.value)]));garageAction(()=>savePreset(setCarSetup(career,values,locked),$('#preset-name').value,locked));};
  document.querySelectorAll('[data-preset-apply]').forEach(button=>button.onclick=()=>garageAction(()=>applyPreset(career,Number(button.dataset.presetApply),locked)));
  document.querySelectorAll('[data-preset-delete]').forEach(button=>button.onclick=()=>garageAction(()=>deletePreset(career,Number(button.dataset.presetDelete),locked)));
 }
 function garageAction(action) {
-  try{career=action();race=null;selected='balanced';save();render();}catch(error){toast(error.message);}
+  try{career=action();race=null;selected='balanced';save();render();return true;}catch(error){toast(error.message);return false;}
 }
 function repairCost(){return serviceCost(career);}
 function dragMetrics(drag) {

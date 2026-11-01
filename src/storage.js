@@ -115,7 +115,18 @@ export function validateSave(raw) {
   out.rivalLevel=['easy','equal','hard'].includes(raw.rivalLevel)?raw.rivalLevel:'equal';
   out.pilot = validPilot(raw.pilot) ? raw.pilot : 'ren';
   out.streetPeak=Number.isFinite(raw.streetPeak)?Math.max(0,Math.floor(raw.streetPeak)):(Number.isFinite(raw.street)?Math.max(0,Math.floor(raw.street)):0);
-  const job=raw.lastWorkshop;if(job&&validCar(job.carId)&&WORKSHOP_PRESETS.some(p=>p.id===job.profile)&&Number.isFinite(job.quality)&&job.quality>=.85&&job.quality<=1)out.lastWorkshop={carId:job.carId,profile:job.profile,quality:job.quality};
+  const job=raw.lastWorkshop;
+  if(job&&validCar(job.carId)&&WORKSHOP_PRESETS.some(p=>p.id===job.profile)&&finite(job.quality)&&job.quality>=.85&&job.quality<=1){
+    out.lastWorkshop={carId:job.carId,profile:job.profile,quality:job.quality};
+    // Legacy receipts have no parameter snapshot; never invent their result or price.
+    if(job.detailVersion===1&&getEngine(job.engineId)&&Array.isArray(job.parts)&&job.parts.every(validPart)
+      &&normalizeBuild(job.carId,job.parts,job.engineId).length===job.parts.length
+      &&validSetup(job.parts,job.before)&&validSetup(job.parts,job.after)
+      &&Number.isInteger(job.paidMoney)&&job.paidMoney>=0&&job.paidMoney<=100000
+      &&Number.isInteger(job.paidStreet)&&job.paidStreet>=0&&job.paidStreet<=100){
+      Object.assign(out.lastWorkshop,{detailVersion:1,engineId:job.engineId,parts:[...job.parts],before:{...job.before},after:{...job.after},paidMoney:job.paidMoney,paidStreet:job.paidStreet});
+    }
+  }
   out.rivals=normalizeRivals(raw.rivals);
   out.team=normalizeTeam(raw.team);
   out.operations=normalizeOperations(raw.operations);
