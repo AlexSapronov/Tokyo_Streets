@@ -285,7 +285,7 @@ test('race workspace sizing follows actual viewport and track offset instead of 
 });
 test('corner choice and sector feedback form a visible three-step decision with actual costs',async t=>{
  const {document:d,frames}=await boot(t,newCareer()),q=s=>d.querySelector(s);assert.equal(q('#forecast').parentElement,q('#app'));const children=[...q('#app').children];assert.ok(children.indexOf(q('#forecast'))<children.indexOf(q('.race-layout')));q('#start').click();q('#execute').click();let callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
- assert.match(q('.upcoming-sectors .current').textContent,/ПОВОРОТ/);assert.match(q('.upcoming-sectors .current').textContent,new RegExp('2/'+getEvent('haruna',2).sectors.length));assert.match(q('.line-options legend').textContent,/1\. Траектория/);
+ assert.match(q('.upcoming-sectors .current').textContent,/ПОВОРОТ/);assert.match(q('.upcoming-sectors .current').textContent,new RegExp('2/'+getEvent('haruna',3).sectors.length));assert.match(q('.line-options legend').textContent,/1\. Траектория/);
  q('[data-line=late-apex]').click();assert.match(q('.forecast-main').textContent,/Поздний апекс/);assert.match(q('.forecast-values').textContent,/ФОКУС:.*→/);assert.match(q('#execute').textContent,/3\. Исполнить/);
  q('#execute').click();callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);q('#sector-details').click();assert.match(q('#modal-content').textContent,/Случайное исполнение/);assert.match(q('#modal-content').textContent,/Соперник:/);assert.match(q('#modal-content').textContent,/Повтор приёма/);
 });

@@ -75,7 +75,7 @@ const score=value=>(value||0).toFixed(1);
 const signed = value => (value >= 0 ? '+' : '−') + Math.abs(value).toFixed(2);
 const weatherName = value => ({dry:'Сухо',mixed:'Переменная влажность',rain:'Дождь'})[value];
 const car = () => CARS.find(car => car.id === career.car);
-function config() { return {routeVersion:2,...playerConfiguration(configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]),career.player),...(!seasonIntent?{rivalLevel:career.rivalLevel}:{})}; }
+function config() { return {routeVersion:['duel','timeattack'].includes(getEvent(career.eventId).mode)?3:2,...playerConfiguration(configuration(career.car,career.pilot,career.builds[career.car],career.condition[career.car],career.setups?.[career.car],installedEngineId(career),career.wear?.[career.car]),career.player),...(!seasonIntent?{rivalLevel:career.rivalLevel}:{})}; }
 function previewRace() {
   if(replayRecord){
     const saved=withTraining(configuration(replayRecord.carId,replayRecord.pilotId,replayRecord.parts,replayRecord.condition,replayRecord.setup,replayRecord.engineId,replayRecord.wear),replayRecord.training||{});
@@ -184,7 +184,7 @@ function renderRace() {
       ${ghost?`<label class="ghost-toggle"><input id="ghost-toggle" type="checkbox" ${career.ghostEnabled?'checked':''}> Показывать призрак</label>${!race||race.finished?'<button id="replay-best" class="secondary wide">▶ Повтор рекорда</button>':''}`:''}</div>`:''}
       </aside></div>
     ${isReplay||r.finished?'':`<section class="cards-area"><div class="cards-header"><h2>2. Выбери приём <span>ПОЛНЫЙ НАБОР · ${schoolCards(r).length} КАРТ</span></h2><span class="micro">${race?'ВЫБЕРИ КАРТУ → ИСПОЛНИ СЕКТОР':'ПРОСМОТР ПЕРЕД СТАРТОМ'} · БЕЗ СЛУЧАЙНОЙ РАЗДАЧИ</span></div><div id="racing-plan"></div><div id="filters" class="filters"></div><div id="cards" class="cards-grid"></div></section>`}
-    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PUBLIC ALPHA 0.26.1</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
+    <div id="report"></div><div class="footer-line"><span>TOKYO STREETS / PUBLIC ALPHA 0.27</span><span>КАРТЫ — НАМЕРЕНИЯ. РЕЗУЛЬТАТ — ФИЗИКА.</span></div>`;
   if(isSchool)app.dataset.lesson=String(r.school.step);
   if($('#school-leave'))$('#school-leave').onclick=()=>{schoolIntent=null;race=null;render();};
   $('.sidebar')?.prepend($('.race-session'));
@@ -471,7 +471,7 @@ function renderWorld() {
     <div class="panel"><div class="eyebrow">Победы в дуэлях / Заезды</div><div class="big-number">${career.wins}<span style="font-size:20px;color:var(--muted)"> / ${career.races}</span></div><span class="micro">ВСЕ ЗАВЕРШЁННЫЕ СЕССИИ</span></div>
     <div class="panel"><div class="eyebrow">Рекорд выбранной сборки</div><div class="big-number">${currentBest?currentBest.drift?score(currentBest.drift.score)+' Б':time(currentBest.time):'—'}</div><span class="micro">${getEvent(career.eventId).title} / ${weatherName(career.weather)}</span></div></div>
     ${journeyHTML(career)}<p class="micro">Указаны призовые до ремонта. Повторные выплаты на одном маршруте постепенно снижаются до 50%; разовые отметки и карьерные премии начисляются отдельно.</p><div class="event-grid">${EVENTS.filter(event=>event.mode===getEvent(career.eventId).mode).map((event,index)=>{
-      event=getEvent(event.id,2);const open=unlocked(event,career);
+      event=getEvent(event.id,3);const open=unlocked(event,career);
       return `<article class="event-card ${open?'':'locked'}"><div class="event-card-head"><span class="eyebrow">${event.region} / ${event.mode==='drift'?'DRIFT / JUDGED RUN':event.mode==='drag'?(event.id==='yokohama-mile'?'DRAG / 1 MILE':event.longDrag?'DRAG / 804 M':'DRAG / 402 M'):event.mode==='duel'?'TOUGE DUEL':'OFFICIAL TIME ATTACK'}</span><span class="event-num">${String(index+1).padStart(2,'0')}</span></div>
         <div class="route-art">${routeMap(event)}</div><h2>${event.title}</h2><p>${event.description}</p><div class="micro">${event.sectors.length} СЕКТОРОВ · ${(eventLength(event)/1000).toFixed(2)} КМ · БЕЗ ВЗНОСА<br>ДО ${money(event.prize*rewardFactor(config(),event.mode)*payoutScale(career,event.id)*(['duel','drag'].includes(event.mode)?1.35:1))} / УЧАСТИЕ ${money(event.participation*rewardFactor(config(),event.mode)*payoutScale(career,event.id))}</div>
         ${['duel','drag'].includes(event.mode)?'<div class="event-rival">Свободный заезд: выбор из трёх соперников</div>':'<div class="event-rival">Медали: золото / серебро / бронза</div>'}

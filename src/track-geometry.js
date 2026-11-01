@@ -24,7 +24,10 @@ export function trackGeometry(event){
  if(event.mode==='drift'&&event.streetVenue)return trackGeometry(getEvent(event.venueId));
  if(cache.has(event))return cache.get(event);
  let at,pieces=[];
- if(event.visualSegments){pieces=event.visualSegments.map(p=>({...p,at:sampler(p.points)}));at=f=>{const p=pieces.find(p=>clamp(f)<p.end-1e-12)||pieces.at(-1);return p.at((clamp(f)-p.start)/(p.end-p.start));};}
+ if(event.geometrySource){
+  const source=trackGeometry(event.geometrySource);at=source.at;pieces=event.sectors.map(s=>({start:s.entry,end:s.exit,type:s.type,at:t=>at(s.entry+(s.exit-s.entry)*clamp(t))}));
+ }
+ else if(event.visualSegments){pieces=event.visualSegments.map(p=>({...p,at:sampler(p.points)}));at=f=>{const p=pieces.find(p=>clamp(f)<p.end-1e-12)||pieces.at(-1);return p.at((clamp(f)-p.start)/(p.end-p.start));};}
  else if(!['duel','timeattack'].includes(event.mode))at=legacy(event.anchors);
  else{
   const anchors=event.anchors,bounds=SECTOR_ANCHORS[event.id]||event.sectors.map((_,i)=>i*(anchors.length-1)/event.sectors.length).concat(anchors.length-1);
