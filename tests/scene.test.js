@@ -2,7 +2,7 @@
 // engine. They exercise lifecycle and playback without a preview service.
 import test,{beforeEach,afterEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {Scene} from '../src/scene.js';
+import {Scene,playbackDuration} from '../src/scene.js';
 import {EVENTS} from '../src/data.js';
 import {configuration,createRace,resolveSector} from '../src/engine.js';
 import {raceRecord} from '../src/progress.js';
@@ -187,4 +187,14 @@ test('live drift, ghost and replay use the same forward-facing road pose',()=>{
  const complete=finishRace(configuration('s13','ren'),'dry','haruna-drift');for(const clip of complete.player.drift.clips){clip.valid=true;clip.spin=false;clip.angleDegrees=70;}
  const record=raceRecord(complete),scene=new Scene(canvas(),complete,record,true),elapsed=record.time*.43,poses=[];scene.drawCar=(...args)=>poses.push(args);scene.elapsed=elapsed;scene.draw();const live=poses.find(p=>p[3]==='YOU'),ghost=poses.find(p=>p[3]==='BEST');assert.ok(live&&ghost);assert.equal(live[5],ghost[5]);assert.ok(Math.cos(live[5])>0);
  scene.replay(record,1000);scene.elapsed=elapsed;poses.length=0;scene.draw();const replay=poses.find(p=>p[3]==='REPLAY');assert.equal(replay[5],live[5]);scene.destroy();
+});
+
+
+test('sector playback follows simulated travel time, including speed and length, and replay uses the same time scale',t=>{
+ t.mock.method(performance,'now',()=>0);const initial=createRace({...configuration('ae86','ren'),routeVersion:3},'dry','haruna',null,42),scene=new Scene(canvas(),initial);let r=initial;const timings=[];
+ while(!r.finished){const before=r.player.time;r=resolveSector(r,'balanced');scene.animateSector(r,null);timings.push([r.player.time-before,scene.motion.duration]);assert.equal(scene.motion.duration,playbackDuration(r.player.time-before));scene.loop(scene.motion.duration);assert.equal(scene.elapsed,r.player.time);}
+ const shortest=timings.toSorted((a,b)=>a[0]-b[0])[0],longest=timings.toSorted((a,b)=>b[0]-a[0])[0];assert.ok(longest[1]>shortest[1]*2);const record=raceRecord(r);scene.replay(record);assert.equal(scene.motion.duration,playbackDuration(record.time));scene.destroy();
+});
+test('speed selected between sectors applies to the next execution and replay, including untimed preparation',t=>{
+ t.mock.method(performance,'now',()=>0);const initial=race(),scene=new Scene(canvas(),initial),next=resolveSector(initial,'balanced');scene.setSpeed(2);assert.equal(scene.speed,2);scene.animateSector(next,null);assert.equal(scene.motion.duration,playbackDuration(next.player.time)/2);scene.loop(scene.motion.duration);scene.setSpeed(1);assert.equal(scene.speed,1);const record=raceRecord(next);scene.setSpeed(2);scene.replay(record);assert.equal(scene.motion.duration,playbackDuration(record.time)/2);scene.destroy();assert.equal(playbackDuration(0),900);assert.equal(playbackDuration(0,2),450);assert.equal(playbackDuration(.2),350);
 });
