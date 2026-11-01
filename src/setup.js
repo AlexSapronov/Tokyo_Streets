@@ -1,3 +1,4 @@
+import {hasPart} from './parts.js';
 export const SETUP_FIELDS=[
  {key:'pressure',label:'Давление в шинах',min:1.8,max:2.6,step:.05,value:2.2,unit:'бар',description:'Низкое давление помогает стартовому сцеплению, но увеличивает сопротивление и износ. Высокое легче катится, но теряет сцепление.'},
  {key:'finalDrive',label:'Передаточное число главной пары',min:.85,max:1.15,step:.01,value:1,unit:'×',requires:'gearbox',lock:'Нужна регулируемая коробка HKS Dog Mission.',description:'Больше число — выше обороты и раньше переключения. Меньше — ниже обороты, но слабее разгон. Множитель к заводской главной паре.'},
@@ -9,7 +10,7 @@ export function defaultSetup(){return Object.fromEntries(SETUP_FIELDS.map(f=>[f.
 export function normalizeSetup(parts,raw={}){
  return Object.fromEntries(SETUP_FIELDS.map(f=>{
   const v=raw?.[f.key];
-  const value=f.requires&&!parts.includes(f.requires)||!Number.isFinite(v)?f.value:Math.max(f.min,Math.min(f.max,v));
+  const value=f.requires&&!hasPart(parts,f.requires)||!Number.isFinite(v)?f.value:Math.max(f.min,Math.min(f.max,v));
   return [f.key,Number((f.min+Math.round((value-f.min)/f.step)*f.step).toFixed(2))];
  }));
 }

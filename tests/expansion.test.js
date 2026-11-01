@@ -23,7 +23,7 @@ const cfg=c=>configuration(c.car,c.pilot,c.builds[c.car],c.condition[c.car],c.se
 const swapped=(engineId='ls3')=>installEngine(buyEngine(workshop(),engineId,'crate-'+engineId),'crate-'+engineId);
 const newParts=['streetTires','dragRadial','exhaust','radiator','intercooler','flywheel','pads','brace','splitter'];
 test('catalog groups cover every part exactly once and the five new venues have distinct geometry',()=>{
- assert.equal(PARTS.length,26);assert.equal(new Set(TUNING_GROUPS.flatMap(g=>g.parts)).size,26);assert.equal(TUNING_GROUPS.flatMap(g=>g.parts).length,26);
+ assert.equal(PARTS.length,36);assert.equal(new Set(TUNING_GROUPS.flatMap(g=>g.parts)).size,36);assert.equal(TUNING_GROUPS.flatMap(g=>g.parts).length,36);
  const venues=['irohazaka','hakone','wangan','nikko','meihan'].map(getEvent);assert.equal(new Set(venues.map(e=>JSON.stringify(e.anchors))).size,5);for(const e of venues){assert.ok(eventLength(e)>800);assert.ok(e.sectors.length>=8);assert.ok(e.sectors.every(s=>s.length>0&&Number.isFinite(s.slope)&&s.wet>=0));}
 });
 test('every street venue supports touge and drift on identical roads with separate valid judging zones',()=>{

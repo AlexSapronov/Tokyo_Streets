@@ -163,7 +163,7 @@ test('drift AI optimizes judging quality with legal actions rather than simply c
 });
 test('all 64 equipment builds finish drift with bounded resources and a valid record',()=>{
  for(let mask=0;mask<64;mask++){
-  const parts=PARTS.filter((_,i)=>mask&(1<<i)).map(part=>part.id),config=configuration('evo','ren',parts);
+  const parts=PARTS.slice(0,6).filter((_,i)=>mask&(1<<i)).map(part=>part.id),config=configuration('evo','ren',parts);
   const race=finishRace(config,'mixed','ebisu');assertState(assert,race);
   assert.equal(validateSave(awardRace(newCareer(),race).career).bests.length,1);
  }

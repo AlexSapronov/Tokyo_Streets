@@ -135,7 +135,7 @@ test('all 2673 car/weather/action recipes stay finite, immutable and within boun
 });
 test('all 64 equipment combinations preserve valid drag results',()=>{
  for(let mask=0;mask<64;mask++){
-  const parts=PARTS.filter((_,i)=>mask&(1<<i)).map(part=>part.id),config=configuration('evo','ren',parts);
+  const parts=PARTS.slice(0,6).filter((_,i)=>mask&(1<<i)).map(part=>part.id),config=configuration('evo','ren',parts);
   let state=freshDragState(config);
   for(const [index,id] of recipe.entries())state=simulateDrag(config,state,phase(index),card(id)).next;
   assert.ok(state.time>0&&state.drag.et>0&&state.drag.trap>0);

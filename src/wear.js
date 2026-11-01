@@ -1,3 +1,4 @@
+import {partFamily} from './parts.js';
 import {CARS,PARTS,getEvent} from './data.js';
 const clamp=n=>Math.max(0,Math.min(100,Number.isFinite(n)?n:100));
 export const WEAR_KEYS=['engine','transmission','stockTires','stockBrakes','stockSuspension',...PARTS.map(p=>p.id)];
@@ -14,7 +15,7 @@ export function settleWear(career,race){
  const corners=getEvent(race.eventId).sectors.slice(0,race.index).filter(s=>s.type==='corner').length,hot=race.history.reduce((n,r)=>n+Math.max(0,(r.telemetry?.oil||90)-110)/100,0),slip=race.history.reduce((n,r)=>n+r.slip,0);
  const loss={engine:distance*(.2+race.config.car.power/race.config.car.mass*.25)+hot*.3+damage*.55,transmission:race.index*.1+slip*.025+damage*.3,stockBrakes:corners*.22+damage*.25,stockSuspension:race.index*.07+slip*.04+damage*.35};
  const shifts=race.history.reduce((n,row,i)=>n+(row.drag?.shifts||Math.abs((row.telemetry?.gear||0)-(race.history[i-1]?.telemetry?.gear||0))),0);
- for(const part of race.config.parts){const [d,h,c,s,g]=rates[part]||[.09,.08,0,0,0];loss[part]=d*distance+h*hot+c*corners+s*slip+g*shifts+damage*(['aero','splitter'].includes(part)?.6:.35);}
+ for(const part of race.config.parts){const family=partFamily(part),[d,h,c,s,g]=rates[part]||rates[family]||[.09,.08,0,0,0];loss[part]=d*distance+h*hot+c*corners+s*slip+g*shifts+damage*(['aero','splitter','flatFloor'].includes(family)?.6:.35);}
  for(const [key,amount] of Object.entries(loss))w[key]=clamp(start[key]-amount);
  w[tireKey(race.config.parts)]=clamp(race.player.tires);next.wear[id]=w;return next;
 }

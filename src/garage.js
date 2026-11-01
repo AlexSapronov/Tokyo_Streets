@@ -1,3 +1,4 @@
+import {hasPart} from './parts.js';
 import {emptyEngines} from './powertrain.js';
 import {installedEngineId,getEngine,stockEngineId} from './engine-data.js';
 import {emptyWear,normalizeComponentWear,freshWear,tireKey} from './wear.js';
@@ -59,7 +60,7 @@ export function setCarSetup(career,values,activeRace=false){
  for(const [key,value] of Object.entries(values)){
   const field=SETUP_FIELDS.find(f=>f.key===key);
   if(!Number.isFinite(value)||value<field.min||value>field.max)throw new Error('Настройка вне допустимого диапазона');
-  if(field.requires&&!parts.includes(field.requires)&&value!==field.value)throw new Error(field.lock);
+  if(field.requires&&!hasPart(parts,field.requires)&&value!==field.value)throw new Error(field.lock);
  }
  next.setups??={};next.setups[next.car]=normalizeSetup(parts,{...current,...values});return next;
 }

@@ -1,3 +1,4 @@
+import {hasPart} from './parts.js';
 import {tireKey} from './wear.js';
 import {installedEngineId} from './engine-data.js';
 import {partReason,tunedCar} from './tuning.js';
@@ -9,8 +10,8 @@ export function raceClass(config){
  // Class and payouts use the healthy installed build, never damage discounts.
  const platform=CARS.find(c=>c.id===config.car.id);
  const car=tunedCar(engineCar(platform,config.engineId),config.parts,config.setup);
- const mass=car.mass-(config.parts.includes('weight')?65:0)+(config.parts.includes('suspension')?8:0);
- const rating=car.power/mass+(config.parts.includes('slicks')?.016:config.parts.includes('tires')?.012:config.parts.includes('wetTires')?.01:config.parts.includes('dragRadial')?.012:config.parts.includes('streetTires')?.005:0)+(config.parts.includes('suspension')?.005:0)+(config.parts.includes('lsd')?.006:0)+(config.parts.includes('aero')?.01:0)+(config.parts.includes('splitter')?.004:0)+(config.parts.includes('brace')?.002:0)+(config.parts.includes('pads')?.002:0);
+ const mass=car.mass-(hasPart(config.parts,'weight')?65:0)+(hasPart(config.parts,'suspension')?8:0);
+ const rating=car.power/mass+(hasPart(config.parts,'slicks')?.016:hasPart(config.parts,'tires')?.012:hasPart(config.parts,'wetTires')?.01:hasPart(config.parts,'dragRadial')?.012:hasPart(config.parts,'streetTires')?.005:hasPart(config.parts,'enduranceTires')?.009:0)+(hasPart(config.parts,'suspension')?.005:0)+(hasPart(config.parts,'lsd')?.006:0)+(hasPart(config.parts,'aero')?.01:0)+(hasPart(config.parts,'splitter')?.004:0)+(hasPart(config.parts,'brace')?.002:0)+(hasPart(config.parts,'pads')?.002:0);
  return rating<.17?{id:'club',name:'CLUB',car:'ae86',reward:.8}:rating<.205?{id:'sport',name:'SPORT',car:'chaser',reward:1}: {id:'expert',name:'EXPERT',car:'evo',reward:1.2};
 }
 export function payoutScale(career,eventId){return Math.max(.5,1/(1+(career.eventCompletions?.[eventId]||0)*.12));}

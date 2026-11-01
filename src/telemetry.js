@@ -1,3 +1,4 @@
+import {hasPart} from './parts.js';
 import {replayIndex} from './replay.js';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 // Approximate game transmission profiles, not homologated factory specifications.
@@ -44,7 +45,7 @@ export function readTelemetry(config,state,mode){
 export function attachTelemetry(config,state,sector,card,result){
   const mode=sector.mode||'duel',previous=readTelemetry(config,state,mode),next=result.next;
   const duration=Math.max(result.time,sector.phase==='prep'?2:0);
-  const cooling=config.car.cooling*(config.parts.includes('cooling')?config.car.coolerFactor:1);
+  const cooling=config.car.cooling*(hasPart(config.parts,'cooling')?config.car.coolerFactor:1);
   const duty=clamp(config.car.power/config.car.mass*3+(card.focus>10?.25:0),.2,1.2);
   const oilTarget=['drag','drift'].includes(mode)?next.heat:85+duty*18*(config.car.engineHeat||1)*(config.car.heatFactor||1)/Math.sqrt(cooling);
   const oil=['drag','drift'].includes(mode)?next.heat:previous.oil+(oilTarget-previous.oil)*(1-Math.exp(-duration*cooling/70));
