@@ -1,3 +1,4 @@
+export const SECTOR_COLORS=['#ffab78','#8cc9f0','#a6c8b5'];
 // Lines change geometry and exit speed, not the execution roll. Neutral preserves legacy physics.
 export const RACING_LINES=[
  {id:'neutral',name:'Классическая',description:'Ровная дуга. Базовая длина и скорость выхода.'},

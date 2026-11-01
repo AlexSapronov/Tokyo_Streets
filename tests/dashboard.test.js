@@ -11,7 +11,7 @@ const cfg=configuration('ae86','ren');
 function fakeRoot(){
  const node=dataset=>({dataset,textContent:'',style:{},attributes:{},classes:new Set(),
   setAttribute(key,value){this.attributes[key]=value;},classList:{toggle(key,on){this.owner.classes[on?'add':'delete'](key);}}});
- const fields=['speed','rpm','gear','coolant','oil','brakes','tireTemp','tires','focus','warning','focusTrack','focusFill','focusStatus'];
+ const fields=['speed','rpm','gear','coolant','oil','brakes','tireTemp','tires','focus','warning','focusTrack','focusFill','focusStatus','thermalAdvice','tireAdvice'];
  const groups={'[data-value]':fields.map(value=>node({value})),
   '[data-needle]':['speed','rpm'].map(needle=>node({needle})),
   '[data-meter]':['speed','rpm'].map(meter=>node({meter})),
@@ -37,7 +37,7 @@ test('speedometer and tachometer update their needles, numbers, gear and accessi
 test('temperature warning lamps follow actual samples and reset after cooling',()=>{
  const root=fakeRoot(),update=bindDashboard(root,cfg),data=readTelemetry(cfg,createRace(cfg).player,'duel');
  update({...data,coolant:120,oil:150,brakes:170,tireTemp:140});assert.equal(root.values.warning.textContent,'● TEMP');
- for(const lamp of Object.values(root.lamps))assert.ok(lamp.classes.has('hot'));
+ for(const [key,lamp] of Object.entries(root.lamps))assert.equal(lamp.classes.has('hot'),key!=='tireTemp');
  update({...data,coolant:80,oil:90,brakes:60,tireTemp:55});assert.equal(root.values.warning.textContent,'● RUN');
  for(const lamp of Object.values(root.lamps))assert.ok(!lamp.classes.has('hot'));
 });

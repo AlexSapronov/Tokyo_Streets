@@ -1,3 +1,4 @@
+import {ROAD_LIMITS} from './thermal-status.js';
 import {hasPart,partCapabilities} from './parts.js';
 import {unlockedSkillCards,trainedExecution} from './player.js';
 import {lineGeometry,lineReason,lineCard,lineName,RACING_LINES,roadMode} from './racing-lines.js';
@@ -90,11 +91,11 @@ function simulateRaw(config,state,sector,card,execution=null){
  // not a wheel-level simulator. Both drivers use exactly this function.
  const mass=car.mass-(has('weight')?65:0)+(has('suspension')?8:0);
  const grip=car.grip*(1-sector.wet*(car.drive==='AWD'?.28:.4))*tireFactor(config,sector.wet)*aeroGrip(config,state.velocity)*(has('suspension')?1+.05*car.partSuspensionHealth:1)*(.7+.3*state.tires/100)*(.88+.12*config.condition/100);
- const brakeFade=clamp(1-Math.max(0,state.heat-105)/280,.65,1);
+ const brakeFade=clamp(1-Math.max(0,state.heat-ROAD_LIMITS.brakes)/280,.65,1);
  const brake=car.brakes*(has('brakes')?car.partBrakeFactor:1)*brakeFade;
  const rpm=transmission(config,state.velocity*3.6);
  const band=parts.some(id=>['shortFinal','longFinal','cams','flywheel'].includes(id))?clamp(1-((rpm.rpm/rpm.redline-.8)/.8)**2,.75,1)*(rpm.rpm/rpm.redline<.6?car.lowRpmFactor:1):1;
- const engineFade=clamp(1-Math.max(0,(state.telemetry?.oil||88)-125)/120-Math.max(0,(state.telemetry?.coolant||82)-105)/100,.65,1);
+ const engineFade=clamp(1-Math.max(0,(state.telemetry?.oil||88)-ROAD_LIMITS.oil)/120-Math.max(0,(state.telemetry?.coolant||82)-ROAD_LIMITS.coolant)/100,.65,1);
  const power=car.power*735.5*.78*(.9+.1*config.condition/100)*band*engineFade;
  const terminal=Math.cbrt(power/car.airResistance);
  const traction=(car.drive==='AWD'?1.09:1)*(has('lsd')?1+.05*car.partLsdHealth:1)*(car.drive==='FF'?.93:car.drive==='MR'?1.035:1);

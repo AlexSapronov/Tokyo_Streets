@@ -130,7 +130,7 @@ test('local crew selection locks the advertised opponent and race lines update t
  q('#start').click();assert.equal(q('#challenge-cancel'),null);q('[data-card=balanced]').click();q('#execute').click();
  let callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
  assert.equal(q('[data-line=late-apex]').disabled,false);q('[data-line=late-apex]').click();assert.equal(q('[data-line=late-apex]').getAttribute('aria-pressed'),'true');
- assert.equal(d.querySelectorAll('.upcoming-sectors>div').length,3);
+ assert.equal(d.querySelectorAll('.upcoming-sectors>.sector-preview').length,3);
  q('#execute').click();assert.equal(q('[data-line=inside]').disabled,true);callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);
  assert.match(q('.last-sector').textContent,/Поздний апекс/);assert.ok(JSON.parse(values.get(SAVE_KEY)).rivals);
 });
@@ -149,7 +149,7 @@ test('player growth edits preserve the career, freeze on start and remain separa
  const c=newCareer();c.player.xp=2160;const {document:d,values}=await boot(t,c),q=s=>d.querySelector(s),saved=()=>JSON.parse(values.get(SAVE_KEY));
  q('[data-view=player]').click();q('[data-pane=skills]').click();q('[data-player-train=precision]').click();q('[data-player-train=precision]').click();q('[data-player-train=precision]').click();assert.equal(saved().player.learned.precision,3);
  q('[data-player-train=control]').click();assert.equal(saved().player.active.length,2);assert.equal(q('[data-pilot]'),null);
- q('[data-view=race]').click();assert.match(q('.active-skills').textContent,/Точность 3/);q('#start').click();assert.ok(q('[data-card=skill-release]'));q('[data-view=player]').click();q('[data-pane=skills]').click();assert.equal(q('[data-player-train=control]').disabled,true);assert.equal(q('#player-reset').disabled,true);
+ q('[data-view=race]').click();assert.match(q('.active-skills').textContent,/Точность 3/);q('#start').click();assert.ok(q('.unavailable-cards'));q('#only-available').checked=false;q('#only-available').onchange({target:{checked:false}});assert.ok(q('[data-card=skill-release]'));q('[data-view=player]').click();q('[data-pane=skills]').click();assert.equal(q('[data-player-train=control]').disabled,true);assert.equal(q('#player-reset').disabled,true);
  q('[data-view=race]').click();q('#abandon').click();q('#confirm-abandon').click();q('[data-view=player]').click();q('[data-pane=skills]').click();q('#player-reset').click();assert.equal(saved().player.xp,2160);assert.deepEqual(saved().player.learned,{});
 });
 test('sound settings gracefully handle a browser without Web Audio and scene feedback reflects the played card',async t=>{
@@ -303,4 +303,19 @@ test('active racing hides career chrome automatically and can reveal it without 
 test('school navigation, staged cards, finish report and next lesson persist without touching garage',async t=>{
  const c=newCareer();c.condition.ae86=40;c.wear.ae86.stockTires=24;const {document:d,values,frames}=await boot(t,c),q=s=>d.querySelector(s);q('[data-view=player]').click();assert.ok(q('.school-panel'));assert.equal(q('[data-school-start="1"]').disabled,true);q('[data-school-start="0"]').click();assert.equal(q('#app').dataset.lesson,'0');assert.equal(d.querySelectorAll('[data-card]').length,1);q('#start').click();assert.ok(q('.school-coach'));let turn=0;while(q('#execute')&&turn<40){const id=turn===1?'attack':turn===3?'breathe':'balanced';q('[data-card='+id+']').click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);turn++;}
  assert.match(q('.school-report').textContent,/Урок пройден/);assert.equal(q('#retry'),null);let saved=JSON.parse(values.get(SAVE_KEY));assert.equal(saved.school.step,1);assert.equal(saved.money,c.money);assert.deepEqual(saved.wear,c.wear);assert.deepEqual(saved.condition,c.condition);assert.equal(saved.races,0);q('#school-next').click();assert.equal(q('#app').dataset.lesson,'1');assert.ok(q('[data-card=cool]'));assert.equal(q('[data-view=world]').disabled,false);q('#school-leave').click();assert.equal(q('#app').dataset.lesson,undefined);q('[data-view=world]').click();assert.equal(q('.player-panel'),null);assert.equal(q('[data-pane=school]'),null);q('[data-view=player]').click();q('[data-pane=school]').click();assert.equal(q('[data-school-start="1"]').disabled,false);
+});
+
+
+test('availability filter explains disabled cards in every discipline and map inspection preserves the actual decision',async t=>{
+ const {document:d,values}=await boot(t),q=s=>d.querySelector(s);const original=values.get(SAVE_KEY);assert.ok(q('#only-available').checked);assert.equal(d.querySelectorAll('.card:disabled').length,0);assert.ok(q('.unavailable-cards'));
+ q('[data-map-sector="1"]').click();assert.match(q('#map-inspection').textContent,/На карте № 2.*решение для № 1/);assert.equal(values.get(SAVE_KEY),original);q('[data-card=balanced]').click();assert.equal(q('[data-map-sector="1"]').getAttribute('aria-pressed'),'true');assert.match(q('.forecast-main').textContent,/Прямая/);
+ for(const mode of ['drag','drift']){q('#discipline-select').onchange({target:{value:mode}});assert.ok(q('#only-available').checked);q('#only-available').onchange({target:{checked:false}});assert.ok(d.querySelectorAll('.card:disabled').length>0);assert.ok(!/NaN|undefined/.test(q('#cards').textContent));q('#only-available').onchange({target:{checked:true}});assert.equal(d.querySelectorAll('.card:disabled').length,0);}
+});
+test('past decision, next action and compact finish report stay distinct and inspection never pays for service',async t=>{
+ const {document:d,values,frames}=await boot(t,newCareer()),q=s=>d.querySelector(s);q('#start').click();q('#execute').click();let callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);assert.equal(q('.last-sector').parentElement,q('#last-result'));assert.equal(q('#forecast').querySelector('.last-sector'),null);assert.match(q('#last-result').textContent,/ПРОШЛЫЙ УЧАСТОК/);assert.ok(q('.strain-meter'));assert.ok(q('.card-metrics'));
+ let turns=0;while(q('#execute')&&turns++<40){q('[data-card=balanced]').click();q('#execute').click();callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);}
+ assert.ok(q('.finish-overview'));assert.equal(q('.report').firstElementChild.className,'report-hero');assert.equal(q('.report-details').hasAttribute('open'),false);assert.equal(q('.report-progress').hasAttribute('open'),false);const before=values.get(SAVE_KEY);q('.report-details').setAttribute('open','');assert.ok(q('.report-details table'));assert.equal(values.get(SAVE_KEY),before);assert.match(q('.finish-overview').textContent,/Сервис ещё не оплачен/);assert.ok(q('#report-next'));
+});
+test('tuning comparison shows replacement, price and deltas without installing or spending',async t=>{
+ const {document:d,values}=await boot(t),q=s=>d.querySelector(s);q('[data-view=tuning]').click();q('[data-pane=installation]').click();q('[data-pane=tuning-tires]').click();const part=q('[data-part=slicks]').closest('.part'),before=values.get(SAVE_KEY);assert.ok(part.querySelector('.part-comparison'));part.querySelector('details').setAttribute('open','');assert.match(part.textContent,/К оплате/);assert.match(part.textContent,/Мокрое сцепление/);assert.equal(values.get(SAVE_KEY),before);
 });
