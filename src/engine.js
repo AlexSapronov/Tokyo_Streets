@@ -1,3 +1,4 @@
+import {createGridRace,resolveGridSector,gridOutcome} from './grid-race.js';
 import {ROAD_LIMITS} from './thermal-status.js';
 import {hasPart,partCapabilities} from './parts.js';
 import {unlockedSkillCards,trainedExecution} from './player.js';
@@ -63,6 +64,7 @@ export function freeRivalOptions(config,eventId,weather='dry'){
 export function freshState(config){return {time:0,tires:config.tireCondition??100,heat:55,focus:config.pilot.focus,study:false,velocity:16,cooldowns:{},recentActions:[]};}
 export function availableCards(config,mode='duel',context=null){if(mode==='drag')return dragCards(typeof context==='string'?getEvent(context).longDrag:context?.longDrag);if(mode==='drift')return driftCards();return [...CARDS,...unlockedSkillCards(config)].filter(c=>(!c.pilot||c.pilot===config.pilot.id)&&(!c.part||hasPart(config.parts,c.part)));}
 export function disabledReason(card,sector,state,config,gap=0){
+ if(state.gridGaps&&card.gap)gap=state.gridGaps[card.gap]??gap;
  if(sector.mode==='drift')return driftReason(card,sector,state,config);
  if(sector.mode==='drag')return dragReason(card,sector,state,config);
  if(card.phase)return 'Карта только для дрэга';
@@ -207,6 +209,7 @@ export function futureSectors(race) {
 }
 export function createRace(config, weather = 'mixed', eventId = 'haruna',runId=null,seed=null,rivalLevel=null) {
   const event = getEvent(eventId,config.routeVersion);
+  if(event.grid)return createGridRace(config,runId,seed);
   const category=raceClass(config);
   const offer=rivalLevel&&['duel','drag'].includes(event.mode)?freeRivalOptions(config,eventId,weather).find(o=>o.id===rivalLevel):null;
   if(rivalLevel&&!RIVAL_LEVELS.some(o=>o.id===rivalLevel))throw new Error('Неизвестный уровень соперника');
@@ -223,6 +226,7 @@ function chooseLearningRival(config,state,sector,gap){
  return {card,result:simulate(config,state,sector,card),plan:[card.name]};
 }
 export function resolveSector(race, cardId, lineId='neutral') {
+  if(race.grid)return resolveGridSector(race,cardId,lineId,!!race.grid.requestPit);
   if (race.finished) throw new Error('Заезд уже завершён');
   const event = getEvent(race.eventId,race.routeVersion);
   const sector = sectorAt(race.index, race.weather, race.eventId,race.routeVersion);
@@ -309,8 +313,8 @@ function baseOutcome(race) {
 }
 
 export function raceOutcome(race){
- const outcome=baseOutcome(race);
- return {...outcome,reward:Math.round(outcome.reward*rewardFactor(race.config,race.mode)*(race.rewardScale??1)*(race.season?1:race.difficultyReward??1))};
+ const outcome=race.grid?gridOutcome(race):baseOutcome(race);
+ return {...outcome,reward:Math.round(outcome.reward*(race.grid?1:rewardFactor(race.config,race.mode))*(race.rewardScale??1)*(race.season?1:race.difficultyReward??1))};
 }
 
 export function modernRoadRace(race){

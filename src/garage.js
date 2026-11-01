@@ -20,6 +20,7 @@ export function selectCar(career,id,activeRace=false) {
   const car=CARS.find(car=>car.id===id);
   if(!car)throw new Error('Неизвестный автомобиль');
   const next=editable(career,activeRace);
+  if(car.rewardOnly&&!next.ownedCars.includes(id))throw Error('Эта машина выдаётся только за победу в Tsukuba Club Trophy');
   if(!next.ownedCars.includes(id)){pay(next,car.price);next.ownedCars.push(id);}
   next.car=id;
   return next;
@@ -77,6 +78,7 @@ export const TRADE_IN_RATE=.6;
 export function tradeInQuote(career,targetId,sourceId=career.car){
  const source=CARS.find(c=>c.id===sourceId),target=CARS.find(c=>c.id===targetId);
  if(!source||!target||!career.ownedCars.includes(sourceId))throw new Error('Выбери свою машину и новую модель');
+ if(source.rewardOnly||target.rewardOnly)throw Error('Призовая машина не участвует в трейд-ин');
  if(career.ownedCars.includes(targetId))throw new Error('Новая машина уже есть в гараже');
  if(career.championships?.active?.carId===sourceId)throw new Error('Машина зарегистрирована в чемпионате: сначала заверши или покинь его');
  const health=id=>Math.max(0,Math.min(100,career.wear?.[sourceId]?.[id]??100))/100;

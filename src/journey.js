@@ -7,10 +7,12 @@ export function emptyJourney(){return {routes:{},claimed:[]};}
 const validFinish=r=>!r.dnf&&!r.falseStart;
 export function routeLevel(event,result){
  if(!validFinish(result))return 0;
+ if(event.grid)return result.won?3:result.medal?2:1;
  if(['duel','drag'].includes(event.mode))return result.won?((event.mode==='duel'?result.weather==='rain':Number.isFinite(result.reaction)&&result.reaction>=0&&result.reaction<=.25)?3:2):1;
  return result.medal==='gold'?3:result.medal?2:1;
 }
 export function routeTarget(event,level){
+ if(event.grid)return ['Финиш без схода и фальстарта','Подиум','Победа','Все отметки получены'][level];
  return level===0?'Финиш без схода и фальстарта':level===1?(['duel','drag'].includes(event.mode)?'Победа':'Бронза или выше'):level===2?(event.mode==='duel'?'Победа в дождь':event.mode==='drag'?'Победа с реакцией не больше 0,25 с':'Золото'):'Все отметки получены';
 }
 const routes=c=>Object.keys(c.journey?.routes||{}).length;

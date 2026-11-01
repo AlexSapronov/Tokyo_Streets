@@ -1,6 +1,7 @@
 // Model-specific silhouettes and front details, projected from vector geometry.
 // Long sedans, upright hatches, open cabins and low mid-engine coupes share no bitmap assets.
 const profiles = {
+  supraGT4:{length:446,width:188,roof:108,nose:169,tail:-186,cabinFront:57,cabinRear:-145,color:'#eee9df',shade:'#a6aaa9',doors:2,wing:true},
   ae86: {length: 420, width: 163, roof: 119, nose: 143, tail: -180, cabinFront: 90, cabinRear: -193, color: '#f0ebd9', shade: '#b5baaf'},
   chaser: {length: 472, width: 175, roof: 123, nose: 166, tail: -185, cabinFront: 100, cabinRear: -150, color: '#9772d3', shade: '#5b437d'},
   evo: {length: 435, width: 177, roof: 127, nose: 151, tail: -170, cabinFront: 95, cabinRear: -140, color: '#df554b', shade: '#983b36'},
@@ -14,7 +15,7 @@ const profiles = {
   r34:{length:460,width:178,roof:119,nose:161,tail:-182,cabinFront:90,cabinRear:-143,color:'#356dbb',shade:'#214678',doors:2,wing:true}
 
 };
-const bodyStyles={ae86:{roofFront:28,roofRear:-100,round:3,spokes:8,feature:'panda-popups'},chaser:{roofFront:40,roofRear:-125,round:5,spokes:6,feature:'four-door-quad-lamps'},evo:{roofFront:40,roofRear:-115,round:4,spokes:6,feature:'vented-hood-rally-wing'},mx5:{roofFront:-12,roofRear:-90,round:10,spokes:8,feature:'open-roadster'},s13:{roofFront:35,roofRear:-105,round:5,spokes:5,feature:'slim-projector-nose'},rx7:{roofFront:14,roofRear:-105,round:14,spokes:5,feature:'rounded-rotary-coupe'},r32:{roofFront:36,roofRear:-110,round:5,spokes:5,feature:'boxy-gtr-grille'},supra:{roofFront:15,roofRear:-105,round:14,spokes:5,feature:'oval-lamps-hoop-wing'},ek9:{roofFront:35,roofRear:-140,round:6,spokes:7,feature:'upright-hatch'},nsx:{roofFront:25,roofRear:-83,round:7,spokes:5,feature:'low-mid-engine-black-roof'},r34:{roofFront:37,roofRear:-112,round:5,spokes:6,feature:'boxy-gtr-grille'}};
+const bodyStyles={supraGT4:{roofFront:15,roofRear:-100,round:9,spokes:10,feature:'gt4-widebody-splitter'},ae86:{roofFront:28,roofRear:-100,round:3,spokes:8,feature:'panda-popups'},chaser:{roofFront:40,roofRear:-125,round:5,spokes:6,feature:'four-door-quad-lamps'},evo:{roofFront:40,roofRear:-115,round:4,spokes:6,feature:'vented-hood-rally-wing'},mx5:{roofFront:-12,roofRear:-90,round:10,spokes:8,feature:'open-roadster'},s13:{roofFront:35,roofRear:-105,round:5,spokes:5,feature:'slim-projector-nose'},rx7:{roofFront:14,roofRear:-105,round:14,spokes:5,feature:'rounded-rotary-coupe'},r32:{roofFront:36,roofRear:-110,round:5,spokes:5,feature:'boxy-gtr-grille'},supra:{roofFront:15,roofRear:-105,round:14,spokes:5,feature:'oval-lamps-hoop-wing'},ek9:{roofFront:35,roofRear:-140,round:6,spokes:7,feature:'upright-hatch'},nsx:{roofFront:25,roofRear:-83,round:7,spokes:5,feature:'low-mid-engine-black-roof'},r34:{roofFront:37,roofRear:-112,round:5,spokes:6,feature:'boxy-gtr-grille'}};
 const project = ([x, y, z]) => [310 + x * .84 - y * .78, 212 + x * .31 + y * .34 - z];
 const points = vertices => vertices.map(vertex => project(vertex).map(n => n.toFixed(1)).join(',')).join(' ');
 const polygon = (vertices, fill, extra = '') => `<polygon points="${points(vertices)}" fill="${fill}" ${extra}/>`;
@@ -47,7 +48,7 @@ function frontDetails(id,p,L,W){
   for(const side of [-1,1]){const a=side<0?-W+13:31;out+=face(a,a+W-44,52,id==='ek9'?65:62,light);out+=line([L+4,a+12,53],[L+4,a+12,61],'#789397',2);}
   if(id==='r32')out+=face(-8,9,52,59,'#bd4541');
   if(id==='ek9')out+=face(-5,5,53,61,'#cf4d43');
- }else if(id==='supra'||id==='rx7'||id==='mx5'||id==='nsx'){
+ }else if(id==='supraGT4'||id==='supra'||id==='rx7'||id==='mx5'||id==='nsx'){
   out+=roundedShape([[L+4,-39,29],[L+4,39,29],[L+4,34,46],[L+4,-34,46]],dark,8);
   if(id==='supra')for(const side of [-1,1]){const y=side<0?-W+12:30;out+=roundedShape([[L+4,y,51],[L+4,y+43,51],[L+4,y+40,64],[L+4,y+7,66]],'#8caaa9',7);for(const d of [10,23,34])out+=line([L+5,y+d,55],[L+5,y+d,61],light,5);}
   if(id==='rx7')for(const y of [-W+16,W-31])out+=face(y,y+15,36,43,'#dedcbd');
@@ -134,7 +135,7 @@ export function vehicleSVG(car) {
     body += polygon([[-L-1,-W-8,113],[-L+46,-W-8,113],[-L+46,W+8,113],[-L-1,W+8,113]], p.color);
   }
   if(p.wing){
-    const wingHeight=car.id==='supra'?106:car.id==='nsx'?82:91;
+    const wingHeight=car.id==='supraGT4'?113:car.id==='supra'?106:car.id==='nsx'?82:91;
     for(const y of [-W+13,W-23])body+=polygon([[-L+18,y,64],[-L+28,y,64],[-L+28,y,wingHeight],[-L+18,y,wingHeight]],p.shade);
     body+=roundedShape([[-L+8,-W-5,wingHeight],[-L+38,-W-5,wingHeight],[-L+38,W+5,wingHeight],[-L+8,W+5,wingHeight]],p.color,car.id==='supra'?9:2);
   }
@@ -160,6 +161,7 @@ export function topVehicleSVG(car) {
     <path d="M-1,-15 8,-12 8,12 -1,15Z" fill="#73959d"/>
     <path d="M${length/2-5},-17v9m0,16v9" stroke="#fff2b4" stroke-width="5"/>
     <path d="M${-length/2+1},-16v8m0,16v8" stroke="#f46155" stroke-width="4"/>
+    ${car.id==='supraGT4'?'<path d="M-46,-25v50M22,-20L39,-20L39,20L22,20Z" fill="#bf342c"/><path d="M-51,-27v54" stroke="#121b20" stroke-width="6"/><path d="M15,-12L31,0L15,12Z" fill="#171f22"/>':''}
     ${car.id === 'ae86' ? '<path d="M-45,-19H39M-45,19H39" stroke="#182126" stroke-width="4"/><path d="M30,-16v10m0,12v10" stroke="#eeecc9" stroke-width="6"/>' : ''}
     ${p.popups?'<path d="M30,-16v10m0,12v10" stroke="#fff4c8" stroke-width="6"/>':''}
     ${p.wing?'<path d="M-42,-24v48" stroke="'+p.shade+'" stroke-width="5"/>':''}

@@ -11,6 +11,7 @@ export function seriesDefinition(raw,id=raw?.id){
  if(!Array.isArray(raw.drives)||!raw.drives.length||new Set(raw.drives).size!==raw.drives.length||raw.drives.some(d=>!['FR','FF','AWD','MR'].includes(d)))throw new Error('Нужен хотя бы один допустимый привод');
  if(typeof raw.naOnly!=='boolean')throw new Error('Некорректное ограничение двигателя');
  if(!Number.isInteger(raw.pool)||raw.pool<10000||raw.pool>100000||raw.pool%1000)throw new Error('Призовой фонд: ¥10 000–100 000, шаг ¥1 000');
+ if(raw.stages?.some?.(s=>s?.[0]==='tsukuba-grid'))throw Error('Club Trophy доступен только как отдельное событие');
  if(!Array.isArray(raw.stages)||raw.stages.length<2||raw.stages.length>6||raw.stages.some(s=>!Array.isArray(s)||s.length!==2||!EVENTS.some(e=>e.id===s[0])||!['dry','mixed','rain'].includes(s[1])))throw new Error('Календарь: от двух до шести этапов с известной трассой и погодой');
  const cars=CARS.filter(c=>c.power<=raw.maxPower&&raw.drives.includes(c.drive)&&(!raw.naOnly||!c.engine.includes('TURBO'))).sort((a,b)=>b.power-a.power||a.id.localeCompare(b.id));
  if(!cars.length)throw new Error('Под регламент не подходит ни одна машина');

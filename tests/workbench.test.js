@@ -31,7 +31,7 @@ test('race report toggle keeps the race instruments mounted and can return to fi
 });
 test('car assets have distinct model details, finite coordinates and supported standalone SVG',()=>{
  const details=new Set();for(const car of CARS){const s=vehicleSVG(car),svg=parseHTML(s).document.querySelector('svg');details.add(svg.getAttribute('data-body-detail'));assert.equal(svg.getAttribute('data-model'),car.id);assert.ok(!/NaN|Infinity|undefined/.test(s));assert.ok(svg.querySelectorAll('path').length>8);assert.equal(parseHTML(topVehicleSVG(car)).document.querySelector('svg').getAttribute('data-model'),car.id);}
- assert.equal(details.size,10);assert.match(vehicleSVG({id:'unknown',name:'Unknown'}),/panda-popups/);
+ assert.equal(details.size,CARS.length-1);assert.match(vehicleSVG({id:'unknown',name:'Unknown'}),/panda-popups/);
 });
 async function boot(t,initial,options={}){
  const {document,HTMLElement,HTMLCanvasElement,HTMLSelectElement,HTMLInputElement}=parseHTML(readFileSync(new URL('../index.html',import.meta.url),'utf8'));
@@ -109,7 +109,7 @@ test('garage interface sorts by price and displays HD previews for every model',
  const {document:d}=await boot(t),q=s=>d.querySelector(s);
  q('[data-view=garage]').click();
  assert.deepEqual([...d.querySelectorAll('[data-garage-preview]')].map(node=>node.dataset.garagePreview),
-  ['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','r34','nsx']);
+  ['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','r34','nsx','supraGT4']);
  assert.match(q('.garage-price-sort').textContent,/ЦЕНА/);
  assert.ok(q('.garage-car-detail .garage-render-ae86'));
  q('[data-garage-preview=rx7]').click();assert.ok(q('.garage-car-detail .garage-render-rx7'));
@@ -345,4 +345,16 @@ test('English drag, drift and Time Attack previews, decisions and reports have n
   while(q('#execute')&&turns++<40){const card=q('[data-card=balanced]:not(:disabled)')||q('[data-card=drift-reset]:not(:disabled)')||q('.card:not(:disabled)');assert.ok(card,mode+' available move');card.click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);check(mode+' decision '+turns);}
   assert.ok(q('.report'),mode+' finished');check(mode+' report');q('#report-routes').click();
  }
+});
+
+test('official Club Trophy is gated, offers pit choices between laps, finishes with a field table and grants a selectable prize',async t=>{
+ const c=newCareer();c.official=120;c.races=12;c.money=100000;c.car='nsx';c.ownedCars.push('nsx');c.builds.nsx=['slicks','brakes','lsd','cooling','suspension','ecu','exhaust','cams'];c.purchased.nsx=[...c.builds.nsx];
+ const {document:d,values,frames}=await boot(t,c),q=s=>d.querySelector(s);
+ q('#discipline-select').onchange({target:{value:'circuit'}});assert.equal(q('#event-select').value,'tsukuba-grid');assert.equal(q('#weather').disabled,true);assert.equal(q('.grid-field tbody').children.length,4);assert.equal(q('#start').disabled,false);q('#start').click();
+ let turns=0;while(q('#execute')&&turns++<40){assert.ok(q('.grid-field'));q('[data-card=balanced]').click();q('#execute').click();const callbacks=[...frames.values()];frames.clear();for(const cb of callbacks)cb(performance.now()+20000);}
+ assert.ok(q('.grid-prize'));assert.equal(q('.grid-field tbody').children.length,4);assert.ok(JSON.parse(values.get(SAVE_KEY)).ownedCars.includes('supraGT4'));assert.equal(q('#grid-pit'),null);q('#report-garage').click();q('[data-garage-preview=supraGT4]').click();assert.ok(q('.garage-car-detail svg[data-model=supraGT4]'));q('[data-car=supraGT4]').click();assert.equal(JSON.parse(values.get(SAVE_KEY)).car,'supraGT4');
+});
+test('Official Rep is required even with high Street Cred and reward car cannot be bought in the garage',async t=>{
+ const c=newCareer();c.street=1000;c.races=20;c.money=1000000;
+ const {document:d}=await boot(t,c),q=s=>d.querySelector(s);q('#discipline-select').onchange({target:{value:'circuit'}});assert.equal(q('#start').disabled,true);assert.match(q('.sidebar').textContent,/Official Rep 120/);q('[data-view=garage]').click();q('[data-garage-preview=supraGT4]').click();assert.equal(q('[data-car=supraGT4]').disabled,true);assert.match(q('[data-car=supraGT4]').textContent,/Приз/);assert.equal(q('#trade-in'),null);
 });

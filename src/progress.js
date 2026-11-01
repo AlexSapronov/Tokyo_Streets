@@ -1,3 +1,4 @@
+import {gridReplay,GRID_REWARD,PIT_SECONDS} from './grid-race.js';
 import {settlePlayer,trainingKey} from './player.js';
 import {settleChallenge} from './rivals.js';
 import {settleJourney} from './journey.js';
@@ -12,23 +13,24 @@ import {raceOutcome} from './engine.js';
 
 export const MODEL_VERSION = 8;
 export function recordKey(config, eventId, weather) {
+ if(getEvent(eventId).grid){config={...config,routeVersion:3};weather='dry';}
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
   return [getEvent(eventId).mode==='drift'?'drift-4':getEvent(eventId).mode==='drag'?'drag-4':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
     ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')+(config.engineId&&config.engineId!==stockEngineId(config.car.id)?';engine='+config.engineId:'')+(trainingKey(config)?';skills='+trainingKey(config):'')+(config.challengeId?';challenge='+config.challengeId:'')+(config.rivalLevel&&['duel','drag'].includes(getEvent(eventId).mode)?';rival='+config.rivalLevel:'')+(config.rivalLevel==='easy'&&getEvent(eventId).mode==='duel'?';opponent=learning-1':'')+(config.routeVersion>=2?';route='+config.routeVersion:'')].join('|');
 }
 export function unlocked(event, career) {
-  return earnedStreet(career) >= event.unlockStreet && career.races >= event.unlockRaces;
+  return (career.official||0) >= (event.unlockOfficial||0) && earnedStreet(career) >= event.unlockStreet && career.races >= event.unlockRaces;
 }
 export function unlockText(event) {
-  return [event.unlockStreet ? `Street Cred ${event.unlockStreet}` : '',event.unlockRaces ? `${event.unlockRaces} завершённых заезда` : ''].filter(Boolean).join(' и ') || 'Доступно';
+  return [event.unlockOfficial?`Official Rep ${event.unlockOfficial}`:'',event.unlockStreet ? `Street Cred ${event.unlockStreet}` : '',event.unlockRaces ? `${event.unlockRaces} завершённых заезда` : ''].filter(Boolean).join(' и ') || 'Доступно';
 }
 export function bestFor(career, config, eventId, weather) {
   const key=recordKey(config,eventId,weather);
   return career.bests.find(best => best.key === key) || null;
 }
 export function raceRecord(race) {
-  return {...(race.routeVersion?{routeVersion:race.routeVersion}:{}),key: recordKey(race.config, race.eventId, race.weather),...(trainingKey(race.config)?{training:{...race.config.training}}:{}),...(race.config.challengeId?{challengeId:race.config.challengeId}:{}),...(race.rivalLevel?{rivalLevel:race.rivalLevel}:{}),...(race.config.engineId!==stockEngineId(race.config.car.id)?{engineId:race.config.engineId}:{}),...(Object.values(race.config.wear||{}).some(n=>n<100)?{wear:{...race.config.wear}}:{}),...(setupKey(race.config.setup)?{setup:{...race.config.setup}}:{}),
+  return {...(race.grid?{grid:gridReplay(race)}:{}),...(race.routeVersion?{routeVersion:race.routeVersion}:{}),key: recordKey(race.config, race.eventId, race.weather),...(trainingKey(race.config)?{training:{...race.config.training}}:{}),...(race.config.challengeId?{challengeId:race.config.challengeId}:{}),...(race.rivalLevel?{rivalLevel:race.rivalLevel}:{}),...(race.config.engineId!==stockEngineId(race.config.car.id)?{engineId:race.config.engineId}:{}),...(Object.values(race.config.wear||{}).some(n=>n<100)?{wear:{...race.config.wear}}:{}),...(setupKey(race.config.setup)?{setup:{...race.config.setup}}:{}),
     ...(race.player.dnf?{dnf:{...race.player.dnf}}:{}),
     ...(Number.isInteger(race.seed)?{seed:race.seed,executionVersion:1}:{}),
     eventId: race.eventId, weather: race.weather, carId: race.config.car.id,
@@ -46,6 +48,7 @@ export function awardRace(career, race) {
   if(race.school)throw Error('Учебные заезды учитываются отдельно от карьеры');
   if (!race.finished || race.awarded || race.runId && career.awardedRuns.includes(race.runId)) throw new Error('Этот заезд нельзя наградить повторно');
   const outcome = raceOutcome(race);
+  const pitBill=race.grid?.pitBill||0;
   const record = raceRecord(race);
   const previous = bestFor(career, race.config, race.eventId, race.weather);
   const completedCourse=race.history.length===getEvent(race.eventId,race.routeVersion).sectors.length;
@@ -55,6 +58,13 @@ export function awardRace(career, race) {
   const debtPaid=Math.min(next.repairDebt||0,Math.floor(outcome.reward*.5));
   next.repairDebt=(next.repairDebt||0)-debtPaid;
   next.money += outcome.reward-debtPaid;
+  const pitPaid=Math.min(next.money,pitBill);next.money-=pitPaid;next.repairDebt+=pitBill-pitPaid;
+  let prizeCar=null;
+  if(race.grid&&completedCourse&&outcome.won&&!next.exclusiveRewards?.includes(race.eventId)){
+   next.exclusiveRewards=[...(next.exclusiveRewards||[]),race.eventId];
+   if(!next.ownedCars.includes(GRID_REWARD))next.ownedCars.push(GRID_REWARD);
+   prizeCar=GRID_REWARD;
+  }
   if(!race.player.dnf&&!race.player.drag?.falseStart){next.races++;next.eventCompletions={...next.eventCompletions,[race.eventId]:(next.eventCompletions?.[race.eventId]||0)+1};}
   if(race.runId)next.awardedRuns=[...next.awardedRuns,race.runId].slice(-256);
   if (outcome.won) next.wins++;
@@ -77,7 +87,7 @@ export function awardRace(career, race) {
   const challenge=settleChallenge(next,race,outcome);next=challenge.career;
   const player=settlePlayer(next,race,outcome);next=player.career;
   const journey=settleJourney(next,race,outcome);next=journey.career;
-  return {career: next, race: {...race, awarded: true, outcome, debtPaid, isBest,journeyReport:journey.report,playerReport:player.report,...(challenge.report?{challengeReport:challenge.report}:{}),...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
+  return {career: next, race: {...race, awarded: true, outcome, debtPaid,pitPaid,pitBill,prizeCar, isBest,journeyReport:journey.report,playerReport:player.report,...(challenge.report?{challengeReport:challenge.report}:{}),...(season.report?{seasonReport:season.report}:{}),...(teamResult.feedback?{teamFeedback:teamResult.feedback}:{})}, isBest};
 }
 export function checkpointFractions(eventId,routeVersion=1) {
   const sectors = getEvent(eventId,routeVersion).sectors;
@@ -85,13 +95,14 @@ export function checkpointFractions(eventId,routeVersion=1) {
   let distance = 0;
   return [0, ...sectors.map(sector => (distance += sector.length) / total)];
 }
-export function progressAtTime(sectorTimes, elapsed, eventId,routeVersion=1) {
+export function progressAtTime(sectorTimes, elapsed, eventId,routeVersion=1,pits=[]) {
   if (!sectorTimes?.length || elapsed <= 0) return 0;
   const checkpoints = checkpointFractions(eventId,routeVersion);
   let time = 0;
   for (let i = 0; i < sectorTimes.length; i++) {
     if (elapsed <= time + sectorTimes[i]) {
-      const fraction = (elapsed - time) / sectorTimes[i];
+      const delay=pits.includes(i)?PIT_SECONDS:0;
+      const fraction = Math.max(0,elapsed-time-delay)/Math.max(.001,sectorTimes[i]-delay);
       return checkpoints[i] + fraction * (checkpoints[i + 1] - checkpoints[i]);
     }
     time += sectorTimes[i];

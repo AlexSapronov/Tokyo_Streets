@@ -154,6 +154,7 @@ function driftSummary(race,outcome,event,lang){
 export function summarizeRace(race,outcome,event,lang='ru'){
   const language=lang==='en'?'en':'ru';
   if(!race||!outcome)return {title:'',lead:'',facts:[]};
+  if(race.grid)return {title:phrase(language,'Кольцевая гонка завершена','Circuit race complete'),lead:outcome.label+' · '+sec(race.player.time,language),facts:[phrase(language,'Пит-стопов: '+race.grid.pits.length+'. Счёт за шины: ¥'+(race.pitBill||0)+'.','Pit stops: '+race.grid.pits.length+'. Tire bill: ¥'+(race.pitBill||0)+'.')]};
   if(race.mode==='drift')return driftSummary(race,outcome,event,language);
   if(race.mode==='timeattack')return timeAttackSummary(race,outcome,event,language);
   return duelSummary(race,outcome,event,language);

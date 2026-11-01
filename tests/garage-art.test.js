@@ -9,16 +9,16 @@ import {newCareer,validateSave} from '../src/storage.js';
 
 test('garage sorts cars by actual price, including filtered drive types',()=>{
  const ordered=garageCarsByPrice(CARS);
- assert.deepEqual(ordered.map(car=>car.id),['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','r34','nsx']);
- assert.deepEqual(garageCarsByPrice(CARS.filter(car=>car.drive==='FR')).map(car=>car.id),['ae86','mx5','s13','chaser','rx7','supra']);
+ assert.deepEqual(ordered.map(car=>car.id),['ae86','mx5','s13','ek9','chaser','evo','rx7','r32','supra','r34','nsx','supraGT4']);
+ assert.deepEqual(garageCarsByPrice(CARS.filter(car=>car.drive==='FR')).map(car=>car.id),['ae86','mx5','s13','chaser','rx7','supra','supraGT4']);
  assert.deepEqual(CARS[1].id,'chaser'); // Source ordering is not mutated.
  assert.ok(ordered.every((car,i)=>i===0||ordered[i-1].price<=car.price));
 });
 
 test('all garage vehicles get their own correct high-definition artwork',()=>{
  assert.deepEqual([...GARAGE_ART_IDS],["ae86","mx5","s13","rx7","evo","chaser","r32","r34","supra","ek9","nsx"]);
- assert.equal(new Set(GARAGE_ART_IDS).size,CARS.length);
- for(const car of CARS){
+ assert.equal(new Set(GARAGE_ART_IDS).size,CARS.filter(c=>!c.rewardOnly).length);
+ for(const car of CARS.filter(c=>!c.rewardOnly)){
    const html=garageArtworkHTML(car);
    assert.match(html,new RegExp('garage-render-'+car.id));
    assert.match(html,/role="img"/);
@@ -67,7 +67,7 @@ test('R34 is a separate playable car with its own stock engine and save data',()
 });
 
 test('every model has a unique high-resolution image instead of a vector fallback',()=>{
- const htmls=CARS.map(car=>garageArtworkHTML(car));
+ const htmls=CARS.filter(c=>!c.rewardOnly).map(car=>garageArtworkHTML(car));
  assert.ok(htmls.every(html=>html.includes('garage-render')&&!html.includes('<svg')));
  assert.equal(htmls.length,11);
 });

@@ -16,12 +16,12 @@ export function raceClass(config){
 }
 export function payoutScale(career,eventId){return Math.max(.5,1/(1+(career.eventCompletions?.[eventId]||0)*.12));}
 export function admissionReason(career,eventId){
- const event=EVENTS.find(e=>e.id===eventId)||EVENTS[0],minimum=['drag','drift','timeattack'].includes(event.mode)?55:45;
+ const event=EVENTS.find(e=>e.id===eventId)||EVENTS[0],minimum=event.officialOnly||['drag','drift','timeattack'].includes(event.mode)?55:45;
  const w=career.wear?.[career.car];if(w&&(w.engine<15||w.transmission<15||w.stockBrakes<10||w[tireKey(career.builds[career.car])]<10))return 'Критический износ узла: нужен сервис или аварийный ремонт до 60%';
  return career.condition[career.car]<minimum?`Для старта нужно состояние машины от ${minimum}%. Доступен ремонт в гараже.`:'';
 }
 export function unlockEverything(career){
- const next=structuredClone(career);next.money=1000000;next.races=Math.max(20,next.races);next.street=Math.max(100,next.street);next.official=Math.max(100,next.official);next.streetPeak=Math.max(next.streetPeak||0,next.street);next.repairDebt=0;
+ const next=structuredClone(career);next.money=1000000;next.races=Math.max(20,next.races);next.street=Math.max(100,next.street);next.official=Math.max(200,next.official);next.streetPeak=Math.max(next.streetPeak||0,next.street);next.repairDebt=0;
  next.championships??={active:null,history:[],completed:[]};next.championships.completed=['club','regional','masters','allstars','legends'];
  next.ownedCars=CARS.map(c=>c.id);
  for(const car of CARS){next.purchased[car.id]=PARTS.filter(p=>!partReason(car.id,p.id,installedEngineId(next,car.id))).map(p=>p.id);next.condition[car.id]=100;}

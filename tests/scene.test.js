@@ -212,3 +212,9 @@ test('map canvas labels use the selected language without changing checkpoint po
   setLanguage('en');calls=[];scene.drawDecisionGuide(0);const en=calls.filter(c=>c[0]==='fillText'&&/ENTRY|EXIT/.test(c[1]));assert.equal(en.length,2);assert.deepEqual(en.map(c=>c.slice(2)),ru.map(c=>c.slice(2)));assert.ok(calls.filter(c=>c[0]==='fillText').every(c=>!/[А-Яа-яЁё]/.test(c[1])));
  }finally{setLanguage('ru');scene.destroy();}
 });
+
+test('field renderer draws three separately recorded rivals in live runs and replays across laps',()=>{
+ let r=createRace(configuration('nsx','ren',['slicks','brakes','cooling','lsd']),'dry','tsukuba-grid',null,42);for(let i=0;i<12;i++)r=resolveSector(r,'balanced');
+ const scene=new Scene(canvas(),r);calls=[];scene.loop(100);for(const id of ['KEI','RIKA','DAICHI'])assert.ok(calls.some(c=>c[0]==='fillText'&&c[1].startsWith(id)),id);
+ const record=raceRecord(r);scene.replay(record,1000);calls=[];scene.loop(performance.now()+500);for(const id of ['KEI','RIKA','DAICHI'])assert.ok(calls.some(c=>c[0]==='fillText'&&c[1].startsWith(id)));scene.destroy();
+});

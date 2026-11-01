@@ -3,6 +3,7 @@ import {replayIndex} from './replay.js';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 // Approximate game transmission profiles, not homologated factory specifications.
 const profiles={
+  supraGT4:{ratios:[4.71,3.14,2.11,1.67,1.29,1,.84],final:3.15,circumference:2.05,redline:7000,idle:850},
   ae86:{ratios:[3.59,2.02,1.38,1,.86],final:4.3,circumference:1.8,redline:7600,idle:900},
   chaser:{ratios:[3.25,1.96,1.31,1,.75],final:3.73,circumference:1.98,redline:7200,idle:800},
   evo:{ratios:[2.93,1.95,1.41,1.03,.72],final:4.53,circumference:1.95,redline:8000,idle:900},
@@ -76,7 +77,7 @@ export function sampleTelemetry(config,mode,record,elapsed){
 }
 export function normalizeTelemetry(raw,count){
   if(!Array.isArray(raw)||raw.length!==count)return null;
-  const ranges={speed:[0,600],rpm:[0,10000],gear:[0,6],coolant:[20,160],oil:[20,220],brakes:[20,250],tireTemp:[0,200],tires:[0,100],focus:[0,120]};
+  const ranges={speed:[0,600],rpm:[0,10000],gear:[0,7],coolant:[20,160],oil:[20,220],brakes:[20,250],tireTemp:[0,200],tires:[0,100],focus:[0,120]};
   const output=[];
   for(const row of raw){
     if(!row||Object.entries(ranges).some(([key,[min,max]])=>!Number.isFinite(row[key])||row[key]<min||row[key]>max)||!Number.isInteger(row.gear))return null;

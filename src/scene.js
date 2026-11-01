@@ -1,3 +1,4 @@
+import {gridClock,gridReplay} from './grid-race.js';
 import {translate} from './i18n.js';
 import {driftVisualYaw} from './drift-pose.js';
 import {trackGeometry} from './track-geometry.js';
@@ -24,7 +25,7 @@ export class Scene {
     this.race = race;
     this.ghost = ghost;
     this.showGhost = showGhost;
-    this.elapsed = race.player.time;
+    this.elapsed = race.grid?gridClock(race):race.player.time;
     this.paused = false;
     this.motion = null;
     this.time = 0;
@@ -57,7 +58,7 @@ export class Scene {
     this.cameraState={zoom:z,x:this.w/2-p[0]*z,y:this.h/2-p[1]*z};this.pendingView=null;
   }
   ensureCamera(){
-    if(!this.cameraState){const record=this.replayRecord||presentationRecord(this.race),progress=progressAtTime(record.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion);this.cameraState=sectionCamera(this.route.map(p=>this.project(...p)),this.checkpoints,0,this.w,this.h,this.scale,progress);}
+    if(!this.cameraState){const record=this.replayRecord||presentationRecord(this.race),progress=progressAtTime(record.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion,record.grid?.pits||record.pits||[]);this.cameraState=sectionCamera(this.route.map(p=>this.project(...p)),this.checkpoints,0,this.w,this.h,this.scale,progress);}
     return this.cameraState;
   }
   zoomBy(direction,x=this.w/2,y=this.h/2){
@@ -203,16 +204,17 @@ export class Scene {
       c.font='bold 10px monospace';c.fillStyle='#c0cbb8';c.fillText((this.event.longDrag?this.event.distance.toFixed(3):'402.336')+' m / DRAG',x-45*s,y+25*s);
     }
     for(let i=0;i<this.checkpoints.length;i++) {
+      if(this.event.grid&&i>this.event.lapSectors)continue;
       const point=this.project(...this.geometry.at(this.checkpoints[i]));
       c.beginPath();c.arc(point[0],point[1],i===0||i===this.checkpoints.length-1?6*s:3*s,0,7);
-      c.fillStyle=i===this.checkpoints.length-1?'#ffac77':'#b6c6ad';c.fill();
-      if(i<this.checkpoints.length-1){c.font='10px monospace';c.fillStyle='#b0c1b0';c.fillText(String(i+1).padStart(2,'0'),point[0]+15*s,point[1]-12*s);}
+      c.fillStyle=(this.event.grid?i===this.event.lapSectors:i===this.checkpoints.length-1)?'#ffac77':'#b6c6ad';c.fill();
+      if(i<(this.event.grid?this.event.lapSectors:this.checkpoints.length-1)){c.font='10px monospace';c.fillStyle='#b0c1b0';c.fillText(String(i+1).padStart(2,'0'),point[0]+15*s,point[1]-12*s);}
     }
 
   }
   animateSector(race,ghost,duration) {
     this.previewSector=null;this.fromState=this.race.player;this.race=race;this.ghost=ghost;
-    this.motion={from:this.elapsed,to:race.player.time,started:performance.now(),duration:duration??playbackDuration(race.player.time-this.elapsed,this.speed)};
+    this.motion={from:this.elapsed,to:race.grid?gridClock(race):race.player.time,started:performance.now(),duration:duration??playbackDuration((race.grid?gridClock(race):race.player.time)-this.elapsed,this.speed)};
     this.paused=false;
   }
   replay(record,duration) {
@@ -260,7 +262,7 @@ export class Scene {
   }
   draw() {
     const c=this.ctx,w=this.w,h=this.h;
-    const cameraRecord=this.replayRecord||presentationRecord(this.race),cameraProgress=progressAtTime(cameraRecord.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion);
+    const cameraRecord=this.replayRecord||presentationRecord(this.race),cameraProgress=progressAtTime(cameraRecord.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion,cameraRecord.grid?.pits||cameraRecord.pits||[]);
     const points=this.route.map(p=>this.project(...p));
     const index=this.replayRecord?presentationFrame(this.replayRecord,this.elapsed,this.event.id).index:Math.min(this.event.sectors.length-1,Math.max(0,this.race.index-(this.motion?1:0)));
     const target=this.follow||!this.cameraState?sectionCamera(points,this.checkpoints,index||0,w,h,this.scale,cameraProgress):this.cameraState;
@@ -303,22 +305,29 @@ export class Scene {
       this.path(c,trace,'#ffb477bb',Math.max(1.3/(this.cameraState?.zoom||1),2*this.scale),[6*this.scale,4*this.scale]);
     }
     if(this.replayRecord){
-      const progress=progressAtTime(visualRecord.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion),sign=direction(progress);
+      const progress=progressAtTime(visualRecord.sectorTimes,this.elapsed,this.event.id,this.race.routeVersion,this.replayRecord?.grid?.pits||[]),sign=direction(progress);
       this.drawCar(progress,-4,this.replayRecord.carId,'REPLAY',false,visualYaw(frame,progress),racingLane(-4,frame,sign,this.event.mode)+4,frame);
     }else{
       const playerTimes=visualRecord.sectorTimes;
       if(this.ghost&&this.showGhost){
-        const progress=progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id,this.ghost.routeVersion),ghost=presentationFrame(this.ghost,this.elapsed,this.event.id);
+        const progress=progressAtTime(this.ghost.sectorTimes,this.elapsed,this.event.id,this.ghost.routeVersion,this.ghost.grid?.pits||[]),ghost=presentationFrame(this.ghost,this.elapsed,this.event.id);
         this.drawCar(progress,0,this.ghost.carId,'BEST',true,visualYaw(ghost,progress),racingLane(0,ghost,direction(progress),this.event.mode));
       }
-      if(['duel','drag'].includes(this.race.mode)){
+      if(!this.race.grid&&['duel','drag'].includes(this.race.mode)){
         const aiRecord=presentationRecord(this.race,true),aiTimes=aiRecord.sectorTimes;
         let progress=progressAtTime(aiTimes,this.elapsed,this.event.id,this.race.routeVersion);
         const ai=presentationFrame(aiRecord,this.elapsed,this.event.id);
         this.drawCar(Math.min(this.race.opponent.dnf?this.checkpoints[aiTimes.length]:1,progress),this.race.opponent.dnf?38:9,this.race.rival.car.id,this.race.opponent.dnf?'RIVAL DNF':this.event.mode==='duel'&&aiTimes.length?'RIVAL · '+aiTimes.at(-1).toFixed(2)+' с':'RIVAL',false,this.race.opponent.dnf?.7:ai.yaw*direction(progress),this.race.opponent.dnf?0:racingLane(9,ai,direction(progress),this.event.mode)-9,ai);
       }
-      const progress=Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id,this.race.routeVersion));
+      const progress=Math.min(this.race.player.dnf?this.checkpoints[playerTimes.length]:1,progressAtTime(playerTimes,this.elapsed,this.event.id,this.race.routeVersion,this.race.grid?.pits||[]));
       this.drawCar(progress,this.race.player.dnf?-38:-9,this.race.config.car.id,this.race.player.dnf?'YOU DNF':['duel','timeattack'].includes(this.event.mode)&&playerTimes.length?'YOU · '+playerTimes.at(-1).toFixed(2)+' с':'YOU',false,this.race.player.dnf?.7:visualYaw(frame,progress),this.race.player.dnf?0:racingLane(-9,frame,direction(progress),this.event.mode)+9,frame);
+    }
+    if(this.race.grid){
+      const record=this.replayRecord?.grid||gridReplay(this.race);
+      for(const [i,e] of record.rivals.entries()){
+        const progress=progressAtTime(e.sectorTimes,this.elapsed,this.event.id,3,e.pits||[]),pose=presentationFrame(e,this.elapsed,this.event.id);
+        this.drawCar(progress,[-18,0,18][i],e.carId,e.id.toUpperCase()+(e.dnf?' DNF':''),false,pose.yaw*direction(progress),racingLane([-18,0,18][i],pose,direction(progress),this.event.mode)-[-18,0,18][i],pose);
+      }
     }
     c.setTransform(this.dpr,0,0,this.dpr,0,0);
     this.drawMinimap(cameraProgress);
@@ -339,7 +348,8 @@ export class Scene {
     this.path(c,points.slice(start,end+1),'#ffab78',3);
     const dot=(fraction,color)=>{const p=points[Math.max(0,Math.min(800,Math.floor(fraction*800)))];c.fillStyle=color;c.beginPath();c.arc(p[0],p[1],3,0,7);c.fill();};
     dot(1,'#9dc6ac');dot(progress,'#ffab78');
-    if(!this.replayRecord&&['duel','drag'].includes(this.race.mode))dot(progressAtTime(this.race.history.map(r=>r.aiTime).filter(t=>t!==null),this.elapsed,this.event.id,this.race.routeVersion),'#b9a1df');
+    if(this.race.grid){for(const [i,e]of (this.replayRecord?.grid||gridReplay(this.race)).rivals.entries())dot(progressAtTime(e.sectorTimes,this.elapsed,this.event.id,3,e.pits||[]),['#b9a1df','#8cc9f0','#f4d58d'][i]);}
+    else if(!this.replayRecord&&['duel','drag'].includes(this.race.mode))dot(progressAtTime(this.race.history.map(r=>r.aiTime).filter(t=>t!==null),this.elapsed,this.event.id,this.race.routeVersion),'#b9a1df');
     if(this.cameraState){
       const camera=this.cameraState,convert=(px,py)=>[x+w/2+(px-this.layout.center[0])/this.scale*scale,y+h/2+7+(py-this.layout.center[1])/this.scale*scale];
       const a=convert(-camera.x/camera.zoom,-camera.y/camera.zoom),b=convert((this.w-camera.x)/camera.zoom,(this.h-camera.y)/camera.zoom);
