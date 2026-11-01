@@ -1,6 +1,6 @@
 {
   "name": "tokyo-streets",
-  "version": "0.28.1",
+  "version": "0.29.0",
   "private": true,
   "type": "module",
   "description": "Seeded tactical Japanese racing MVP",

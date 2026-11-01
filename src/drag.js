@@ -108,7 +108,7 @@ export function simulateDrag(config,state,sector,card,execution=null) {
       reasons.push(`Температура мотора: пик ${result.peakHeat.toFixed(1)}°C / выход ${result.engineHeat.toFixed(1)}°C`);
       if(result.minFade<.999)reasons.push(`Перегрев ограничил доступную мощность до ${Math.round(result.minFade*100)}%`);
       if(result.limiterTime>.01)reasons.push(`Отсечка ограничивала тягу ${result.limiterTime.toFixed(2)} с`);
-      if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: растёт тепловая нагрузка и расход концентрации`);
+      if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: растёт только расход концентрации`);
       for(const split of result.splits)reasons.push(`Отсечка ${split.distance.toFixed(3)} м: ET ${split.et.toFixed(3)} с / ${split.speed.toFixed(1)} км/ч`);
     }
     if(state.heat>105)reasons.push('Перегрев мотора снижает доступную мощность');
@@ -120,7 +120,7 @@ export function simulateDrag(config,state,sector,card,execution=null) {
   const heat=card.heat>0?card.heat*(config.car.heatFactor||1)*(config.car.engineHeat||1)/cooling:card.heat*cooling;
   if(!sector.longDrag||prep)next.heat=clamp(state.heat+heat,35,200);
   next.focus=clamp(state.focus-focusCost(config,state,card),0,config.pilot.focus);
-  next.tires=clamp(state.tires-card.wear*(hasPart(config.parts,'tires')?1.25:1)*(repeat?.wearFactor||1)*(config.car.wearFactor||1)-slip*2,0,100);
+  next.tires=clamp(state.tires-card.wear*(hasPart(config.parts,'tires')?1.25:1)*(config.car.wearFactor||1)-slip*2,0,100);
   next.time+=time;
   if(hasPart(config.parts,'cooling'))reasons.push('HKS уменьшает нагрев мотора');
   return {time,next,risk,slip,speed:next.velocity*3.6,gain:0,reasons};
@@ -138,7 +138,7 @@ function travelLong(config,state,sector,card,error=0){
   const style=card.shift||drag.shiftStyle,thresholds=longShiftSpeeds(config,style,ratio);
   const delay=({short:.12,band:.18,redline:.27}[style]+(1-config.pilot.skill)*.14)*(1+error*2)*(car.shiftFactor||1);
   const basePower=car.power*735.5*.78*(.9+.1*config.condition/100)*(card.power??1)*(1-error*.7);
-  const repeat=repetitionEffect(state,card),cooling=car.cooling*(parts.includes('cooling')?car.coolerFactor:1);
+  const cooling=car.cooling*(parts.includes('cooling')?car.coolerFactor:1);
   let velocity=state.velocity,engineHeat=state.heat,distance=0,elapsed=0,shiftIndex=drag.shiftIndex,shifts=0,forceTop=drag.forceTop||false;
   const changeGear=target=>{if(target!==shiftIndex){shiftIndex=target;shifts++;elapsed+=delay;velocity=Math.max(.1,velocity-delay*.15);}};
   if(card.topGear){changeGear(profile.ratios.length-1);forceTop=true;}
@@ -164,7 +164,7 @@ function travelLong(config,state,sector,card,error=0){
         splits.push({distance:mark,et:drag.et+elapsed+dt*part,speed:(velocity+(nextVelocity-velocity)*part)*3.6});
       }
     }
-    const rate=card.heat>=0?(card.heat/reference+repeat.heatExtra*.8)*(car.heatFactor||1)*(car.engineHeat||1)*(.8+.5*clamp(rpm/profile.redline,0,1.2))/cooling:card.heat/reference*cooling*repeat.recoveryFactor;
+    const rate=card.heat>=0?(card.heat/reference)*(car.heatFactor||1)*(car.engineHeat||1)*(.8+.5*clamp(rpm/profile.redline,0,1.2))/cooling:card.heat/reference*cooling;
     engineHeat=clamp(engineHeat+(rate-Math.max(0,engineHeat-75)*.012*cooling)*stepTime,35,200);
     peakHeat=Math.max(peakHeat,engineHeat);if(rpm>profile.redline)limiterTime+=stepTime;
     distance+=step*fraction;elapsed+=stepTime;velocity+=(nextVelocity-velocity)*fraction;

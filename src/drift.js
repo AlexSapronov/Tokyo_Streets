@@ -1,7 +1,7 @@
 import {partCapabilities} from './parts.js';
 import {tireFactor,aeroGrip} from './tuning.js';
 import {DRIFT_CARDS} from './drift-data.js';
-import {focusCost,repetitionEffect,rememberAction,strainEffect} from './tactics.js';
+import {focusCost,repetitionEffect,rememberAction} from './tactics.js';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export const DRIFT_WEIGHTS={line:.35,angle:.25,speed:.2,continuity:.2};
 export function freshDriftState(config){
@@ -41,9 +41,9 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const speed=Math.max(20,Math.min(targetSpeed*card.pace*(1-error*.25),maxCornerSpeed*1.12,attainable));
   const angle=card.reset?0:clamp(card.angle*response*(1+wet*.1)*(1+error*.8),0,86);
   const lateral=(speed/3.6)**2/sector.radius/(grip*9.81);
-  const load=clamp((car.setupRisk||0)-(wet>.35||angle>40?(config.training?.control||0)*.018:0)+(car.drive==='MR'?.04:0)+strainEffect(state,card).risk+Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
+  const load=clamp((car.setupRisk||0)-(wet>.35||angle>40?(config.training?.control||0)*.018:0)+(car.drive==='MR'?.04:0)+Math.max(0,angle-52)/38+Math.max(0,lateral-.85)*.55
     +Math.max(0,55-state.focus)/180+Math.max(0,65-state.tires)/170
-    +Math.max(0,state.heat-115)/260+repeat.strain*.025-(precision-.85)*.45,0,1.2);
+    +Math.max(0,state.heat-115)/260-(precision-.85)*.45,0,1.2);
   const spin=!card.reset&&(load>.9||angle>78&&load>.55);
   const targetAngle=sector.targetAngle;
   const direction=sector.direction;
@@ -58,7 +58,7 @@ export function simulateDrift(config,state,sector,card,execution=null){
   const broken=spin||card.reset||!active||phase!=='init'&&!linked;
   const continuityQuality=broken?0:continuity*(car.drive==='FF'?.6:1);
   let points=active?100*(lineQuality*DRIFT_WEIGHTS.line+angleQuality*DRIFT_WEIGHTS.angle
-    +speedQuality*DRIFT_WEIGHTS.speed+continuityQuality*DRIFT_WEIGHTS.continuity)/repeat.timeFactor:0;
+    +speedQuality*DRIFT_WEIGHTS.speed+continuityQuality*DRIFT_WEIGHTS.continuity):0;
   if(card.recover&&!previous.active)points*=.7;
   points=clamp(points,0,100);
   const combo=active?(phase==='init'?1:linked?previous.combo+1:1):0;
@@ -77,11 +77,11 @@ export function simulateDrift(config,state,sector,card,execution=null){
   if(car.drive==='AWD')reasons.push('AWD стабилен на тяге, но сопротивляется большому углу');
   if(has('lsd'))reasons.push('CUSCO LSD улучшает управление углом и тягой');
   if(previous.temperature>95)reasons.push('Перегретые шины теряют сцепление');
-  if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: растёт нагрузка, снижается оценка исполнения`);
-  const wear=card.wear*(mass/1100)*(has('tires')?1.25:1)*repeat.wearFactor*(car.wearFactor||1)+(spin?5:0);
-  const heat=card.heat>=0?(card.heat+repeat.heatExtra)*(car.heatFactor||1)*(car.engineHeat||1)/(car.cooling*(has('cooling')?car.coolerFactor:1))
-    :card.heat*repeat.recoveryFactor*car.cooling*(has('cooling')?car.coolerFactor:1);
-  const duration=sector.length/(speed/3.6)*repeat.timeFactor+(spin?2:0);
+  if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: меняется только цена фокуса, без штрафа баллов и темпа`);
+  const wear=card.wear*(mass/1100)*(has('tires')?1.25:1)*(car.wearFactor||1)+(spin?5:0);
+  const heat=card.heat>=0?card.heat*(car.heatFactor||1)*(car.engineHeat||1)/(car.cooling*(has('cooling')?car.coolerFactor:1))
+    :card.heat*car.cooling*(has('cooling')?car.coolerFactor:1);
+  const duration=sector.length/(speed/3.6)+(spin?2:0);
   const next={...state,time:state.time+duration,velocity:speed/3.6,tires:clamp(state.tires-wear,0,100),
     heat:clamp(state.heat+heat,35,200),focus:clamp(state.focus-focusCost(config,state,card),0,pilot.focus),
     recentActions:rememberAction(state,card),

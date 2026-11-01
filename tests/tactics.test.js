@@ -10,11 +10,10 @@ import {finishRace} from './helpers.js';
 const config=configuration('ae86','ren'),attack=CARDS.find(card=>card.id==='attack'),balanced=CARDS[0];
 const sector=sectorAt(0,'dry');
 
-test('repetition strain doubles by an exponential series instead of a flat penalty',()=>{
+test('repetition increases focus costs exponentially without other direct penalties',()=>{
  const effects=Array.from({length:6},(_,repeats)=>repetitionEffect({...freshState(config),recentActions:Array(repeats).fill('attack')},attack));
- assert.deepEqual(effects.map(effect=>effect.strain),[0,1,3,7,15,31]);
- const increases=effects.map(effect=>effect.timeFactor-1);
- assert.ok(increases[3]>2*increases[2]);assert.ok(effects[4].focusFactor>effects[3].focusFactor);
+ assert.deepEqual(effects.map(e=>(e.focusFactor-1)/.35).map(Math.round),[0,1,3,7,15,31]);
+ assert.ok(effects.every(e=>e.timeFactor===1&&e.wearFactor===1&&e.heatExtra===0&&e.strain===0));
 });
 test('one filler card does not erase attack spam, but six other choices let it recover',()=>{
  const state=freshState(config);state.recentActions=['attack','balanced','attack','balanced'];
@@ -22,12 +21,11 @@ test('one filler card does not erase attack spam, but six other choices let it r
  for(let i=0;i<HABIT_WINDOW;i++)state.recentActions=rememberAction(state,balanced);
  assert.equal(repetitionEffect(state,attack).repeats,0);assert.equal(state.recentActions.length,HABIT_WINDOW);
 });
-test('third attack has a slower sector time than clean pace even with the same healthy car state',()=>{
+test('a repeated attack keeps its original tempo and mechanical effect at equal focus',()=>{
  const state={...freshState(config),recentActions:['attack','balanced','attack','balanced']};
  const repeated=simulate(config,state,sector,attack),safe=simulate(config,state,sector,balanced),fresh=simulate(config,freshState(config),sector,attack);
- assert.ok(fresh.time<safe.time);assert.ok(repeated.time>safe.time);
- assert.ok(repeated.next.tires<fresh.next.tires);assert.ok(repeated.next.heat<fresh.next.heat,'longer time on a straight cools brakes instead of heating them');
- assert.ok(repeated.next.focus<fresh.next.focus);assert.ok(repeated.reasons.some(reason=>reason.includes('экспоненциально')));
+ assert.ok(repeated.time<safe.time);assert.equal(repeated.time,fresh.time);assert.equal(repeated.next.tires,fresh.next.tires);assert.equal(repeated.next.heat,fresh.next.heat);assert.equal(repeated.risk,fresh.risk);
+ assert.ok(repeated.next.focus<fresh.next.focus);assert.ok(repeated.reasons.some(reason=>reason.includes('прямого штрафа темпа нет')));
 });
 test('actual concentration cost, card availability and simulation agree on repeated actions',()=>{
  const state={...freshState(config),recentActions:['attack','balanced','attack'],focus:25};
@@ -52,7 +50,7 @@ test('alternating attack with a filler accumulates pressure in an actual race',(
  }
  assert.ok(costs[1]>costs[0]);assert.equal(repetitionEffect(race.player,attack).repeats,2);
  const result=simulate(config,race.player,sectorAt(4,'dry'),attack);
- assert.ok(result.gain<0,'spam should lose its original tempo advantage');
+ const fresh=simulate(config,{...race.player,recentActions:[],strain:0},sectorAt(4,'dry'),attack);assert.equal(result.time,fresh.time);assert.ok(result.gain>0,'repeat must retain its tempo advantage while focus is available');
 });
 test('forecast exposes categories without exact durations or the simulated time',()=>{
  for(const card of CARDS){
@@ -68,7 +66,7 @@ test('qualitative forecast communicates repetition, high load, overheating, and 
  const hot={...freshState(config),focus:25,heat:160,tires:30,recentActions:['attack','balanced','attack']};
  const longCorner={...sectorAt(2,'dry'),length:1200};
  const forecast=qualitativeForecast(config,hot,longCorner,attack,simulate(config,hot,longCorner,attack));
- assert.match(forecast.habit,/3-е/);assert.equal(forecast.load,'Высокая');assert.equal(forecast.wear,'Высокий');
+ assert.match(forecast.habit,/3-е/);assert.equal(forecast.load,'Высокая');const fresh={...hot,recentActions:[]};assert.equal(forecast.wear,qualitativeForecast(config,fresh,longCorner,attack,simulate(config,fresh,longCorner,attack)).wear);
  const safe={...freshState(config),heat:120};
  assert.match(qualitativeForecast(config,safe,sector,balanced,simulate(config,safe,sector,balanced)).warning,/Перегрев/);
  let drag=createRace(configuration('evo','aki'),'dry','yokohama');drag=resolveSector(drag,'drag-warm');
@@ -80,5 +78,5 @@ test('old road records remain replayable archives and never masquerade as a fres
  const record=raceRecord(finishRace(config,'dry')),old={...record,key:'2'+record.key.slice(record.key.indexOf('|'))};
  const career=validateSave({...newCareer(),bests:[old]});
  assert.equal(career.bests.length,1);assert.equal(career.bests[0].key,old.key);
- assert.equal(bestFor(career,config,'haruna','dry'),null);assert.ok(recordKey(config,'haruna','dry').startsWith('7|'));
+ assert.equal(bestFor(career,config,'haruna','dry'),null);assert.ok(recordKey(config,'haruna','dry').startsWith('8|'));
 });

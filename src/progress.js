@@ -10,11 +10,11 @@ import {teamAfterRace} from './team.js';
 import {getEvent} from './data.js';
 import {raceOutcome} from './engine.js';
 
-export const MODEL_VERSION = 7;
+export const MODEL_VERSION = 8;
 export function recordKey(config, eventId, weather) {
   // Condition is shown alongside the record rather than fragmenting each service
   // interval into a leaderboard with no opportunity to race one's own ghost.
-  return [getEvent(eventId).mode==='drift'?'drift-3':getEvent(eventId).mode==='drag'?'drag-3':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
+  return [getEvent(eventId).mode==='drift'?'drift-4':getEvent(eventId).mode==='drag'?'drag-4':MODEL_VERSION, eventId, weather, config.car.id, config.pilot.id,
     ([...config.parts].sort().join(',') || 'stock')+(setupKey(config.setup)?';setup='+setupKey(config.setup):'')+(config.engineId&&config.engineId!==stockEngineId(config.car.id)?';engine='+config.engineId:'')+(trainingKey(config)?';skills='+trainingKey(config):'')+(config.challengeId?';challenge='+config.challengeId:'')+(config.rivalLevel&&['duel','drag'].includes(getEvent(eventId).mode)?';rival='+config.rivalLevel:'')+(config.rivalLevel==='easy'&&getEvent(eventId).mode==='duel'?';opponent=learning-1':'')+(config.routeVersion>=2?';route='+config.routeVersion:'')].join('|');
 }
 export function unlocked(event, career) {

@@ -11,7 +11,7 @@ import {raceClass,incidentPrice,rewardFactor,medalPrize} from './balance.js';
 import {executionRoll,newSeed,hashSeed,applyRunOff,runOffChance} from './execution.js';
 import {attachTelemetry,readTelemetry,transmission} from './telemetry.js';
 import {freshDriftState,driftReason,simulateDrift,driftCards} from './drift.js';
-import {repetitionEffect,rememberAction,focusCost,strainAfter,strainEffect} from './tactics.js';
+import {repetitionEffect,rememberAction,focusCost,strainAfter} from './tactics.js';
 import {freshDragState,dragReason,simulateDrag,dragCards} from './drag.js';
 import {CARS,PILOTS,CARDS,sectorAt,getEvent} from './data.js';
 export const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -74,7 +74,6 @@ export function disabledReason(card,sector,state,config,gap=0){
  if(card.gap==='behind'&&!(gap>0&&gap<2.5))return 'Нужно отставание от 0 до 2.5 с';
  if(card.gap==='ahead'&&!(gap<0&&gap> -2.5))return 'Нужно лидерство до 2.5 с';
  if(card.gap==='close'&&Math.abs(gap)>2.5)return 'Соперник дальше 2.5 с';
- if((state.cooldowns[card.id]||0)>0)return `Откат: ${state.cooldowns[card.id]} сектор`;
  const cost=focusCost(config,state,card,sector);
  if(cost>state.focus)return `Нужно ${Math.ceil(cost)} концентрации с учётом повторов`;
  if(card.id==='late'&&state.heat>155)return 'Тормоза перегреты (>155°C)';
@@ -85,7 +84,7 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(sector.mode==='drag')return simulateDrag(config,state,sector,card,execution);
  const line=lineGeometry(card.lineId,sector,config.car);
  const repeat=repetitionEffect(state,card);
- const strain=strainEffect(state,card);
+
  const {car,pilot}=config,parts=partCapabilities(config.parts),has=id=>parts.includes(id),corner=sector.type==='corner';
  // SI units: metric hp -> watts, kg, m/s. A bounded sector approximation,
  // not a wheel-level simulator. Both drivers use exactly this function.
@@ -114,29 +113,27 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(card.id==='safe'&&sector.wet>.35)gain+=.015;
  if(card.id==='draft')gain+=(config.training?.racecraft||0)*.004;
  const control=corner&&(sector.wet>.35||card.risk>.1)?(config.training?.control||0)*.018:0;
- const risk=clamp(card.risk+line.risk-control+strain.risk+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
+ const risk=clamp(card.risk+line.risk-control+car.setupRisk+sector.wet*.22+(1-pilot.skill)*.3+(car.drive==='MR'?.025:car.drive==='FF'&&card.id==='power'?.04:0)+Math.max(0,65-state.focus)/250+Math.max(0,60-state.tires)/160+Math.max(0,state.heat-110)/320-(has('lsd')&&card.id==='power'?.1:0),0,.85);
  // Baseline slip is predictable; execution adds bounded variation only when resolving.
  const slip=Math.max(0,risk-.28)*(corner?5:2.5);
  const unpenalized=baseTime*(1-clamp(gain,-.09,.08))+slip;
- const time=unpenalized*repeat.timeFactor*strain.timeFactor*(1+(execution?.error||0));
+ const time=unpenalized*(1+(execution?.error||0));
  // Resource use follows distance, not the number of UI decisions. Recovery
  // cards must not destroy tires just because the same safe action is repeated.
  const tireLoad=corner?1.4*clamp((65/sector.radius)**.25,.8,1.25):.45;
- const tireRepetition=card.focus<=0?1:Math.min(3,repeat.wearFactor);
- const wear=sector.length/1000*line.length*tireLoad*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*tireRepetition*car.wearFactor*line.wear;
+ const wear=sector.length/1000*line.length*tireLoad*card.wear*(has('tires')?1.25:1)*(car.drive==='AWD'?1.12:car.drive==='FF'?1.1:1)*(mass/1100)*car.wearFactor*line.wear;
  // Brake temperature is separate from engine/oil heat. Airflow always removes
  // heat, including under attack; longer and faster straights cool more.
  const brakingLoad=corner?8*Math.min(sector.length/300,1.6)+Math.min(12,Math.max(0,state.velocity**2-cornerSpeed**2)/240):0;
  const brakeHardware=(has('brakes')?car.partBrakeHeatFactor:1)*(car.brakeHeatFactor||1);
- const heatInput=corner?(brakingLoad+(Math.max(0,card.heat)+Math.min(12,card.heat>=0?repeat.heatExtra:0))*(sector.decisionScale||1))*(mass/1100)*brakeHardware:0;
- const recovery=Math.min(0,card.heat)*repeat.recoveryFactor*(sector.decisionScale||1);
+ const heatInput=corner?(brakingLoad+(Math.max(0,card.heat))*(sector.decisionScale||1))*(mass/1100)*brakeHardware:0;
+ const recovery=Math.min(0,card.heat)*(sector.decisionScale||1);
  const coolingRate=(.012+Math.min(80,average)*.0002)*(corner?.65:1)*car.cooling*(car.brakeCooling||1);
  const coolingFraction=1-Math.exp(-time*coolingRate);
  const airCooling=Math.max(0,state.heat-35)*coolingFraction;
  const cooled=heatInput*(1-coolingFraction*.5)+recovery-airCooling;
  const actionFocus=focusCost(config,state,card,sector);
- const cooldowns=Object.fromEntries(Object.entries(state.cooldowns).map(([k,v])=>[k,Math.max(0,v-1)]));
- if(['attack','dive','study','thermal'].includes(card.id))cooldowns[card.id]=1;
+ const cooldowns={};
  const next={time:state.time+time,tires:clamp(state.tires-wear,0,100),heat:clamp(state.heat+cooled,35,200),focus:clamp(state.focus-actionFocus,0,pilot.focus),study:card.id==='study',recentActions:rememberAction(state,card),velocity:Math.min(terminal,exit*line.exit*(card.id==='skill-release'?1.08:1))*(slip>0?.92:1)*(card.id==='late'?.94:card.id==='power'?1.025:card.id==='apexEarly'?.97:card.id==='defend'?.96:1),cooldowns};
  const reasons=[corner?`Радиус ${sector.radius} м: предел дуги ${Math.round(cornerSpeed*3.6)} км/ч`:`${car.power} л.с. / ${mass} кг: разгон до ${Math.round(exit*3.6)} км/ч`];
  reasons.push(`Тормоза: ${Math.round(state.heat)} → ${Math.round(next.heat)}°C; охлаждение обдувом −${airCooling.toFixed(1)}°C`);
@@ -144,16 +141,16 @@ function simulateRaw(config,state,sector,card,execution=null){
  if(control)reasons.push('Контроль машины: ниже нагрузка на сцепление');
  if(card.id==='skill-release')reasons.push('Поздний выпуск: выше скорость входа в следующий сектор');
  if(card.lineId&&card.lineId!=='neutral')reasons.push('Траектория «'+lineName(card.lineId)+'»: изменены длина дуги и скорость следующего входа');
- if(strain.strain>2)reasons.push('Накопленная нагрузка от атак: смена приёма не снимает напряжение');
+ if((state.strain||0)>2)reasons.push('Нагрузка на фокус: активные приёмы стоят дороже, прямого штрафа темпа нет');
  if(['late','apexEarly','power','defend'].includes(card.id))reasons.push('Траектория изменила скорость входа в следующий сектор');
- if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: нагрузка растёт экспоненциально, потеря ${(unpenalized*(repeat.timeFactor-1)).toFixed(2)} с`);
+ if(repeat.repeats)reasons.push(`Повтор приёма ${repeat.repeats+1}: цена фокуса ${Math.ceil(Math.abs(actionFocus))}; прямого штрафа темпа нет`);
  if(sector.wet>.35)reasons.push(`Мокрое покрытие ${Math.round(sector.wet*100)}%: сцепление снижено`);
  if(brakeFade<1)reasons.push(`Перегрев: эффективность тормозов ${Math.round(brakeFade*100)}%`);
  if(slip>.001)reasons.push(`Предел сцепления превышен: +${slip.toFixed(2)} с`);
  if(state.study)reasons.push('Изучение соперника: +1.5% реализации темпа');
  if(has('brakes')&&card.id==='late')reasons.push('Brembo: эффективнее поздний вход и меньше нагрев');
  if(has('lsd')&&card.id==='power')reasons.push('CUSCO LSD: лучше реализация тяги');
- const breakdown={base:baseTime,tactic:-baseTime*clamp(gain,-.09,.08),grip:slip,repetition:unpenalized*(repeat.timeFactor-1),strain:unpenalized*repeat.timeFactor*(strain.timeFactor-1),execution:time-unpenalized*repeat.timeFactor*strain.timeFactor};
+ const breakdown={base:baseTime,tactic:-baseTime*clamp(gain,-.09,.08),grip:slip,repetition:0,strain:0,execution:time-unpenalized};
  return {time,next,risk,slip,breakdown,speed:(card.lineId&&card.lineId!=='neutral'?next.velocity:exit)*3.6,gain:baseTime-time,reasons};
 }
 export function simulate(config,state,sector,card,execution=null){
@@ -161,7 +158,7 @@ export function simulate(config,state,sector,card,execution=null){
   execution=trainedExecution(config,sector,execution);
   const result=simulateRaw(config,state,sector,card,execution);
   result.next.strain=strainAfter(state,card);
-  result.risk=clamp(result.risk+(sector.mode==='drag'?strainEffect(state,card).risk:0),0,1);
+  result.risk=clamp(result.risk,0,1);
   if(execution){
     result.execution={...execution};
     result.reasons.push(`Разброс исполнения при фокусе ${Math.round(execution.focus)}; ${Math.abs(execution.roll)<.25?'небольшое отклонение':Math.abs(execution.roll)<.7?'заметное отклонение':'край диапазона'}`);

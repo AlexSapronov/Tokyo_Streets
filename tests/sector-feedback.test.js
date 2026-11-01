@@ -22,10 +22,10 @@ test('defending measurably delays the opponent, reports it, and still permits a 
  assert.match(sectorDetailsHTML(defense.history[0]),/не запрет обгона/);
  assert.ok(Math.abs(Object.values(defense.history[0].impact.breakdown).reduce((a,b)=>a+b,0)+defense.history[0].impact.playerDelay-defense.history[0].playerTime)<1e-8);
 });
-test('high focus does not erase repetition or attack strain and the forecast explains wasted attack',()=>{
+test('high focus retains repeated attack tempo and the forecast explains its focus cost',()=>{
  const card=CARDS.find(c=>c.id==='attack'),state={...freshState(config),focus:80,recentActions:['attack','power','attack','power'],strain:3},sector=sectorAt(1,'dry','haruna');
  const p=simulate(config,state,sector,card);const f=qualitativeForecast(config,state,sector,card,p);
- assert.ok(p.breakdown.repetition>0);assert.ok(p.time>simulate(config,state,sector,CARDS[0]).time);assert.match(f.warning,/потери съедают/);assert.match(f.warning,/нагрузка/);
+ assert.equal(p.breakdown.repetition,0);assert.equal(p.breakdown.strain,0);assert.ok(p.time<simulate(config,state,sector,CARDS[0]).time);assert.match(f.habit,/только расход/);assert.match(f.warning,/нагрузка на фокус/);
 });
 test('sector feedback shows actual times and escapes imported text without inventing a rival in solo runs',()=>{
  const row={sector:'<img>',card:'<script>',playerTime:15,aiTime:null,reasons:['<unsafe>'],lineId:'late-apex',aiLineId:'neutral',aiCard:'—',focus:70,impact:{focusBefore:80,gapChange:null,breakdown:{base:15,tactic:0,grip:0,repetition:0,strain:0,execution:0},playerDelay:0,rivalDelay:0}};
@@ -45,7 +45,7 @@ test('learning duel is approachable with classic lines while equal rivals still 
 test('old easy-duel records remain archived separately, new profile and other modes roundtrip',async()=>{
  const {newCareer,validateSave}=await import('../src/storage.js');const {raceRecord,recordKey,bestFor}=await import('../src/progress.js');
  let r=createRace(config,'dry','haruna','save-learning',42,'easy');while(!r.finished)r=resolveSector(r,'balanced');
- const record=raceRecord(r),old={...structuredClone(record),key:record.key.replace(';opponent=learning-1','')},c=newCareer();const older={...structuredClone(old),key:old.key.replace(/^7\|/,'6|')};c.bests=[older,old,record];
+ const record=raceRecord(r),old={...structuredClone(record),key:record.key.replace(';opponent=learning-1','')},c=newCareer();const older={...structuredClone(old),key:old.key.replace(/^8\|/,'6|')};c.bests=[older,old,record];
  const loaded=validateSave(c);assert.equal(loaded.bests.length,3);assert.ok(loaded.bests.some(b=>b.key===older.key));assert.ok(loaded.bests.some(b=>b.key===old.key));assert.equal(bestFor(loaded,r.config,r.eventId,r.weather).key,record.key);
  assert.ok(!recordKey({...config,rivalLevel:'equal'},'haruna','dry').includes('learning'));assert.ok(!recordKey({...config,rivalLevel:'easy'},'yokohama','dry').includes('learning'));
 });

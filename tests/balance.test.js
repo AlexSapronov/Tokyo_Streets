@@ -47,7 +47,7 @@ test('repair debt repays at most half the prize, survives saves, and cannot be c
 });
 test('rotating different aggressive actions builds strain, recovery lowers it, and focus price rises',()=>{
  let state={strain:0};for(const id of ['attack','late','power','weight'])state={...state,strain:strainAfter(state,card(id))};assert.ok(state.strain>2);
- const high=strainEffect(state,card('late'));assert.ok(high.focusFactor>1);assert.ok(high.timeFactor>1);assert.ok(high.risk>0);
+ const high=strainEffect(state,card('late'));assert.ok(high.focusFactor>1);assert.equal(high.timeFactor,1);assert.equal(high.risk,0);
  assert.ok(focusCost(cfg,state,card('late'))>focusCost(cfg,{...state,strain:0},card('late')));
  const rested=strainAfter(state,card('breathe'));assert.ok(rested<state.strain);assert.ok(strainAfter(state,card('balanced'))<state.strain);
  assert.equal(strainEffect(state,card('breathe')).focusFactor,1);assert.equal(strainAfter({strain:6},card('attack')),6);

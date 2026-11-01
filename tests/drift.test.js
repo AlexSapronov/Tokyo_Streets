@@ -187,5 +187,5 @@ test('replay frame sampling retains drift yaw, records completed points, and cla
  const next=driftFrame(record,first);assert.ok(next.score>0);assert.equal(next.index,1);
  const finish=driftFrame(record,record.time+1e-6);assert.equal(finish.score,record.drift.score);assert.equal(finish.index,7);
  assert.equal(replayIndex([0,2,8,3],0),1);assert.equal(replayIndex([0,2,8,3],2),2);assert.equal(replayIndex([0,2,8,3],14),3);
- assert.equal(recordKey(cfg,'ebisu','dry').split('|')[0],'drift-3');
+ assert.equal(recordKey(cfg,'ebisu','dry').split('|')[0],'drift-4');
 });
