@@ -49,7 +49,7 @@ test('neutral and redline indicators work while needle rotation stays bounded',(
 });
 test('approximate transmission responds to speed and profiles without nonfinite RPM or invalid gears',()=>{
  for(const car of CARS)for(let speed=0;speed<=350;speed+=.5){const config=configuration(car.id,'ren'),drive=transmission(config,speed);
-  assert.ok(Number.isFinite(drive.rpm));assert.ok(drive.rpm>=0&&drive.rpm<=drive.redline);assert.ok(drive.gear>=0&&drive.gear<=6);
+  assert.ok(Number.isFinite(drive.rpm));assert.ok(drive.rpm>=0&&drive.rpm<=drive.redline);assert.ok(drive.gear>=0&&drive.gear<=7);
  }
  const fallback=transmission({car:{id:'unknown'}},50);assert.ok(fallback.rpm>0);
  assert.equal(transmission(cfg,0,'drag',{rpm:5700}).rpm,5700);

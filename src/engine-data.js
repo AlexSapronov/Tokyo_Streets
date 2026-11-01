@@ -1,7 +1,7 @@
 import {CARS,PARTS} from './data.js';
 // Approximate game ratings, not homologated manufacturer specifications.
-const stockIds=['4age','1jz','4g63','b6','sr20','13b','rb26','2jz','b16b','c30a','rb26r34'];
-const masses=[115,210,150,110,150,125,230,230,120,200,230],rpms=[7600,7200,8000,7200,7500,8200,8000,7200,8600,8200,8000];
+const stockIds=['4age','1jz','4g63','b6','sr20','13b','rb26','2jz','b16b','c30a','rb26r34','b58gt4'];
+const masses=[115,210,150,110,150,125,230,230,120,200,230,190],rpms=[7600,7200,8000,7200,7500,8200,8000,7200,8600,8200,8000,7000];
 export const ENGINES=CARS.map((c,i)=>({id:stockIds[i],name:c.engine,power:c.power,mass:masses[i],redline:rpms[i],heat:1,cooling:1,price:18000+Math.round(c.power*110),extreme:false,fuel:'petrol'}));
 ENGINES.push(
  {id:'1uz',name:'Toyota 1UZ-FE · 4.0 V8 · NA',power:260,mass:175,redline:6500,heat:1.12,cooling:.95,price:65000},

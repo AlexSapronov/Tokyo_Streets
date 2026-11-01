@@ -131,7 +131,7 @@ test('all 2673 car/weather/action recipes stay finite, immutable and within boun
    assert.equal(state.drag.distance,402.336);count++;
   }
  }
- assert.equal(count,2673);
+ assert.equal(count,CARS.length*243);
 });
 test('all 64 equipment combinations preserve valid drag results',()=>{
  for(let mask=0;mask<64;mask++){

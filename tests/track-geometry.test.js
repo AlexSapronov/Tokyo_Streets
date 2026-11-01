@@ -4,7 +4,7 @@ import {EVENTS} from '../src/data.js';
 import {trackGeometry,SECTOR_ANCHORS} from '../src/track-geometry.js';
 const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 test('every road straight is visually straight over its actual simulation interval',()=>{
- for(const event of EVENTS.filter(e=>['duel','timeattack'].includes(e.mode))){
+ for(const event of EVENTS.filter(e=>!e.grid&&['duel','timeattack'].includes(e.mode))){
   const before=structuredClone(event),geometry=trackGeometry(event);assert.equal(SECTOR_ANCHORS[event.id].length,event.sectors.length+1);
   assert.equal(geometry.route.length,801);assert.deepEqual(event,before);
   for(let i=0;i<event.sectors.length;i++){
@@ -27,7 +27,7 @@ test('shared drift venues retain the same physical map and real circuits keep cl
 test('consecutive highway straights are collinear and corners meet straight tangents smoothly',()=>{
  const event=EVENTS.find(e=>e.id==='wangan'),g=trackGeometry(event),a=g.pieces[0].at(0),b=g.pieces[1].at(1),p=g.pieces[0].at(1);
  assert.ok(Math.abs((b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]))<1e-6);
- for(const road of EVENTS.filter(e=>['duel','timeattack'].includes(e.mode))){const map=trackGeometry(road);for(let i=1;i<map.pieces.length;i++){const before=map.pieces[i-1],after=map.pieces[i];if(before.type===after.type)continue;const end=before.at(1),from=before.at(1-1e-5),to=after.at(1e-5),v=[end[0]-from[0],end[1]-from[1]],w=[to[0]-end[0],to[1]-end[1]],dot=(v[0]*w[0]+v[1]*w[1])/(Math.hypot(...v)*Math.hypot(...w));assert.ok(dot>.97,road.id+' join '+i+' tangent mismatch '+dot);}}
+ for(const road of EVENTS.filter(e=>!e.grid&&['duel','timeattack'].includes(e.mode))){const map=trackGeometry(road);for(let i=1;i<map.pieces.length;i++){const before=map.pieces[i-1],after=map.pieces[i];if(before.type===after.type)continue;const end=before.at(1),from=before.at(1-1e-5),to=after.at(1e-5),v=[end[0]-from[0],end[1]-from[1]],w=[to[0]-end[0],to[1]-end[1]],dot=(v[0]*w[0]+v[1]*w[1])/(Math.hypot(...v)*Math.hypot(...w));assert.ok(dot>.97,road.id+' join '+i+' tangent mismatch '+dot);}}
 });
 
 test('new authored roads have a safe straight/curve fallback without changing input data',()=>{

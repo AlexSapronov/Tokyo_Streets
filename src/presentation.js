@@ -8,7 +8,7 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const actions=[...CARDS,...ALL_DRAG_CARDS,...DRIFT_CARDS,...SKILL_CARDS];
 export function presentationRecord(race,opponent=false){
  const rows=opponent?race.history.filter(row=>row.aiTime!==null):race.history;
- return {routeVersion:race.routeVersion,sectorTimes:rows.map(row=>opponent?row.aiTime:row.playerTime),actions:rows.map(row=>opponent?row.aiCardId:row.cardId),lines:rows.map(row=>opponent?row.aiLineId:row.lineId),slips:rows.map(row=>opponent?row.aiSlip:row.slip),telemetry:opponent?null:rows.map(row=>row.telemetry),drift:opponent?null:race.player.drift};
+ return {...(race.grid&&!opponent?{pits:race.grid.pits}:{}),routeVersion:race.routeVersion,sectorTimes:rows.map(row=>opponent?row.aiTime:row.playerTime),actions:rows.map(row=>opponent?row.aiCardId:row.cardId),lines:rows.map(row=>opponent?row.aiLineId:row.lineId),slips:rows.map(row=>opponent?row.aiSlip:row.slip),telemetry:opponent?null:rows.map(row=>row.telemetry),drift:opponent?null:race.player.drift};
 }
 // Read recorded outcomes only. Presentation never calls physics or chooses an action.
 export function presentationFrame(record,elapsed,eventId){

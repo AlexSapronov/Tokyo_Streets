@@ -1,3 +1,4 @@
+import {validateGridReplay} from './grid-replay.js';
 import {emptySchool,normalizeSchool} from './driving-school.js';
 import {WORKSHOP_PRESETS} from './workshop.js';
 import {emptyPlayer,normalizePlayer,SKILL_CARDS,validTraining,withTraining} from './player.js';
@@ -25,7 +26,7 @@ import {recordKey} from './progress.js';
 // Keep the storage key: v0.1 players migrate in place without losing purchases.
 export const SAVE_KEY = 'tokyo-streets-v1';
 export function newCareer() {
-  return {school:emptySchool(),lastWorkshop:null,streetPeak:0,player:emptyPlayer(),rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
+  return {exclusiveRewards:[],school:emptySchool(),lastWorkshop:null,streetPeak:0,player:emptyPlayer(),rivals:emptyRivals(),journey:emptyJourney(),version: 2, money: START_MONEY, car: 'ae86', rivalLevel:'equal', pilot: 'ren', ownedCars: ['ae86'],
     builds: Object.fromEntries(CARS.map(c=>[c.id,[]])), purchased: Object.fromEntries(CARS.map(c=>[c.id,[]])),
     condition: Object.fromEntries(CARS.map(c=>[c.id,100])), races: 0, wins: 0,
     street: 0, official: 0, best: null, weather: 'mixed', eventId: 'haruna',
@@ -67,6 +68,8 @@ function validateRecord(record) {
   if(event.longDrag&&!validLongDrag(record,event))return null;
   if(event.mode==='drift'&&!validDriftRecord(record.drift,event))return null;
   if(record.lines!==undefined&&(!roadMode(event.mode)||!Array.isArray(record.lines)||record.lines.length!==count||record.lines.some((id,i)=>!RACING_LINES.some(line=>line.id===id)||(event.sectors[i].type!=='corner'&&id!=='neutral'))))return null;
+  const grid=event.grid?validateGridReplay(record.grid,count,event.lapSectors):null;
+  if(event.grid&&!grid)return null;
   const currentKey=recordKey(config,record.eventId,record.weather);
   const suffix=currentKey.slice(currentKey.indexOf('|'));
   const legacyPrefixes=['2','3','4','5','6','7','drag-1','drag-2','drag-3','drift-1','drift-2','drift-3'];
@@ -74,7 +77,7 @@ function validateRecord(record) {
   const key=oldLearning||legacyPrefixes.some(prefix=>record.key===prefix+suffix)?record.key:currentKey;
   const telemetry=normalizeTelemetry(record.telemetry,count);
   const manager=normalizeCommandRecord(record.manager,record.actions,record.pilotId);
-  return {key,...(record.routeVersion?{routeVersion:record.routeVersion}:{}),...(record.training?{training:{...config.training}}:{}),...(record.slips?{slips:[...record.slips]}:{}),...(config.challengeId?{challengeId:config.challengeId}:{}),...(record.lines?{lines:[...record.lines]}:{}),...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
+  return {...(grid?{grid}:{}),key,...(record.routeVersion?{routeVersion:record.routeVersion}:{}),...(record.training?{training:{...config.training}}:{}),...(record.slips?{slips:[...record.slips]}:{}),...(config.challengeId?{challengeId:config.challengeId}:{}),...(record.lines?{lines:[...record.lines]}:{}),...(config.rivalLevel?{rivalLevel:config.rivalLevel}:{}),...(record.engineId?{engineId:record.engineId}:{}),...(record.wear?{wear:config.wear}:{}),...(setupKey(config.setup)?{setup:{...config.setup}}:{}), ...(Number.isInteger(record.seed)&&record.seed>=0&&record.seed<=4294967295&&record.executionVersion===1?{seed:record.seed,executionVersion:1}:{}), ...(manager?{manager}:{}),...(telemetry?{telemetry}:{}), eventId: record.eventId,
     weather: record.weather, carId: record.carId, pilotId: record.pilotId, parts,
     condition: config.condition, time: record.time, sectorTimes: [...record.sectorTimes], actions: [...record.actions],...(event.mode==='drag'?{drag:{...record.drag}}:event.mode==='drift'?{drift:structuredClone(record.drift)}:{})};
 }
@@ -112,7 +115,7 @@ function validDriftRecord(drift,event){
 }
 export function validateSave(raw) {
   if (!raw || ![1, 2].includes(raw.version)) throw new Error('Неподдерживаемое сохранение');
-  const out = newCareer();out.school=normalizeSchool(raw.school);
+  const out = newCareer();out.exclusiveRewards=list(raw.exclusiveRewards).filter(id=>id==='tsukuba-grid');out.school=normalizeSchool(raw.school);
   out.money = finite(raw.money) ? Math.max(0, Math.min(1e9, raw.money)) : START_MONEY;
   out.ownedCars=unique(list(raw.ownedCars).filter(validCar));if(!out.ownedCars.length)out.ownedCars=['ae86'];
   out.car=out.ownedCars.includes(raw.car)?raw.car:out.ownedCars[0];

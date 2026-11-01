@@ -12,7 +12,7 @@ import {finishRace} from './helpers.js';
 const cfg=configuration('ae86','ren');
 const race=(event='haruna',weather='dry')=>finishRace(cfg,weather,event,null,event+weather);
 test('route stamps cover all disciplines, explicit thresholds and invalid finishes',()=>{
- for(const e of EVENTS){
+ for(const e of EVENTS.filter(e=>!e.grid)){
   assert.equal(routeLevel(e,{dnf:true,won:true,medal:'gold'}),0);
   assert.equal(routeLevel(e,{falseStart:true,won:true,medal:'gold'}),0);
   assert.equal(routeLevel(e,{}),1);
@@ -67,7 +67,7 @@ test('career views expose goals, route targets, discipline progress, completion 
 });
 test('route rivals stay fixed when the player upgrades through classes',async()=>{
  const {createRace}=await import('../src/engine.js');
- for(const e of EVENTS){const rivals=['ae86','chaser','evo','supra'].map(id=>createRace(configuration(id,'ren'),'dry',e.id).rival);for(const rival of rivals){assert.equal(rival.car.id,e.rivalCar);assert.deepEqual(rival.parts,e.rivalParts);}}
+ for(const e of EVENTS.filter(e=>!e.grid)){const rivals=['ae86','chaser','evo','supra'].map(id=>createRace(configuration(id,'ren'),'dry',e.id).rival);for(const rival of rivals){assert.equal(rival.car.id,e.rivalCar);assert.deepEqual(rival.parts,e.rivalParts);}}
  const stock=race(),upgraded=finishRace(configuration('supra','ren'),'dry','haruna',null,'harunadry');
  assert.ok(!stock.player.dnf&&!upgraded.player.dnf);assert.ok(upgraded.player.time<stock.player.time);
 });

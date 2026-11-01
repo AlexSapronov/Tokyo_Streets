@@ -11,7 +11,8 @@ export const CARS = [
  {id:'supra',brand:'TOYOTA',name:'Supra RZ JZA80',year:1993,tag:'Турбо GT',drive:'FR',power:280,mass:1510,grip:1.02,brakes:1.03,cooling:1.03,color:'#d5dbe0',price:85000,engine:'2JZ-GTE · 3.0 L · TWIN TURBO',description:'Тяжёлое мощное GT с шестиступенчатой коробкой. Хорошая основа для дрэга, сложнее в тесных связках.'},
  {id:'ek9',brand:'HONDA',name:'Civic Type R EK9',year:1997,tag:'Высокооборотный FF',drive:'FF',power:185,mass:1070,grip:1.07,brakes:1.03,cooling:1.08,color:'#f0f0db',price:40000,engine:'B16B · 1.6 L · NA',description:'Лёгкий переднеприводный хэтчбек для Time Attack. Передние колёса совмещают поворот и тягу; устойчивый силовой дрифт даётся плохо.'},
  {id:'nsx',brand:'HONDA',name:'NSX NA1',year:1990,tag:'Среднемоторное купе',drive:'MR',power:280,mass:1350,grip:1.12,brakes:1.08,cooling:1.0,color:'#eb6547',price:110000,engine:'C30A · 3.0 L · NA',description:'Точная среднемоторная машина с сильным сцеплением. Быстрый отклик полезен в связках, но требует аккуратности на пределе.'},
- {id:'r34',brand:'NISSAN',name:'Skyline GT-R BNR34',year:1999,tag:'Точный AWD',drive:'AWD',power:280,mass:1540,grip:1.11,brakes:1.08,cooling:1.02,color:'#346cbb',price:98000,engine:'RB26DETT · 2.6 L · TWIN TURBO',description:'Поздняя эволюция GT-R: точнее заходит в быстрые повороты и стабильнее тормозит, чем R32, но дополнительные килограммы требуют контроля шин и температуры.'}
+ {id:'r34',brand:'NISSAN',name:'Skyline GT-R BNR34',year:1999,tag:'Точный AWD',drive:'AWD',power:280,mass:1540,grip:1.11,brakes:1.08,cooling:1.02,color:'#346cbb',price:98000,engine:'RB26DETT · 2.6 L · TWIN TURBO',description:'Поздняя эволюция GT-R: точнее заходит в быстрые повороты и стабильнее тормозит, чем R32, но дополнительные килограммы требуют контроля шин и температуры.'},
+ {id:'supraGT4',brand:'TOYOTA',name:'GR Supra GT4',year:2020,tag:'Призовой GT4',rewardOnly:true,drive:'FR',power:430,mass:1350,grip:1.23,brakes:1.32,cooling:1.2,color:'#eee9df',price:350000,engine:'B58 GT4 · 3.0 L · TURBO',description:'Гоночная машина GT4: развитая аэродинамика, тормоза и охлаждение. Только за первую победу в Tsukuba Club Trophy. Параметры сцепления и тормозов — игровые.'}
 ];
 export const PILOTS = [
  {id:'ren',name:'Рэн Такахаси',title:'Точность прежде всего',trait:'Дисциплина',skill:.94,aggression:.9,focus:100,card:'apex',color:'#8dc9bd',description:'Экономнее расходует фокус. Его особый приём помогает точно пройти апекс.'},
@@ -230,10 +231,26 @@ for(const base of EVENTS.filter(e=>e.mode==='duel')){
  EVENTS.push({...base,id:base.id+'-drift',venueId:base.id,name:base.name+' · Drift',title:base.title+' · дрифт',mode:'drift',prize:Math.round(base.prize*.85),participation:Math.round(base.participation*.85),medals:{gold:700,silver:600,bronze:460},description:'Дрифт на том же уличном маршруте. Восемь судейских зон: траектория, угол, скорость и связность. '+base.description,
  sectors:Array.from({length:8},(_,i)=>{const phase=['init','hold','transition','exit'][i%4],source=corners[i%corners.length],radius=Math.max(30,Math.min(85,source.radius)),direction=[1,1,-1,-1,-1,-1,1,1][i];return {name:'Зона '+(i+1)+' · '+source.name,type:'corner',label:{init:'Вход в занос',hold:'Удержание',transition:'Перекладка',exit:'Выход'}[phase],phase,clip:phase==='exit'?'Выходная зона':phase==='transition'?'Внутренний клип':'Внешняя зона',length:total/8,radius,slope:source.slope,wet:source.wet,direction,targetAngle:phase==='exit'?20:phase==='hold'?50:42,targetSpeed:Math.round(Math.max(56,Math.min(84,Math.sqrt(radius*9.81)*3.6*.9))) };})});
 }
-export const DISCIPLINES=[{id:'duel',name:'Тогу · дуэль'},{id:'drift',name:'Дрифт'},{id:'drag',name:'Дрэг'},{id:'timeattack',name:'Time Attack'}];
+// Separate official invitation event, deliberately outside street/drift variants.
+const gridDefinition={...EVENTS.find(e=>e.id==='tsukuba'),id:'tsukuba-grid',name:'Tsukuba Club Trophy',title:'Цукуба · Club Trophy',mode:'duel',grid:true,rivalCar:'evo',rivalPilot:'ren',rivalParts:['ecu','exhaust','streetTires','brakes','lsd','cooling'],officialOnly:true,laps:3,unlockStreet:0,unlockRaces:12,unlockOfficial:120,prize:55000,participation:12000,description:'Три круга и три соперника. Ресурсы сохраняются между кругами. Замена шин доступна перед вторым и третьим кругом и занимает 25 секунд. Первая победа приносит эксклюзивную GR Supra GT4.'};
+// Resolve repeated geometry lazily to keep cyclic geometry imports safe.
+const gridCatalog={...gridDefinition};
+Object.defineProperty(gridCatalog,'sectors',{enumerable:true,get:()=>getEvent('tsukuba-grid',3).sectors});
+EVENTS.push(gridCatalog);
+export const disciplineOf=event=>event.grid?'circuit':event.mode;
+export const DISCIPLINES=[{id:'duel',name:'Тогу · дуэль'},{id:'drift',name:'Дрифт'},{id:'drag',name:'Дрэг'},{id:'timeattack',name:'Time Attack'},{id:'circuit',name:'Кольцевая гонка'}];
 const roadLayouts=new Map();
 export function getEvent(id = 'haruna',routeVersion=1) {
  const event=EVENTS.find(event=>event.id===id)||EVENTS[0];
+ if(event.grid){
+  const key=event.id+':grid-1';
+  if(!roadLayouts.has(key)){
+   const lap=getEvent('tsukuba',3),sectors=Array.from({length:event.laps},(_,n)=>lap.sectors.map((s,i)=>({...s,lap:n+1,lapSector:i,entry:(n+s.entry)/event.laps,exit:(n+s.exit)/event.laps}))).flat();
+   roadLayouts.set(key,{...gridDefinition,routeVersion:3,lapSectors:lap.sectors.length,sectors,geometrySource:lap,gridGeometry:true});
+  }
+  return roadLayouts.get(key);
+ }
+
  if(![2,3].includes(routeVersion)||!['duel','timeattack'].includes(event.mode))return event;
  const key=event.id+':'+routeVersion;
  if(!roadLayouts.has(key))roadLayouts.set(key,routeVersion===3?authoredRoad(event):segmentRoad(event));return roadLayouts.get(key);
@@ -242,6 +259,7 @@ export function sectorAt(index, weather = 'mixed', eventId = 'haruna',routeVersi
   const original = getEvent(eventId,routeVersion).sectors[index];
   if (!original) throw new Error('Сектор отсутствует');
   const sector = {...original};
+  if(getEvent(eventId,routeVersion).grid)weather='dry';
   sector.wet = weather === 'dry' ? 0 : weather === 'rain' ? Math.min(1, sector.wet + .55) : sector.wet;
   sector.mode = getEvent(eventId,routeVersion).mode;
   return sector;
