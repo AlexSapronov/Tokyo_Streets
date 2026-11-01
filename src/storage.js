@@ -42,7 +42,7 @@ const unique = values => [...new Set(values)];
 function validateRecord(record) {
   if (!record || record.dnf || !validEvent(record.eventId) || !validCar(record.carId)
       || !validPilot(record.pilotId) || !validWeather(record.weather)) return null;
-  if(record.routeVersion!==undefined&&![1,2].includes(record.routeVersion))return null;
+  if(record.routeVersion!==undefined&&![1,2,3].includes(record.routeVersion))return null;
   const count = getEvent(record.eventId,record.routeVersion).sectors.length;
   if (!Array.isArray(record.sectorTimes) || record.sectorTimes.length !== count
       || record.sectorTimes.some((time,i) => !finite(time) || time < 0 || (time===0&&getEvent(record.eventId,record.routeVersion).sectors[i].phase!=='prep') || time > 1000)) return null;
@@ -55,7 +55,7 @@ function validateRecord(record) {
   if(parts.some(id=>partReason(record.carId,id,record.engineId))||normalizeBuild(record.carId,parts,record.engineId).length!==parts.length)return null;
   if(record.setup!==undefined&&!validSetup(parts,record.setup))return null;
   let config = configuration(record.carId, record.pilotId, parts, finite(record.condition) ? record.condition : 100,record.setup,record.engineId,record.wear);
-  if(record.routeVersion===2)config.routeVersion=2;
+  if(record.routeVersion>=2)config.routeVersion=record.routeVersion;
   if(record.training!==undefined){if(!validTraining(record.training))return null;config=withTraining(config,record.training);}
   if(record.slips!==undefined&&(!Array.isArray(record.slips)||record.slips.length!==count||record.slips.some(n=>!finite(n)||n<0||n>50)))return null;
   if(['easy','equal','hard'].includes(record.rivalLevel))config.rivalLevel=record.rivalLevel;

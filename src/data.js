@@ -1,3 +1,4 @@
+import {authoredRoad} from './road-sections.js';
 import {segmentRoad} from './road-segments.js';
 export const CARS = [
  {id:'ae86',brand:'TOYOTA',name:'Sprinter Trueno AE86',year:1986,tag:'Лёгкий FR',drive:'FR',power:130,mass:940,grip:1.02,brakes:1.0,cooling:1.0,color:'#eee8d9',price:18000,engine:'4A-GE · 1.6 L · NA',description:'Лёгкий кузов и точная смена направления. Прощает меньше ошибок на мокром выходе, зато бережёт тормоза.'},
@@ -233,8 +234,9 @@ export const DISCIPLINES=[{id:'duel',name:'Тогу · дуэль'},{id:'drift',
 const roadLayouts=new Map();
 export function getEvent(id = 'haruna',routeVersion=1) {
  const event=EVENTS.find(event=>event.id===id)||EVENTS[0];
- if(routeVersion!==2||!['duel','timeattack'].includes(event.mode))return event;
- if(!roadLayouts.has(event.id))roadLayouts.set(event.id,segmentRoad(event));return roadLayouts.get(event.id);
+ if(![2,3].includes(routeVersion)||!['duel','timeattack'].includes(event.mode))return event;
+ const key=event.id+':'+routeVersion;
+ if(!roadLayouts.has(key))roadLayouts.set(key,routeVersion===3?authoredRoad(event):segmentRoad(event));return roadLayouts.get(key);
 }
 export function sectorAt(index, weather = 'mixed', eventId = 'haruna',routeVersion=1) {
   const original = getEvent(eventId,routeVersion).sectors[index];

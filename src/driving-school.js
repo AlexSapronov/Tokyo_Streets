@@ -18,7 +18,7 @@ export function schoolCards(race){
 export function createLesson(career,step,runId=null){
  const progress=normalizeSchool(career.school);if(!Number.isInteger(step)||step<0||step>3||step>progress.step)throw Error('Сначала закончи предыдущий учебный заезд');
  const spec=LESSONS[step],config=configuration('ae86','ren',['streetTires','brakes','cooling','lsd'],100);
- config.routeVersion=2;const race=createRace(config,spec.weather,spec.event,runId,12601+step,spec.event==='haruna'?'easy':null);race.school={step,version:1};
+ config.routeVersion=3;const race=createRace(config,spec.weather,spec.event,runId,12601+step,spec.event==='haruna'?'easy':null);race.school={step,version:1};
  if(step===1){race.player.heat=118;race.player.telemetry={oil:132,coolant:104,tireTemp:94,brakes:118};}
  return race;
 }

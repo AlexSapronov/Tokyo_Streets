@@ -316,8 +316,8 @@ export function raceOutcome(race){
 }
 
 export function modernRoadRace(race){
- if(!['duel','timeattack'].includes(race.mode)||race.routeVersion===2)return race;
+ if(!['duel','timeattack'].includes(race.mode)||race.routeVersion===3)return race;
  if(race.index)throw Error('Нельзя менять отсечки посреди заезда');
- const fresh=createRace({...race.config,routeVersion:2},race.weather,race.eventId,race.runId,race.seed,race.rivalLevel);
- return {...race,...fresh,rival:{...race.rival,routeVersion:2},opponent:structuredClone(race.opponent),rivalName:race.rivalName,rewardScale:race.rewardScale};
+ const fresh=createRace({...race.config,routeVersion:3},race.weather,race.eventId,race.runId,race.seed,race.rivalLevel);
+ return {...race,...fresh,rival:{...race.rival,routeVersion:3},opponent:structuredClone(race.opponent),rivalName:race.rivalName,rewardScale:race.rewardScale};
 }

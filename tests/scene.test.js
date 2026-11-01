@@ -181,3 +181,10 @@ test('a manual view survives resize and temporary hidden report panels',()=>{
 test('car reaches the exact visual sector boundary rather than the previous lookup sample',()=>{
  const scene=new Scene(canvas(),race()),end=scene.geometry.pieces[0].end,expected=scene.project(...scene.geometry.at(end));calls=[];scene.drawCar(end,0,'ae86','YOU');const translate=calls.find(call=>call[0]==='translate');assert.ok(Math.abs(translate[1]-expected[0])<1e-8);assert.ok(Math.abs(translate[2]-expected[1])<1e-8);scene.destroy();
 });
+
+
+test('live drift, ghost and replay use the same forward-facing road pose',()=>{
+ const complete=finishRace(configuration('s13','ren'),'dry','haruna-drift');for(const clip of complete.player.drift.clips){clip.valid=true;clip.spin=false;clip.angleDegrees=70;}
+ const record=raceRecord(complete),scene=new Scene(canvas(),complete,record,true),elapsed=record.time*.43,poses=[];scene.drawCar=(...args)=>poses.push(args);scene.elapsed=elapsed;scene.draw();const live=poses.find(p=>p[3]==='YOU'),ghost=poses.find(p=>p[3]==='BEST');assert.ok(live&&ghost);assert.equal(live[5],ghost[5]);assert.ok(Math.cos(live[5])>0);
+ scene.replay(record,1000);scene.elapsed=elapsed;poses.length=0;scene.draw();const replay=poses.find(p=>p[3]==='REPLAY');assert.equal(replay[5],live[5]);scene.destroy();
+});
