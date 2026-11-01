@@ -101,3 +101,12 @@ test('four consecutive DNFs cannot farm a final reward or unlock the next tier',
  assert.equal(last.race.seasonReport.bonus,0);assert.equal(last.race.seasonReport.validFinishes,0);assert.equal(last.race.seasonReport.qualified,false);assert.ok(!c.championships.completed.includes('club'));
  assert.ok(seasonReportHTML(last.race.seasonReport).includes('Нет зачётных финишей'));
 });
+
+test('prepared cup intent survives save/load only for the exact active stage',()=>{
+ const c=prepareStage(enterCup(eligible(),'club','durable-stage'));
+ assert.deepEqual(validateSave(c).raceIntent,c.raceIntent);
+ for(const patch of [{stage:1},{attempt:'other'},{cupId:'regional'},{kind:'practice'}])assert.equal(validateSave({...c,raceIntent:{...c.raceIntent,...patch}}).raceIntent,null);
+ assert.equal(validateSave({...c,championships:emptyChampionship()}).raceIntent,null);
+ assert.equal(withdrawCup(c).raceIntent,null);
+ const {award}=stage(c,'settle-intent');assert.equal(award.career.raceIntent,null);
+});

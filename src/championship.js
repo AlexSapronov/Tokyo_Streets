@@ -53,12 +53,12 @@ export function enterCup(career,cupId,attempt,active=false){
  const reason=cupUnlockReason(next,cup)||regulationReason(configuration(next.car,next.pilot,next.builds[next.car],100,next.setups[next.car],installedEngineId(next),next.wear?.[next.car]),cup);if(reason)throw new Error(reason);
  if(typeof attempt!=='string'||!attempt||attempt.length>80)throw new Error('Нужен идентификатор сезона');
  if(next.money<cup.fee)throw new Error('Недостаточно денег на взнос');next.money-=cup.fee;
- next.championships??=emptyChampionship();next.championships.active={...(cup.custom?{definition:structuredClone(cup)}:{}),cupId,attempt,carId:next.car,stage:0,results:[],npcs:cup.roster.map(([id])=>({id,condition:100,budget:cup.budget}))};return next;
+ next.raceIntent=null;next.championships??=emptyChampionship();next.championships.active={...(cup.custom?{definition:structuredClone(cup)}:{}),cupId,attempt,carId:next.car,stage:0,results:[],npcs:cup.roster.map(([id])=>({id,condition:100,budget:cup.budget}))};return next;
 }
-export function withdrawCup(career,active=false){const next=editable(career,active);if(!next.championships?.active)throw new Error('Нет активного кубка');next.championships.active=null;return next;}
+export function withdrawCup(career,active=false){const next=editable(career,active);if(!next.championships?.active)throw new Error('Нет активного кубка');next.championships.active=null;next.raceIntent=null;return next;}
 export function prepareStage(career,active=false){
  const next=editable(career,active),state=next.championships?.active,cup=activeCup(state);if(!cup)throw new Error('Нет активного кубка');
- const [eventId,weather]=cup.stages[state.stage];next.car=state.carId;next.eventId=eventId;next.weather=weather;return next;
+ const [eventId,weather]=cup.stages[state.stage];next.car=state.carId;next.eventId=eventId;next.weather=weather;next.raceIntent={kind:'cup',cupId:state.cupId,attempt:state.attempt,stage:state.stage};return next;
 }
 function entrants(cup){return [{id:'player',name:'Ты'},...cup.roster.map(([id,name,carId,pilotId,style,parts,engineId])=>({id,name,carId,pilotId,style,parts,engineId}))];}
 export function standings(state){
@@ -109,7 +109,7 @@ export function settleCup(career,race){
  if(!state||!cup||tag.cupId!==cup.id||tag.attempt!==state.attempt||tag.stage!==state.stage||race.eventId!==cup.stages[state.stage][0]||race.weather!==cup.stages[state.stage][1]||race.config.car.id!==state.carId)throw new Error('Заезд не соответствует текущему этапу');
  if(!race.finished)throw new Error('Этап ещё не завершён');
  if(!cup.roster.some(r=>r[0]===tag.featuredId)||typeof race.runId!=='string'||!race.runId||race.runId.length>80)throw new Error('Неверная запись этапа');
- const next=structuredClone(career),season=next.championships.active;
+ const next=structuredClone(career),season=next.championships.active;next.raceIntent=null;
  const summarize=(id,s)=>({id,time:s.time,score:s.drift?.score||0,dnf:!!s.dnf,falseStart:!!s.drag?.falseStart,position:0,points:0});
  const rows=[summarize('player',race.player)];
  for(const opponent of entrants(cup).slice(1)){
